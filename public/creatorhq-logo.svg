@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 56" fill="none">
+  <defs>
+    <linearGradient id="chqGrad" x1="4" y1="4" x2="44" y2="44" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="50%" stop-color="#0ea5e9" />
+      <stop offset="100%" stop-color="#0284c7" />
+    </linearGradient>
+    <linearGradient id="chqCore" x1="18" y1="14" x2="32" y2="34" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="100%" stop-color="#38bdf8" />
+    </linearGradient>
+    <linearGradient id="chqDark" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#141822" />
+      <stop offset="100%" stop-color="#07090d" />
+    </linearGradient>
+    <filter id="chqGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="0" stdDeviation="3" flood-color="#0ea5e9" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <!-- Emblem Container -->
+  <g transform="translate(4, 4)">
+    <!-- Outer Hex-faceted Protective Arc -->
+    <path
+      d="M24 4L39 12.6V35.4L24 44L9 35.4V12.6L24 4Z"
+      fill="url(#chqDark)"
+      stroke="url(#chqGrad)"
+      stroke-width="2.6"
+      stroke-linejoin="round"
+      filter="url(#chqGlow)"
+    />
+
+    <!-- Dynamic Inner Interlocking C-Prism -->
+    <path
+      d="M33 16.5C30.5 13.5 26.5 12 22 13C16.5 14.2 12.5 19 13 25C13.5 31 18.5 35.5 24.5 35C29 34.5 32.5 32 34 28.5L28.5 25.5C27.5 27.5 25.5 28.8 23 28.5C20 28.2 17.5 25.5 17.8 22.5C18.1 19.5 20.8 17.2 23.8 17.5C25.8 17.7 27.2 18.8 28.2 20.2L33 16.5Z"
+      fill="url(#chqGrad)"
+    />
+
+    <!-- Central Precision Play Core Symbol -->
+    <path
+      d="M22 19.5L30.5 24.5L22 29.5V19.5Z"
+      fill="url(#chqCore)"
+    />
+  </g>
+
+  <!-- Typography: CreatorHQ -->
+  <text x="64" y="36" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="26" font-weight="800" fill="#ffffff" letter-spacing="-0.5">Creator<tspan fill="#38bdf8">HQ</tspan></text>
+
+  <!-- Cyan Indicator Dot -->
+  <circle cx="218" cy="31" r="3.5" fill="#38bdf8" filter="url(#chqGlow)" />
+</svg>
