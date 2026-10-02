@@ -81,6 +81,9 @@ export const metadata: Metadata = {
   },
   verification: {
     google: 'googleb0101f307ca8d45d',
+    other: {
+      'msvalidate.01': '83AB634301382EC7252A283C77A44E20',
+    },
   },
 };
 
@@ -168,6 +171,8 @@ export default function RootLayout({
     >
       <head>
         <meta name="referrer" content="no-referrer" />
+        <meta name="msvalidate.01" content="83AB634301382EC7252A283C77A44E20" />
+        <meta name="google-site-verification" content="googleb0101f307ca8d45d" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdData) }}
