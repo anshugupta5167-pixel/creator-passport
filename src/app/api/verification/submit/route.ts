@@ -6,6 +6,9 @@ import {
   getCreatorBySlugDB,
 } from '@/lib/db';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 // GET: List all verification submissions (admin only)
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -23,10 +26,19 @@ export async function GET(request: NextRequest) {
     verifications = verifications.filter((v) => v.status === status.toUpperCase());
   }
 
-  return NextResponse.json({
-    count: verifications.length,
-    verifications,
-  });
+  return NextResponse.json(
+    {
+      count: verifications.length,
+      verifications,
+    },
+    {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'CDN-Cache-Control': 'no-store',
+        'Vercel-CDN-Cache-Control': 'no-store',
+      },
+    }
+  );
 }
 
 // POST: Submit a new verification request with proof documents

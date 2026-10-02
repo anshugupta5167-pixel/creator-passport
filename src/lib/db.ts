@@ -1,32 +1,81 @@
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 import { CreatorProfile, VerificationSubmission, ProofDocument, VerificationStatus } from './types';
 import { syncCreatorToFirebase, fetchCreatorsFromFirebase, deleteCreatorFromFirebase } from './firebase';
 import { resolveYouTubeUrl, resolveDiscordUrl } from './urls';
 
-const DATA_DIR = path.join(process.cwd(), 'data');
-const DB_FILE = path.join(DATA_DIR, 'creators.json');
-const VERIFICATION_FILE = path.join(DATA_DIR, 'verifications.json');
-const PROOFS_DIR = path.join(process.cwd(), 'data', 'proofs');
+// Seed directory bundled with project (read-only in Vercel lambdas)
+const SEED_DIR = path.join(process.cwd(), 'data');
+const SEED_DB_FILE = path.join(SEED_DIR, 'creators.json');
+const SEED_VERIFICATION_FILE = path.join(SEED_DIR, 'verifications.json');
 
 // In-memory cache for ultra-fast access
 let memoryCreators: CreatorProfile[] = [];
 let memoryVerifications: VerificationSubmission[] = [];
 let isLoaded = false;
 
+// Check if running on Vercel / serverless environment
+export function getWritablePaths() {
+  const isServerless = Boolean(
+    process.env.VERCEL || 
+    process.env.AWS_LAMBDA_FUNCTION_NAME || 
+    process.env.NOW_REGION
+  );
+
+  if (isServerless) {
+    const tmpDataDir = path.join(os.tmpdir(), 'creator-passport-data');
+    return {
+      dataDir: tmpDataDir,
+      dbFile: path.join(tmpDataDir, 'creators.json'),
+      verificationFile: path.join(tmpDataDir, 'verifications.json'),
+      proofsDir: path.join(tmpDataDir, 'proofs'),
+      isTmp: true,
+    };
+  }
+
+  return {
+    dataDir: SEED_DIR,
+    dbFile: SEED_DB_FILE,
+    verificationFile: SEED_VERIFICATION_FILE,
+    proofsDir: path.join(SEED_DIR, 'proofs'),
+    isTmp: false,
+  };
+}
+
 function ensureDataFile() {
   try {
-    if (!fs.existsSync(DATA_DIR)) {
-      fs.mkdirSync(DATA_DIR, { recursive: true });
+    const paths = getWritablePaths();
+    if (!fs.existsSync(paths.dataDir)) {
+      fs.mkdirSync(paths.dataDir, { recursive: true });
     }
-    if (!fs.existsSync(DB_FILE)) {
-      fs.writeFileSync(DB_FILE, JSON.stringify([], null, 2), 'utf8');
+
+    if (!fs.existsSync(paths.dbFile)) {
+      if (paths.isTmp && fs.existsSync(SEED_DB_FILE)) {
+        try {
+          fs.copyFileSync(SEED_DB_FILE, paths.dbFile);
+        } catch (e) {
+          fs.writeFileSync(paths.dbFile, JSON.stringify([], null, 2), 'utf8');
+        }
+      } else {
+        fs.writeFileSync(paths.dbFile, JSON.stringify([], null, 2), 'utf8');
+      }
     }
-    if (!fs.existsSync(VERIFICATION_FILE)) {
-      fs.writeFileSync(VERIFICATION_FILE, JSON.stringify([], null, 2), 'utf8');
+
+    if (!fs.existsSync(paths.verificationFile)) {
+      if (paths.isTmp && fs.existsSync(SEED_VERIFICATION_FILE)) {
+        try {
+          fs.copyFileSync(SEED_VERIFICATION_FILE, paths.verificationFile);
+        } catch (e) {
+          fs.writeFileSync(paths.verificationFile, JSON.stringify([], null, 2), 'utf8');
+        }
+      } else {
+        fs.writeFileSync(paths.verificationFile, JSON.stringify([], null, 2), 'utf8');
+      }
     }
-    if (!fs.existsSync(PROOFS_DIR)) {
-      fs.mkdirSync(PROOFS_DIR, { recursive: true });
+
+    if (!fs.existsSync(paths.proofsDir)) {
+      fs.mkdirSync(paths.proofsDir, { recursive: true });
     }
   } catch (err) {
     console.error('[DB] Error ensuring data directory/file:', err);
@@ -40,8 +89,16 @@ function ensureDataFile() {
 export function loadCreatorsFromDisk(): CreatorProfile[] {
   try {
     ensureDataFile();
-    if (fs.existsSync(DB_FILE)) {
-      const content = fs.readFileSync(DB_FILE, 'utf8');
+    const paths = getWritablePaths();
+    let content = '';
+
+    if (fs.existsSync(paths.dbFile)) {
+      content = fs.readFileSync(paths.dbFile, 'utf8');
+    } else if (fs.existsSync(SEED_DB_FILE)) {
+      content = fs.readFileSync(SEED_DB_FILE, 'utf8');
+    }
+
+    if (content) {
       const parsed: CreatorProfile[] = JSON.parse(content || '[]');
       memoryCreators = parsed.map((c) => {
         const slug = (c.slug || c.passportId || c.username || 'creator')
@@ -69,7 +126,17 @@ export function saveCreatorsToDisk(creators: CreatorProfile[]): boolean {
   memoryCreators = creators;
   try {
     ensureDataFile();
-    fs.writeFileSync(DB_FILE, JSON.stringify(creators, null, 2), 'utf8');
+    const paths = getWritablePaths();
+    fs.writeFileSync(paths.dbFile, JSON.stringify(creators, null, 2), 'utf8');
+
+    // Also attempt writing to local seed file if writable (local development)
+    if (!paths.isTmp || fs.existsSync(SEED_DB_FILE)) {
+      try {
+        fs.writeFileSync(SEED_DB_FILE, JSON.stringify(creators, null, 2), 'utf8');
+      } catch (e) {
+        // Read-only filesystem on Vercel is expected and handled
+      }
+    }
     return true;
   } catch (err) {
     console.error('[DB] Error saving creators to disk:', err);
@@ -308,8 +375,16 @@ export async function deleteCreatorDB(target: string): Promise<boolean> {
 function loadVerificationsFromDisk(): VerificationSubmission[] {
   try {
     ensureDataFile();
-    if (fs.existsSync(VERIFICATION_FILE)) {
-      const content = fs.readFileSync(VERIFICATION_FILE, 'utf8');
+    const paths = getWritablePaths();
+    let content = '';
+
+    if (fs.existsSync(paths.verificationFile)) {
+      content = fs.readFileSync(paths.verificationFile, 'utf8');
+    } else if (fs.existsSync(SEED_VERIFICATION_FILE)) {
+      content = fs.readFileSync(SEED_VERIFICATION_FILE, 'utf8');
+    }
+
+    if (content) {
       memoryVerifications = JSON.parse(content || '[]');
       return memoryVerifications;
     }
@@ -323,7 +398,14 @@ function saveVerificationsToDisk(items: VerificationSubmission[]): boolean {
   memoryVerifications = items;
   try {
     ensureDataFile();
-    fs.writeFileSync(VERIFICATION_FILE, JSON.stringify(items, null, 2), 'utf8');
+    const paths = getWritablePaths();
+    fs.writeFileSync(paths.verificationFile, JSON.stringify(items, null, 2), 'utf8');
+
+    if (!paths.isTmp || fs.existsSync(SEED_VERIFICATION_FILE)) {
+      try {
+        fs.writeFileSync(SEED_VERIFICATION_FILE, JSON.stringify(items, null, 2), 'utf8');
+      } catch (e) {}
+    }
     return true;
   } catch (err) {
     console.error('[DB] Error saving verifications:', err);
@@ -585,7 +667,8 @@ export function saveProofDocumentDB(
   try {
     ensureDataFile();
 
-    const creatorProofsDir = path.join(PROOFS_DIR, creatorSlug);
+    const paths = getWritablePaths();
+    const creatorProofsDir = path.join(paths.proofsDir, creatorSlug);
     if (!fs.existsSync(creatorProofsDir)) {
       fs.mkdirSync(creatorProofsDir, { recursive: true });
     }
@@ -619,9 +702,14 @@ export function saveProofDocumentDB(
 }
 
 export function getProofFilePath(creatorSlug: string, storedFilename: string): string | null {
-  const filePath = path.join(PROOFS_DIR, creatorSlug, storedFilename);
+  const paths = getWritablePaths();
+  const filePath = path.join(paths.proofsDir, creatorSlug, storedFilename);
   if (fs.existsSync(filePath)) {
     return filePath;
+  }
+  const seedPath = path.join(SEED_DIR, 'proofs', creatorSlug, storedFilename);
+  if (fs.existsSync(seedPath)) {
+    return seedPath;
   }
   return null;
 }

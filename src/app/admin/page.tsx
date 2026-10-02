@@ -492,22 +492,43 @@ export default function AdminPage() {
         if (data.creators) {
           let list = [...data.creators];
           try {
+            // Overlay any local verification overrides so serverless restarts or read-only cold boots never revert
+            const verifiedOverrides = JSON.parse(localStorage.getItem('creatorhq_verified_creators') || '{}');
+            list = list.map((c: CreatorProfile) => {
+              const s = (c.slug || c.username || c.passportId || '').toLowerCase().replace(/^@/, '');
+              if (s in verifiedOverrides) {
+                const isV = Boolean(verifiedOverrides[s]);
+                return {
+                  ...c,
+                  isVerified: isV,
+                  verification_status: isV ? 'VERIFIED' : 'PENDING',
+                  tierName: isV 
+                    ? (c.tierName && c.tierName !== 'Candidate Member' ? c.tierName : 'Founding Member Tier I')
+                    : 'Candidate Member',
+                };
+              }
+              return c;
+            });
+
             const saved = localStorage.getItem('creatorhq_user_card');
             if (saved) {
               const parsed: CreatorProfile = JSON.parse(saved);
-              const slug = (parsed.slug || parsed.username || parsed.passportId || '').toLowerCase();
+              const slug = (parsed.slug || parsed.username || parsed.passportId || '').toLowerCase().replace(/^@/, '');
               const existingIdx = list.findIndex(
                 (c: CreatorProfile) =>
-                  (c.slug || c.username || c.passportId || '').toLowerCase() === slug
+                  (c.slug || c.username || c.passportId || '').toLowerCase().replace(/^@/, '') === slug
               );
               if (existingIdx >= 0) {
-                // Sync updated server verification status to localStorage
-                if (
-                  list[existingIdx].isVerified !== parsed.isVerified ||
-                  list[existingIdx].verification_status !== parsed.verification_status
-                ) {
-                  localStorage.setItem('creatorhq_user_card', JSON.stringify(list[existingIdx]));
+                // If local override exists, keep it
+                if (slug in verifiedOverrides) {
+                  const isV = Boolean(verifiedOverrides[slug]);
+                  list[existingIdx].isVerified = isV;
+                  list[existingIdx].verification_status = isV ? 'VERIFIED' : 'PENDING';
+                  list[existingIdx].tierName = isV 
+                    ? (list[existingIdx].tierName && list[existingIdx].tierName !== 'Candidate Member' ? list[existingIdx].tierName : 'Founding Member Tier I')
+                    : 'Candidate Member';
                 }
+                localStorage.setItem('creatorhq_user_card', JSON.stringify(list[existingIdx]));
               } else {
                 list.unshift(parsed);
               }
@@ -599,6 +620,13 @@ export default function AdminPage() {
           tierName: nextVerified ? 'Founding Member Tier I' : 'Candidate Member',
           lastVerifiedAt: new Date().toISOString().split('T')[0],
         };
+
+        // Persist verified state in localStorage so Vercel restarts/caches never flip it back
+        try {
+          const verifiedOverrides = JSON.parse(localStorage.getItem('creatorhq_verified_creators') || '{}');
+          verifiedOverrides[targetSlug] = nextVerified;
+          localStorage.setItem('creatorhq_verified_creators', JSON.stringify(verifiedOverrides));
+        } catch (e) {}
 
         setCreators((prev) =>
           prev.map((c) =>
@@ -727,6 +755,12 @@ export default function AdminPage() {
 
         if (data.creator) {
           const targetSlug = (data.creator.slug || data.creator.username || data.creator.passportId || '').toLowerCase();
+          try {
+            const verifiedOverrides = JSON.parse(localStorage.getItem('creatorhq_verified_creators') || '{}');
+            verifiedOverrides[targetSlug] = true;
+            localStorage.setItem('creatorhq_verified_creators', JSON.stringify(verifiedOverrides));
+          } catch (e) {}
+
           setCreators((prev) =>
             prev.map((c) =>
               (c.slug || c.username || c.passportId || '').toLowerCase() === targetSlug
@@ -766,6 +800,15 @@ export default function AdminPage() {
         body: JSON.stringify({ verificationId: id, action: 'REJECT', rejectionReason: reason, reviewedBy: 'Admin' }),
       });
       if (res.ok) {
+        const data = await res.json().catch(() => ({}));
+        if (data.creator) {
+          const targetSlug = (data.creator.slug || data.creator.username || data.creator.passportId || '').toLowerCase();
+          try {
+            const verifiedOverrides = JSON.parse(localStorage.getItem('creatorhq_verified_creators') || '{}');
+            verifiedOverrides[targetSlug] = false;
+            localStorage.setItem('creatorhq_verified_creators', JSON.stringify(verifiedOverrides));
+          } catch (e) {}
+        }
         setActionFeedback(`Verification rejected. Reason: ${reason}`);
         setInspectingSubmission(null);
         await loadLiveData();

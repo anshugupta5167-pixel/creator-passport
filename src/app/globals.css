@@ -29,19 +29,17 @@ html {
   text-rendering: optimizeLegibility;
   background-color: #0b0d11;
   color: #ffffff;
-  scroll-padding-top: 5rem;
+  scroll-behavior: auto !important;
 }
 
-/* Lenis smooth-scroll engine overrides */
 html.lenis, html.lenis body {
   height: auto;
 }
+
 .lenis.lenis-smooth {
-  scroll-behavior: auto; /* Lenis handles scrolling via JS */
+  scroll-behavior: auto !important;
 }
-.lenis.lenis-smooth [data-lenis-prevent] {
-  overscroll-behavior: contain;
-}
+
 .lenis.lenis-stopped {
   overflow: hidden;
 }

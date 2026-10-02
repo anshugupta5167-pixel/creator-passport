@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAllCreatorsDB, addCreatorDB, deleteCreatorDB, getCreatorByIpDB, getCreatorByIdDB, normalizeIp, isSameIp } from '@/lib/db';
 import { CreatorProfile } from '@/lib/types';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const category = searchParams.get('category');
@@ -11,12 +14,15 @@ export async function GET(request: NextRequest) {
   let creators = getAllCreatorsDB();
 
   if (query) {
-    const q = query.toLowerCase();
+    const q = query.toLowerCase().trim().replace(/^@/, '');
     creators = creators.filter(
       (c) =>
         c.displayName.toLowerCase().includes(q) ||
         c.username.toLowerCase().includes(q) ||
         (c.slug && c.slug.toLowerCase().includes(q)) ||
+        (c.passportId && c.passportId.toLowerCase().includes(q)) ||
+        (c.handle && c.handle.toLowerCase().replace(/^@/, '').includes(q)) ||
+        (c.id && c.id.toLowerCase().includes(q)) ||
         c.category.toLowerCase().includes(q)
     );
   }
@@ -38,10 +44,19 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return NextResponse.json({
-    count: creators.length,
-    creators: creators,
-  });
+  return NextResponse.json(
+    {
+      count: creators.length,
+      creators: creators,
+    },
+    {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'CDN-Cache-Control': 'no-store',
+        'Vercel-CDN-Cache-Control': 'no-store',
+      },
+    }
+  );
 }
 
 export async function POST(request: NextRequest) {

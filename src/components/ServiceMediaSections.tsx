@@ -817,12 +817,14 @@ export default function ServiceMediaSections({
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-white/10 text-xs">
               <div className="flex items-center gap-2 text-slate-400 font-mono">
                 <span>Domain:</span>
-                <span className="text-sky-400">creatorhq.fun/creator/{inspectingCreator.passportId}</span>
+                <span className="text-sky-400">
+                  creatorhq.fun/{(inspectingCreator.slug || inspectingCreator.username || inspectingCreator.passportId || '').replace(/^@/, '')}
+                </span>
               </div>
 
               <div className="flex items-center gap-2 w-full sm:w-auto">
                 <button
-                  onClick={() => copyCreatorUrl(inspectingCreator.passportId || '')}
+                  onClick={() => copyCreatorUrl((inspectingCreator.slug || inspectingCreator.username || inspectingCreator.passportId || '').replace(/^@/, ''))}
                   className="px-4 py-2 rounded-lg bg-[#161922] border border-white/10 hover:border-sky-400 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors flex-1 sm:flex-initial"
                 >
                   <Copy className="w-3.5 h-3.5" />
@@ -830,7 +832,7 @@ export default function ServiceMediaSections({
                 </button>
 
                 <Link
-                  href={`/creator/${inspectingCreator.passportId}`}
+                  href={`/${(inspectingCreator.slug || inspectingCreator.username || inspectingCreator.passportId || '').replace(/^@/, '')}`}
                   className="px-4 py-2 rounded-lg btn-chq-primary text-xs font-semibold flex items-center justify-center gap-1.5 flex-1 sm:flex-initial"
                 >
                   <span>Full Profile</span>

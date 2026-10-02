@@ -32,6 +32,19 @@ export default function Navbar() {
                       (c.slug && parsed.slug && c.slug.toLowerCase() === parsed.slug.toLowerCase())
                   );
                   if (matched) {
+                    try {
+                      const verifiedOverrides = JSON.parse(localStorage.getItem('creatorhq_verified_creators') || '{}');
+                      const s = (matched.slug || matched.username || matched.passportId || '').toLowerCase().replace(/^@/, '');
+                      if (s in verifiedOverrides) {
+                        const isV = Boolean(verifiedOverrides[s]);
+                        matched.isVerified = isV;
+                        matched.verification_status = isV ? 'VERIFIED' : 'PENDING';
+                        matched.tierName = isV 
+                          ? (matched.tierName && matched.tierName !== 'Candidate Member' ? matched.tierName : 'Founding Member Tier I')
+                          : 'Candidate Member';
+                      }
+                    } catch (e) {}
+
                     setSavedCreator(matched);
                     try {
                       localStorage.setItem('creatorhq_user_card', JSON.stringify(matched));

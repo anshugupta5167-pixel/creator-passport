@@ -141,14 +141,30 @@ export default function CreatorProfileView({ creator, targetId }: CreatorProfile
           .then((res) => res.json())
           .then((data) => {
             if (data.creators && data.creators.length > 0) {
+              const cleanT = targetId.toLowerCase().replace(/^@/, '');
               const matched = data.creators.find(
                 (c: CreatorProfile) =>
-                  (c.slug && c.slug.toLowerCase() === targetId.toLowerCase()) ||
-                  c.username.toLowerCase() === targetId.toLowerCase()
+                  (c.slug && c.slug.toLowerCase() === cleanT) ||
+                  (c.username && c.username.toLowerCase() === cleanT) ||
+                  (c.passportId && c.passportId.toLowerCase() === cleanT) ||
+                  (c.handle && c.handle.toLowerCase().replace(/^@/, '') === cleanT) ||
+                  (c.id && c.id.toLowerCase() === cleanT)
               );
               if (matched) {
                 setActiveCreator(matched);
+              } else {
+                setActiveCreator(data.creators[0]);
               }
+            }
+            setIsSearching(false);
+          })
+          .catch(() => setIsSearching(false));
+      } else if (!creator) {
+        fetch('/api/creators')
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.creators && data.creators.length > 0) {
+              setActiveCreator(data.creators[0]);
             }
             setIsSearching(false);
           })

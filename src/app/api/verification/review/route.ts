@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { updateVerificationStatusDB } from '@/lib/db';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 // POST: Admin approves, revokes, or rejects a verification submission or creator
 export async function POST(request: NextRequest) {
   try {

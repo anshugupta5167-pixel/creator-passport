@@ -11,9 +11,9 @@
     "country": "Global",
     "location": "Global",
     "bio": "Welcome to Unrulek  your go-to place for tech content, tutorials, hosting guides, cloud projects, gaming servers, bots, websites, panels, VPS setups, troubleshooting, and the latest online tools.\n\nOn this channel, you’ll find videos about tech, development, Discord bots, hosting solutions, Pterodactyl, Minecraft servers, website design, cloud hosti",
-    "isVerified": false,
+    "isVerified": true,
     "isFounding": true,
-    "tierName": "Candidate Member",
+    "tierName": "Founding Member Tier I",
     "profileCompletion": 95,
     "contactEmail": "aewew@gmail.com",
     "issuedAt": "2026-09-30",
@@ -95,7 +95,7 @@
     "registeredIp": "49.36.192.210",
     "clientIp": "49.36.192.210",
     "niche": "Gaming Creator",
-    "verification_status": "PENDING",
+    "verification_status": "VERIFIED",
     "proofDocuments": []
   }
 ]

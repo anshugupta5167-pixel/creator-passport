@@ -49,12 +49,21 @@ export const metadata: Metadata = {
     title: 'CreatorHQ — Sovereign Digital Passports & Verified Creator Identities',
     description:
       'The verifiable digital passport for YouTube creators and Discord community founders. Audited metrics, fraud-proof credentials, and direct brand connections.',
+    images: [
+      {
+        url: '/og-banner.png',
+        width: 1200,
+        height: 630,
+        alt: 'CreatorHQ — Sovereign Digital Passports & Verified Creator Identities',
+      },
+    ],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'CreatorHQ — Sovereign Digital Passports & Verified Creator Identities',
     description:
       'The verifiable digital passport for YouTube creators and Discord community founders.',
+    images: ['/og-banner.png'],
   },
   robots: {
     index: true,

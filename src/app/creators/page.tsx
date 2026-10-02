@@ -40,6 +40,26 @@ export default function CreatorsDirectoryPage() {
           if (data.creators && isMounted) {
             let combined = [...data.creators];
             
+            // Check verified overrides
+            try {
+              const verifiedOverrides = JSON.parse(localStorage.getItem('creatorhq_verified_creators') || '{}');
+              combined = combined.map((c: CreatorProfile) => {
+                const s = (c.slug || c.username || c.passportId || '').toLowerCase().replace(/^@/, '');
+                if (s in verifiedOverrides) {
+                  const isV = Boolean(verifiedOverrides[s]);
+                  return {
+                    ...c,
+                    isVerified: isV,
+                    verification_status: isV ? 'VERIFIED' : 'PENDING',
+                    tierName: isV 
+                      ? (c.tierName && c.tierName !== 'Candidate Member' ? c.tierName : 'Founding Member Tier I')
+                      : 'Candidate Member',
+                  };
+                }
+                return c;
+              });
+            } catch (e) {}
+
             // Also check localStorage
             try {
               const savedCard = localStorage.getItem('creatorhq_user_card');

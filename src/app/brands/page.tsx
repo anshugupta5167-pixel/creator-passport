@@ -201,7 +201,7 @@ export default function BrandsPage() {
                     </div>
 
                     <Link
-                      href={`/creator/${c.passportId}`}
+                      href={`/${(c.slug || c.username || c.passportId || '').replace(/^@/, '')}`}
                       className="px-4 py-2 rounded-lg btn-chq-primary text-sm font-semibold shrink-0"
                     >
                       View Creator ID
