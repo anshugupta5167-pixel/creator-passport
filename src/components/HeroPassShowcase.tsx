@@ -10,20 +10,20 @@ interface HeroPassShowcaseProps {
   initialCreators?: CreatorProfile[];
 }
 
-// Pristine Founding Pass Template shown only before any creator has minted their card
-const DEFAULT_FOUNDING_TEMPLATE: CreatorProfile = {
-  id: 'template_001',
-  passportId: 'yourhandle',
-  slug: 'yourhandle',
-  handle: '@yourhandle',
+// Pristine "Your Channel" Demo Card shown for general visitors & prospective creators
+const DEMO_CHANNEL_TEMPLATE: CreatorProfile = {
+  id: 'template_demo',
+  passportId: 'yourchannel',
+  slug: 'yourchannel',
+  handle: '@yourchannel',
   verification_status: 'VERIFIED' as const,
-  username: 'yourhandle',
+  username: 'yourchannel',
   displayName: 'Your Channel Name',
-  avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
-  category: 'Gaming & Tech',
+  avatarUrl: '/icon.svg',
+  category: 'Gaming & Tech Creator',
   country: 'Global',
   location: 'Global',
-  bio: 'Mint your official Sovereign Creator Pass to establish audited trust with global sponsors.',
+  bio: 'Authenticate your YouTube channel & Discord community to mint your sovereign verified Creator Pass.',
   isVerified: true,
   isFounding: true,
   tierName: 'Founding Member #000001',
@@ -39,7 +39,7 @@ const DEFAULT_FOUNDING_TEMPLATE: CreatorProfile = {
       connected: true,
       username: 'YourChannel',
       metricLabel: 'subscribers',
-      metricValue: '100K+',
+      metricValue: '100K+ Subscribers',
       verified: true,
       profileUrl: 'https://youtube.com',
       lastSynced: '2026-09-30',
@@ -47,31 +47,31 @@ const DEFAULT_FOUNDING_TEMPLATE: CreatorProfile = {
     discord: {
       platform: 'DISCORD',
       connected: true,
-      username: 'community#0001',
+      username: 'YourCommunity',
       metricLabel: 'members',
-      metricValue: '10K+',
+      metricValue: '10K+ Members',
       verified: true,
       profileUrl: 'https://discord.gg',
       lastSynced: '2026-09-30',
     },
   },
-  skills: ['Content Creation', 'Verified Reach'],
+  skills: ['Content Creation', 'Audited Metrics', 'Brand Deals'],
   achievements: [],
   collaborations: [],
   portfolio: [],
 };
 
 export default function HeroPassShowcase({ initialCreators = [] }: HeroPassShowcaseProps) {
-  const [activeCreator, setActiveCreator] = useState<CreatorProfile>(DEFAULT_FOUNDING_TEMPLATE);
+  const [activeCreator, setActiveCreator] = useState<CreatorProfile>(DEMO_CHANNEL_TEMPLATE);
   const [hasRealCreator, setHasRealCreator] = useState(false);
 
   useEffect(() => {
-    // 1. Check client localStorage for newly minted user card
+    // 1. Only show real card if the current viewer is the actual owner (saved on their device)
     try {
       const saved = localStorage.getItem('creatorhq_user_card');
       if (saved) {
         const parsed: CreatorProfile = JSON.parse(saved);
-        if (parsed && parsed.displayName) {
+        if (parsed && (parsed.displayName || parsed.username)) {
           setActiveCreator(parsed);
           setHasRealCreator(true);
           return;
@@ -79,22 +79,10 @@ export default function HeroPassShowcase({ initialCreators = [] }: HeroPassShowc
       }
     } catch (e) {}
 
-    // 2. Otherwise check server/API database
-    if (initialCreators && initialCreators.length > 0) {
-      setActiveCreator(initialCreators[0]);
-      setHasRealCreator(true);
-    } else {
-      fetch('/api/creators')
-        .then((res) => res.json())
-        .then((data) => {
-          if (data && data.creators && data.creators.length > 0) {
-            setActiveCreator(data.creators[0]);
-            setHasRealCreator(true);
-          }
-        })
-        .catch(() => {});
-    }
-  }, [initialCreators]);
+    // 2. For all other visitors and users, show the "Your Channel" Demo Card
+    setActiveCreator(DEMO_CHANNEL_TEMPLATE);
+    setHasRealCreator(false);
+  }, []);
 
   return (
     <div className="pt-10 flex flex-col items-center justify-center">

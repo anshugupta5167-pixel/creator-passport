@@ -108,6 +108,40 @@ export default function DashboardPage() {
 
   const [studioTab, setStudioTab] = useState<'editor' | 'showcase'>('editor');
 
+  // Handle Availability Real-Time Check
+  const [handleCheckStatus, setHandleCheckStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle');
+  const [handleCheckMessage, setHandleCheckMessage] = useState<string>('');
+
+  useEffect(() => {
+    const clean = username.trim().toLowerCase().replace(/^@/, '');
+    if (!clean || clean.length < 2) {
+      setHandleCheckStatus('idle');
+      setHandleCheckMessage('');
+      return;
+    }
+
+    setHandleCheckStatus('checking');
+    const timer = setTimeout(() => {
+      const ytParam = youtubeChannelId || youtubeUrl || '';
+      fetch(`/api/creators?check=${encodeURIComponent(clean)}&yt=${encodeURIComponent(ytParam)}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.claimed) {
+            setHandleCheckStatus('taken');
+            setHandleCheckMessage(data.message || 'Already taken by another creator');
+          } else {
+            setHandleCheckStatus('available');
+            setHandleCheckMessage('✓ Available');
+          }
+        })
+        .catch(() => {
+          setHandleCheckStatus('idle');
+        });
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [username, youtubeChannelId, youtubeUrl]);
+
   // One Person, One Card per IP State
   const [detectedIp, setDetectedIp] = useState<string>('');
   const [ipExistingCard, setIpExistingCard] = useState<any | null>(null);
@@ -331,15 +365,6 @@ export default function DashboardPage() {
             setDetectedIp(clientIp);
             if (data.hasExistingCard && data.existingCreator) {
               setIpExistingCard(data.existingCreator);
-              if (!isResetUrl && !saved) {
-                applyCreatorToState(data.existingCreator);
-                try {
-                  localStorage.setItem(STORAGE_KEY, JSON.stringify(data.existingCreator));
-                  if (typeof window !== 'undefined') {
-                    window.dispatchEvent(new Event('creatorhq_profile_updated'));
-                  }
-                } catch (e) {}
-              }
             }
           }
         } catch (err) {
@@ -359,7 +384,7 @@ export default function DashboardPage() {
 
   // Compute live CreatorProfile for PassportCard rendering
   const liveCreator: CreatorProfile = {
-    id: 'user_my_pass',
+    id: hasCreatedCard ? (passportId ? `creator_${passportId}` : 'creator_pass') : 'candidate_demo',
     passportId: passportId || (hasCreatedCard ? (username || 'creator') : 'CHQ-000184'),
     slug: username || (hasCreatedCard ? 'creator' : 'yourchannel'),
     handle: `@${username || (hasCreatedCard ? 'creator' : 'yourchannel')}`,
@@ -790,10 +815,26 @@ export default function DashboardPage() {
       const cleanIg = resolveInstagramUrl(detectedIgUrl, detectedIgUser, username);
       const cleanX = resolveXUrl(detectedXUrl, detectedXUser, username);
 
+      const cleanHandle = (username || 'creator').toLowerCase().replace(/^@/, '').trim();
+      const uniqueId = `creator_${cleanHandle}_${Date.now()}`;
+      let localSecret = '';
+      try {
+        localSecret = localStorage.getItem(`creatorhq_secret_${cleanHandle}`) || '';
+        if (!localSecret) {
+          localSecret = 'sec_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
+          localStorage.setItem(`creatorhq_secret_${cleanHandle}`, localSecret);
+        }
+      } catch (e) {}
+
       const candidateCreator: CreatorProfile = {
         ...liveCreator,
-        id: liveCreator.id || `creator_${Date.now()}`,
-        passportId: mintedId,
+        id: uniqueId,
+        passportId: cleanHandle,
+        slug: cleanHandle,
+        username: cleanHandle,
+        handle: `@${cleanHandle}`,
+        creatorSecret: localSecret,
+        digitalSignature: `0x${Array.from(cleanHandle + uniqueId).map(c => c.charCodeAt(0).toString(16)).join('').padEnd(40, '0').slice(0, 40)}`,
         avatarUrl: avatarUrl || liveCreator.avatarUrl,
         isVerified: false,
         verification_status: 'PENDING',
@@ -807,7 +848,7 @@ export default function DashboardPage() {
             metricValue: detectedYtReach || '',
             verified: true,
             profileUrl: cleanYt,
-            username: (detectedYtUser && detectedYtUser !== 'channel') ? detectedYtUser : (username || 'creator'),
+            username: (detectedYtUser && detectedYtUser !== 'channel') ? detectedYtUser : cleanHandle,
             channelId: detectedYtId,
             proofScreenshot: youtubeProof || undefined,
           },
@@ -853,17 +894,29 @@ export default function DashboardPage() {
       });
       const data = await res.json();
 
-      if (res.status === 409 || data.error === 'ONE_CARD_PER_IP') {
-        const existing = data.existingCard;
-        if (existing) {
-          setIpExistingCard(existing);
+      if (!res.ok || res.status === 409 || data.error) {
+        if (data.error === 'ALREADY_TAKEN') {
+          setToastMessage(`⚠️ Already taken! ${data.message || 'Choose a unique handle or channel.'}`);
+          alert(
+            `⚠️ Already Taken!\n\n` +
+            (data.message || 'This Creator ID, channel name, or YouTube channel is already claimed by another creator.\n\nAnother person cannot create or claim this card. Please choose a unique name.')
+          );
+          return;
         }
-        setToastMessage(`⚠️ 1 Person 1 Card Rule: An account already exists for your IP`);
-        alert(
-          `⚠️ 1 Person, 1 Card Policy Enforced:\n\n` +
-          `A Creator Pass is already registered to your IP (${detectedIp || 'current network'}) for @${existing?.username || 'creator'} (${existing?.displayName || 'Creator'}).\n\n` +
-          `Each creator is permitted only 1 card per IP address.`
-        );
+        if (data.error === 'ONE_CARD_PER_IP') {
+          const existing = data.existingCard;
+          if (existing) {
+            setIpExistingCard(existing);
+          }
+          setToastMessage(`⚠️ 1 Person 1 Card Rule: An account already exists for your IP`);
+          alert(
+            `⚠️ 1 Person, 1 Card Policy Enforced:\n\n` +
+            (data.message || 'A Creator Pass is already registered to your IP. Each creator is permitted only 1 card.')
+          );
+          return;
+        }
+        setToastMessage(`⚠️ Error: ${data.message || 'Failed to save card'}`);
+        alert(`⚠️ Error: ${data.message || 'Failed to save card'}`);
         return;
       }
 
@@ -1036,8 +1089,6 @@ export default function DashboardPage() {
         },
       };
 
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(candidateCreator));
-
       // Persist edits to database
       const res = await fetch('/api/creators', {
         method: 'POST',
@@ -1045,8 +1096,27 @@ export default function DashboardPage() {
         body: JSON.stringify(candidateCreator),
       });
       const data = await res.json();
+
+      if (!res.ok || res.status === 409 || data.error) {
+        if (data.error === 'ALREADY_TAKEN') {
+          setToastMessage(`⚠️ Already taken! ${data.message || 'Identity already claimed.'}`);
+          alert(`⚠️ Already Taken!\n\n${data.message || 'This Creator ID, channel name, or YouTube channel is already claimed by another creator. Another person cannot claim this identity.'}`);
+          return;
+        }
+        if (data.error === 'ONE_CARD_PER_IP') {
+          setToastMessage(`⚠️ 1-Card Rule: An account already exists for your IP`);
+          alert(`⚠️ 1 Person, 1 Card Policy Enforced:\n\n${data.message || 'Only one card per IP is allowed.'}`);
+          return;
+        }
+        setToastMessage(`⚠️ Error: ${data.message || 'Failed to update pass'}`);
+        alert(`⚠️ Error: ${data.message || 'Failed to update pass'}`);
+        return;
+      }
+
       if (data.creator) {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data.creator));
+      } else {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(candidateCreator));
       }
 
       if (typeof window !== 'undefined') {
@@ -1640,17 +1710,43 @@ export default function DashboardPage() {
                       </div>
 
                       <div>
-                        <label className="text-xs font-bold text-slate-200 block mb-1.5 font-sans">
-                          HANDLE / USERNAME *
-                        </label>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <label className="text-xs font-bold text-slate-200 font-sans">
+                            HANDLE / USERNAME *
+                          </label>
+                          {handleCheckStatus === 'checking' && (
+                            <span className="text-[11px] text-slate-400 font-sans animate-pulse">Checking...</span>
+                          )}
+                          {handleCheckStatus === 'taken' && (
+                            <span className="text-[11px] text-red-400 font-semibold font-sans flex items-center gap-1">
+                              <span>❌ Already taken</span>
+                            </span>
+                          )}
+                          {handleCheckStatus === 'available' && (
+                            <span className="text-[11px] text-emerald-400 font-semibold font-sans flex items-center gap-1">
+                              <span>✓ Available</span>
+                            </span>
+                          )}
+                        </div>
                         <input
                           type="text"
                           required
                           value={username}
                           onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
                           placeholder="e.g. nighthawk"
-                          className="w-full px-3.5 py-2.5 rounded-lg bg-[#0a0a0a] border border-[#2e2e2e] text-sm text-white focus:outline-none focus:border-[#3ea6ff] transition-colors font-sans"
+                          className={`w-full px-3.5 py-2.5 rounded-lg bg-[#0a0a0a] border ${
+                            handleCheckStatus === 'taken'
+                              ? 'border-red-500/80 focus:border-red-400'
+                              : handleCheckStatus === 'available'
+                              ? 'border-emerald-500/80 focus:border-emerald-400'
+                              : 'border-[#2e2e2e] focus:border-[#3ea6ff]'
+                          } text-sm text-white focus:outline-none transition-colors font-sans`}
                         />
+                        {handleCheckStatus === 'taken' && (
+                          <p className="mt-1 text-[11px] text-red-400 font-medium">
+                            {handleCheckMessage || 'This Creator ID / handle is already taken by another creator.'}
+                          </p>
+                        )}
                       </div>
                     </div>
 
@@ -1964,10 +2060,11 @@ export default function DashboardPage() {
                   <div className="pt-2">
                     <button
                       type="submit"
-                      className="w-full py-4 rounded-xl btn-chq-primary text-sm font-bold flex items-center justify-center gap-2 shadow-lg hover:scale-[1.01] transition-transform"
+                      disabled={handleCheckStatus === 'taken'}
+                      className="w-full py-4 rounded-xl btn-chq-primary disabled:opacity-50 disabled:cursor-not-allowed text-sm font-bold flex items-center justify-center gap-2 shadow-lg hover:scale-[1.01] transition-transform"
                     >
                       <Check className="w-4 h-4 stroke-[3]" />
-                      <span>Create & Claim My Creator Pass</span>
+                      <span>{handleCheckStatus === 'taken' ? 'Handle Already Taken — Choose Unique Handle' : 'Create & Claim My Creator Pass'}</span>
                       <ArrowRight className="w-4 h-4" />
                     </button>
                   </div>

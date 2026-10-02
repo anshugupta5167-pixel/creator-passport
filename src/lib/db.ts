@@ -234,13 +234,15 @@ export async function addCreatorDB(creator: CreatorProfile): Promise<CreatorProf
   creator.passportId = cleanSlug;
   creator.niche = creator.niche || creator.category || 'Creator';
   creator.category = creator.niche;
-  creator.verification_status = creator.verification_status || (creator.isVerified ? 'VERIFIED' : 'PENDING');
+  if (!creator.id || creator.id === 'user_my_pass') {
+    creator.id = `creator_${cleanSlug}`;
+  }
 
   const existingIdx = current.findIndex(
     (c) =>
       (c.slug && c.slug.toLowerCase() === cleanSlug) ||
-      c.username.toLowerCase() === creator.username.toLowerCase() ||
-      (c.id && creator.id && c.id.toLowerCase() === creator.id.toLowerCase())
+      (c.username && c.username.toLowerCase() === creator.username.toLowerCase()) ||
+      (c.id && c.id !== 'user_my_pass' && creator.id !== 'user_my_pass' && c.id.toLowerCase() === creator.id.toLowerCase())
   );
 
   let updatedList: CreatorProfile[];
@@ -249,9 +251,12 @@ export async function addCreatorDB(creator: CreatorProfile): Promise<CreatorProf
     const merged: CreatorProfile = {
       ...existing,
       ...creator,
+      id: existing.id || `creator_${cleanSlug}`,
       slug: cleanSlug,
       handle: `@${cleanSlug}`,
       passportId: cleanSlug,
+      registeredIp: existing.registeredIp || creator.registeredIp,
+      digitalSignature: existing.digitalSignature || creator.digitalSignature,
       category: creator.category || existing.category,
       niche: creator.niche || existing.niche || creator.category,
       verification_status: creator.verification_status || existing.verification_status,

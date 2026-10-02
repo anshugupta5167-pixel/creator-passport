@@ -113,6 +113,7 @@ export interface CreatorProfile {
   issuedAt: string;
   lastVerifiedAt: string;
   digitalSignature: string; // SHA-256 hash
+  creatorSecret?: string; // Private creator token
   isSuspended: boolean;
   suspensionReason?: string;
   registeredIp?: string;

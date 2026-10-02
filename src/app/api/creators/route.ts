@@ -13,6 +13,25 @@ export async function GET(request: NextRequest) {
 
   let creators = getAllCreatorsDB();
 
+  const checkParam = searchParams.get('check');
+  if (checkParam) {
+    const cleanCheck = checkParam.toLowerCase().trim().replace(/^@/, '');
+    const ytCheck = searchParams.get('yt');
+    const existing = creators.find(
+      (c) =>
+        (c.slug && c.slug.toLowerCase() === cleanCheck) ||
+        (c.username && c.username.toLowerCase() === cleanCheck) ||
+        (c.displayName && c.displayName.toLowerCase() === cleanCheck) ||
+        (c.handle && c.handle.toLowerCase().replace(/^@/, '') === cleanCheck) ||
+        (ytCheck && c.connections?.youtube?.channelId && c.connections.youtube.channelId === ytCheck && ytCheck !== 'UC_demo_channel_id')
+    );
+    return NextResponse.json({
+      available: !existing,
+      claimed: !!existing,
+      message: existing ? `Already taken by @${existing.username}` : 'Available',
+    });
+  }
+
   if (query) {
     const q = query.toLowerCase().trim().replace(/^@/, '');
     creators = creators.filter(
@@ -75,7 +94,6 @@ export async function POST(request: NextRequest) {
       : (realIp || cfIp || clientIpHeader || trueClientIp || '');
     detectedIp = normalizeIp(detectedIp);
 
-    // If client supplied verified clientIp and detectedIp is local/empty, use client's verified IP
     if ((!detectedIp || isSameIp(detectedIp, '127.0.0.1')) && body.clientIp && !isSameIp(body.clientIp, '127.0.0.1')) {
       detectedIp = normalizeIp(body.clientIp);
     }
@@ -84,18 +102,96 @@ export async function POST(request: NextRequest) {
       detectedIp = '127.0.0.1';
     }
 
-    // 2. Check if this is an admin request or an update to an already existing card
     const isAdminRequest = request.headers.get('x-admin-request') === 'true' || (body as any).isAdmin === true;
-    const targetSlug = (body.slug || body.username || body.passportId || '').toLowerCase().replace(/^@/, '');
+    const targetSlug = (body.slug || body.username || body.passportId || '').toLowerCase().replace(/^@/, '').trim();
+    const targetUsername = (body.username || body.slug || '').toLowerCase().replace(/^@/, '').trim();
+    const targetDisplayName = (body.displayName || '').toLowerCase().trim();
+    const allCreators = getAllCreatorsDB();
+
+    // 2. CHECK IF CARD NAME / SLUG / HANDLE IS ALREADY TAKEN BY ANOTHER PERSON
+    const existingByName = allCreators.find(
+      (c) =>
+        (c.slug && c.slug.toLowerCase() === targetSlug) ||
+        (c.username && c.username.toLowerCase() === targetUsername) ||
+        (c.handle && c.handle.toLowerCase().replace(/^@/, '') === targetSlug) ||
+        (c.displayName && c.displayName.toLowerCase() === targetDisplayName)
+    );
+
+    if (existingByName) {
+      // Validate whether requester is the legitimate owner
+      const isOwner =
+        isAdminRequest ||
+        (existingByName.digitalSignature && body.digitalSignature && existingByName.digitalSignature === body.digitalSignature) ||
+        (existingByName.creatorSecret && (body as any).creatorSecret && existingByName.creatorSecret === (body as any).creatorSecret) ||
+        (isSameIp(existingByName.registeredIp, detectedIp) && !isSameIp(detectedIp, '127.0.0.1') && body.id === existingByName.id && existingByName.id !== 'user_my_pass');
+
+      if (!isOwner) {
+        return NextResponse.json(
+          {
+            error: 'ALREADY_TAKEN',
+            message: `Already taken! The Creator ID or channel handle "@${existingByName.username}" (${existingByName.displayName}) is already claimed by another creator. Another person cannot create or claim this card.`,
+            existingCard: {
+              username: existingByName.username,
+              displayName: existingByName.displayName,
+            },
+          },
+          { status: 409 }
+        );
+      }
+    }
+
+    // 3. CHECK IF YOUTUBE CHANNEL IS ALREADY CLAIMED BY ANOTHER CREATOR
+    const targetChannelId = body.connections?.youtube?.channelId?.trim();
+    const targetYtUrl = body.connections?.youtube?.profileUrl?.toLowerCase().trim();
+    const targetYtUsername = body.connections?.youtube?.username?.toLowerCase().trim().replace(/^@/, '');
+
+    const channelConflict = allCreators.find((c) => {
+      if (!c.connections?.youtube?.connected) return false;
+      if (c.slug.toLowerCase() === targetSlug) return false;
+
+      const cId = c.connections.youtube.channelId;
+      if (cId && targetChannelId && cId === targetChannelId && targetChannelId !== 'UC_demo_channel_id') {
+        return true;
+      }
+      const cUrl = c.connections.youtube.profileUrl?.toLowerCase().trim();
+      if (cUrl && targetYtUrl && cUrl === targetYtUrl && !targetYtUrl.includes('yourchannel')) {
+        return true;
+      }
+      const cUser = c.connections.youtube.username?.toLowerCase().trim().replace(/^@/, '');
+      if (cUser && targetYtUsername && cUser === targetYtUsername && targetYtUsername !== 'yourchannel' && targetYtUsername !== 'channel') {
+        return true;
+      }
+      return false;
+    });
+
+    if (channelConflict) {
+      const isOwner =
+        isAdminRequest ||
+        (channelConflict.digitalSignature && body.digitalSignature && channelConflict.digitalSignature === body.digitalSignature);
+
+      if (!isOwner) {
+        return NextResponse.json(
+          {
+            error: 'ALREADY_TAKEN',
+            message: `Already taken! This YouTube channel (@${channelConflict.connections?.youtube?.username || channelConflict.username}) is already connected and claimed by verified Creator Pass @${channelConflict.username}. Another person cannot claim this channel.`,
+            existingCard: {
+              username: channelConflict.username,
+              displayName: channelConflict.displayName,
+            },
+          },
+          { status: 409 }
+        );
+      }
+    }
+
+    // 4. Enforce ONE PERSON, ONE CARD PER IP POLICY (prevent spamming multiple cards)
     const existingInDb = targetSlug ? getCreatorByIdDB(targetSlug) : null;
     const isExistingCardUpdate = !!existingInDb;
 
-    // Enforce ONE PERSON, ONE CARD PER IP POLICY (only for new registrations from non-admin)
     if (!isAdminRequest && !isExistingCardUpdate) {
       const existingByIp = getCreatorByIpDB(detectedIp);
 
       if (existingByIp) {
-        // Check if this is an update to their OWN existing card
         const existingSlug = (existingByIp.slug || existingByIp.username || existingByIp.passportId || '').toLowerCase().replace(/^@/, '');
         const isSameCreator =
           (body.id && body.id === existingByIp.id) ||
@@ -103,7 +199,6 @@ export async function POST(request: NextRequest) {
           (body.passportId && body.passportId.toLowerCase() === (existingByIp.passportId || '').toLowerCase());
 
         if (!isSameCreator) {
-          // Block creation of duplicate card on the same IP
           return NextResponse.json(
             {
               error: 'ONE_CARD_PER_IP',
@@ -124,7 +219,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Bind IP to the card, preserving original IP if updating an existing card
+    // 5. Bind IP to card
     if (existingInDb) {
       body.registeredIp = existingInDb.registeredIp || body.registeredIp || detectedIp;
       body.clientIp = existingInDb.clientIp || body.clientIp || detectedIp;
