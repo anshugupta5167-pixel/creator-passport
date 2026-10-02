@@ -43,31 +43,30 @@ export default function ServiceMediaSections({
   creators: initialCreators,
 }: ServiceMediaSectionsProps) {
   // Directory state: populated purely by created passes
-  const [creatorsList, setCreatorsList] = useState<CreatorProfile[]>(initialCreators);
+  const [creatorsList, setCreatorsList] = useState<CreatorProfile[]>(initialCreators || []);
 
-  // Automatically sync with DB and localStorage so newly created passes show immediately
-  React.useEffect(() => {
+  const refreshCreators = React.useCallback(() => {
     fetch('/api/creators')
       .then((res) => res.json())
       .then((data) => {
-        if (data && Array.isArray(data.creators) && data.creators.length > 0) {
+        if (data && Array.isArray(data.creators)) {
           setCreatorsList(data.creators);
         }
       })
       .catch(() => {});
-
-    try {
-      const savedCard = localStorage.getItem('creatorhq_user_card');
-      if (savedCard) {
-        const userCreator: CreatorProfile = JSON.parse(savedCard);
-        setCreatorsList((prev) => {
-          const exists = prev.some((c) => c.id === userCreator.id || c.passportId === userCreator.passportId);
-          if (exists) return prev;
-          return [userCreator, ...prev];
-        });
-      }
-    } catch (e) {}
   }, []);
+
+  // Automatically sync with DB and listen for live creator updates
+  React.useEffect(() => {
+    refreshCreators();
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('creatorhq_profile_updated', refreshCreators);
+      return () => {
+        window.removeEventListener('creatorhq_profile_updated', refreshCreators);
+      };
+    }
+  }, [refreshCreators]);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All Categories');

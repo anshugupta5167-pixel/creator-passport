@@ -339,37 +339,56 @@ export function clearAllCreatorsDB(): boolean {
   return true;
 }
 
-export async function deleteCreatorDB(target: string): Promise<boolean> {
-  const normalized = target.trim().toUpperCase().replace(/^@/, '');
-  if (normalized === 'ALL' || normalized === 'CLEAR') {
+export async function deleteCreatorDB(target: string | string[]): Promise<boolean> {
+  const rawList = Array.isArray(target) ? target : [target];
+  const targets = rawList
+    .filter(Boolean)
+    .map((t) => t.trim().toUpperCase().replace(/^@/, ''));
+
+  if (targets.includes('ALL') || targets.includes('CLEAR')) {
     return clearAllCreatorsDB();
   }
+
   const current = getAllCreatorsDB();
-  const filtered = current.filter(
-    (c) =>
-      (c.slug && c.slug.toUpperCase() !== normalized) &&
-      (c.passportId && c.passportId.toUpperCase() !== normalized) &&
-      (c.handle && c.handle.toUpperCase().replace(/^@/, '') !== normalized) &&
-      (c.id && c.id.toUpperCase() !== normalized) &&
-      (c.username && c.username.toUpperCase() !== normalized) &&
-      (c.displayName && c.displayName.toUpperCase() !== normalized) &&
-      (!isSameIp(c.registeredIp, target)) &&
-      (!isSameIp(c.clientIp, target))
-  );
-  
+  const filtered = current.filter((c) => {
+    const cSlug = (c.slug || '').toUpperCase();
+    const cPass = (c.passportId || '').toUpperCase();
+    const cHandle = (c.handle || '').toUpperCase().replace(/^@/, '');
+    const cId = (c.id || '').toUpperCase();
+    const cUser = (c.username || '').toUpperCase();
+    const cName = (c.displayName || '').toUpperCase();
+
+    const matchesAny = targets.some(
+      (t) =>
+        t === cSlug ||
+        t === cPass ||
+        t === cHandle ||
+        t === cId ||
+        t === cUser ||
+        t === cName ||
+        isSameIp(c.registeredIp, t) ||
+        isSameIp(c.clientIp, t)
+    );
+
+    return !matchesAny;
+  });
+
   saveCreatorsToDisk(filtered);
 
   try {
     loadVerificationsFromDisk();
-    const filteredVerifs = memoryVerifications.filter(
-      (v) => (v.creatorSlug || '').toUpperCase() !== normalized
-    );
+    const filteredVerifs = memoryVerifications.filter((v) => {
+      const vSlug = (v.creatorSlug || '').toUpperCase();
+      return !targets.includes(vSlug);
+    });
     saveVerificationsToDisk(filteredVerifs);
   } catch (e) {}
 
-  try {
-    await deleteCreatorFromFirebase(target);
-  } catch (e) {}
+  for (const t of targets) {
+    try {
+      await deleteCreatorFromFirebase(t);
+    } catch (e) {}
+  }
   return true;
 }
 

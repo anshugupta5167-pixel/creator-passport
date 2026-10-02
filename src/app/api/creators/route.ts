@@ -240,21 +240,49 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    // Accept slug, handle, or identifier — not CP-IDs
-    let identifier = searchParams.get('slug') || searchParams.get('passportId') || searchParams.get('handle');
-    if (!identifier) {
-      try {
-        const body = await request.json();
-        identifier = body.slug || body.passportId || body.handle;
-      } catch (e) {}
+    const forwarded = request.headers.get('x-forwarded-for');
+    const realIp = request.headers.get('x-real-ip');
+    const cfIp = request.headers.get('cf-connecting-ip');
+    const clientIpHeader = request.headers.get('x-client-ip');
+    const trueClientIp = request.headers.get('true-client-ip');
+
+    let detectedIp = forwarded
+      ? forwarded.split(',')[0].trim()
+      : (realIp || cfIp || clientIpHeader || trueClientIp || '');
+    detectedIp = normalizeIp(detectedIp);
+
+    const targets: string[] = [];
+    const pSlug = searchParams.get('slug');
+    const pUsername = searchParams.get('username');
+    const pPassportId = searchParams.get('passportId');
+    const pHandle = searchParams.get('handle');
+    const pId = searchParams.get('id');
+
+    if (pSlug) targets.push(pSlug);
+    if (pUsername) targets.push(pUsername);
+    if (pPassportId) targets.push(pPassportId);
+    if (pHandle) targets.push(pHandle);
+    if (pId) targets.push(pId);
+
+    try {
+      const body = await request.json();
+      if (body.slug) targets.push(body.slug);
+      if (body.username) targets.push(body.username);
+      if (body.passportId) targets.push(body.passportId);
+      if (body.handle) targets.push(body.handle);
+      if (body.id) targets.push(body.id);
+    } catch (e) {}
+
+    if (targets.length === 0 && detectedIp && !isSameIp(detectedIp, '127.0.0.1')) {
+      targets.push(detectedIp);
     }
 
-    if (!identifier) {
-      return NextResponse.json({ error: 'Creator slug or handle required for deletion' }, { status: 400 });
+    if (targets.length === 0) {
+      return NextResponse.json({ error: 'Creator identifier required for deletion' }, { status: 400 });
     }
 
-    const deleted = await deleteCreatorDB(identifier);
-    return NextResponse.json({ success: true, deleted, identifier });
+    const deleted = await deleteCreatorDB(targets);
+    return NextResponse.json({ success: true, deleted, targets });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Error deleting creator' }, { status: 500 });
   }

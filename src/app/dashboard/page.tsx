@@ -1192,12 +1192,23 @@ export default function DashboardPage() {
     }
 
     try {
-      if (liveCreator.passportId) {
-        await fetch(`/api/creators?passportId=${encodeURIComponent(liveCreator.passportId)}`, {
-          method: 'DELETE',
-        });
-      }
+      const slugToDelete = username || liveCreator.username || liveCreator.slug || liveCreator.passportId || '';
+      const params = new URLSearchParams();
+      if (slugToDelete) params.append('slug', slugToDelete);
+      if (username || liveCreator.username) params.append('username', username || liveCreator.username);
+      if (liveCreator.passportId || passportId) params.append('passportId', liveCreator.passportId || passportId);
+      if (liveCreator.id) params.append('id', liveCreator.id);
+
+      await fetch(`/api/creators?${params.toString()}`, {
+        method: 'DELETE',
+      });
+
       localStorage.removeItem(STORAGE_KEY);
+      if (slugToDelete) {
+        localStorage.removeItem(`creatorhq_secret_${slugToDelete.toLowerCase()}`);
+      }
+
+      setIpExistingCard(null);
       setHasCreatedCard(false);
       setIsEditing(false);
       setIsVerified(false);
@@ -1213,17 +1224,25 @@ export default function DashboardPage() {
       setYoutubeChannelId('');
       setYoutubeUsername('');
       setYoutubeProof(null);
+      setYoutubeFetchedData(null);
       setDiscordUrl('');
       setDiscordReach('');
       setDiscordGuildId('');
       setDiscordUsername('');
       setDiscordProof(null);
+      setInstagramUrl('');
+      setInstagramUsername('');
+      setInstagramReach('');
+      setXUrl('');
+      setXUsername('');
+      setXReach('');
       setMoreChannels([]);
+
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new Event('creatorhq_profile_updated'));
       }
       fetchNextSequentialId();
-      setToastMessage('Your Creator Pass has been permanently deleted.');
+      setToastMessage('✓ Your Creator Pass has been permanently deleted from CreatorHQ.');
       setTimeout(() => setToastMessage(null), 4000);
     } catch (e) {
       alert('Error deleting pass. Check server connection.');
@@ -2180,8 +2199,18 @@ export default function DashboardPage() {
 
                   <button
                     type="button"
+                    onClick={handleDeleteMyPass}
+                    className="px-4 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/25 border border-red-500/30 text-red-400 hover:text-red-300 text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-sm"
+                    title="Permanently delete your profile from the entire site and database"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Delete Pass</span>
+                  </button>
+
+                  <button
+                    type="button"
                     onClick={handleLogout}
-                    className="px-4 py-2 rounded-xl bg-white/5 hover:bg-red-500/20 hover:text-red-400 border border-white/10 text-xs font-semibold text-slate-300 transition-colors flex items-center gap-1.5 shadow-sm"
+                    className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-slate-300 transition-colors flex items-center gap-1.5 shadow-sm"
                     title="Log out and return to demo preview"
                   >
                     <LogOut className="w-3.5 h-3.5" />
