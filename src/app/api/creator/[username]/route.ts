@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCreatorByIdDB, getCreatorByUsernameDB, addCreatorDB } from '@/lib/db';
+import { getCreatorByIdDB, getCreatorByIdDBAsync, getCreatorByUsernameDB, addCreatorDB } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -10,7 +10,7 @@ export async function GET(
 ) {
   const { username } = await context.params;
   const clean = username.replace(/^@/, '');
-  const creator = getCreatorByIdDB(clean) || getCreatorByUsernameDB(clean);
+  const creator = await getCreatorByIdDBAsync(clean) || getCreatorByUsernameDB(clean);
 
   if (!creator) {
     return NextResponse.json(

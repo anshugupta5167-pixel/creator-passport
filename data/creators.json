@@ -54,15 +54,6 @@
         "rawCount": 482,
         "verified": true,
         "profileUrl": "https://instagram.com/anshu_gupta_official"
-      },
-      "x": {
-        "platform": "X",
-        "connected": false,
-        "username": "unrulek",
-        "metricLabel": "followers",
-        "metricValue": "",
-        "verified": false,
-        "profileUrl": "https://x.com/unrulek"
       }
     },
     "moreChannels": [],
@@ -95,6 +86,94 @@
     "portfolio": [],
     "registeredIp": "49.36.192.210",
     "clientIp": "49.36.192.210",
+    "proofDocuments": []
+  },
+  {
+    "id": "creator_sugamd3v_",
+    "passportId": "sugamd3v_",
+    "slug": "sugamd3v_",
+    "handle": "@sugamd3v_",
+    "username": "sugamd3v_",
+    "displayName": "Sugam Dev",
+    "avatarUrl": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=400&q=80",
+    "bio": "Developer, tech creator, and digital innovator building open-source projects, modern web experiences, and community tools.",
+    "category": "Tech & Development",
+    "niche": "Tech & Development",
+    "country": "India",
+    "location": "India",
+    "contactEmail": "sugamdev@creatorhq.fun",
+    "issuedAt": "2026-10-02T14:39:48.234Z",
+    "lastVerifiedAt": "2026-10-02",
+    "digitalSignature": "0x7b2fa109c48e",
+    "isSuspended": false,
+    "isVerified": true,
+    "verification_status": "VERIFIED",
+    "isFounding": true,
+    "tierName": "Founding Member Tier I",
+    "profileCompletion": 100,
+    "connections": {
+      "youtube": {
+        "platform": "YOUTUBE",
+        "connected": true,
+        "username": "Sugam Dev",
+        "metricLabel": "subscribers",
+        "metricValue": "1.2K Subscribers",
+        "rawCount": 1200,
+        "verified": true,
+        "profileUrl": "https://youtube.com/@sugamd3v_",
+        "channelId": "UC_sugamd3v_"
+      },
+      "discord": {
+        "platform": "DISCORD",
+        "connected": true,
+        "username": "sugamd3v_",
+        "metricLabel": "members",
+        "metricValue": "350 Members",
+        "rawCount": 350,
+        "verified": true,
+        "profileUrl": "https://discord.gg/creatorhq",
+        "guildId": "sugam_community"
+      },
+      "instagram": {
+        "platform": "INSTAGRAM",
+        "connected": true,
+        "username": "sugamd3v_",
+        "metricLabel": "followers",
+        "metricValue": "890 Followers",
+        "rawCount": 890,
+        "verified": true,
+        "profileUrl": "https://instagram.com/sugamd3v_"
+      }
+    },
+    "moreChannels": [],
+    "skills": [
+      "Web Development",
+      "Software Engineering",
+      "Tech Tutorials",
+      "Cloud Architecture"
+    ],
+    "achievements": [
+      {
+        "id": "ach_founding",
+        "slug": "founding-creator",
+        "name": "Founding Member",
+        "description": "Verified creator on CreatorHQ Talent Network.",
+        "badgeIcon": "shield-check",
+        "unlockedAt": "2026-10-02"
+      },
+      {
+        "id": "ach_verified",
+        "slug": "verified-creator",
+        "name": "Multi-Platform Verified",
+        "description": "Authenticated audience across creator channels.",
+        "badgeIcon": "badge-check",
+        "unlockedAt": "2026-10-02"
+      }
+    ],
+    "collaborations": [],
+    "portfolio": [],
+    "registeredIp": "127.0.0.1",
+    "clientIp": "127.0.0.1",
     "proofDocuments": []
   }
 ]

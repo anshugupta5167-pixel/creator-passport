@@ -9,6 +9,11 @@ import {
   syncVerificationToFirebase,
   fetchVerificationsFromFirebase 
 } from './firebase';
+import { 
+  fetchFromCloudStore, 
+  pushCreatorsToCloudStore, 
+  pushVerificationsToCloudStore 
+} from './cloudStore';
 import { resolveYouTubeUrl, resolveDiscordUrl } from './urls';
 import { notifySubscribers } from './events';
 
@@ -93,6 +98,34 @@ function ensureDataFile() {
 // CREATOR DATABASE
 // ==========================================
 
+function mergeIncomingCreators(incoming: CreatorProfile[]): boolean {
+  let changed = false;
+  for (const c of incoming) {
+    const clean = (c.slug || c.username || c.passportId || '').toLowerCase().replace(/^@/, '').trim();
+    if (!clean) continue;
+    const idx = memoryCreators.findIndex(
+      (m) => (m.slug || m.username || m.passportId || '').toLowerCase().replace(/^@/, '').trim() === clean
+    );
+    if (idx === -1) {
+      memoryCreators.push({
+        ...c,
+        connections: c.connections || {},
+      });
+      changed = true;
+    } else {
+      memoryCreators[idx] = {
+        ...memoryCreators[idx],
+        ...c,
+        connections: {
+          ...memoryCreators[idx].connections,
+          ...(c.connections || {}),
+        },
+      };
+    }
+  }
+  return changed;
+}
+
 export function loadCreatorsFromDisk(): CreatorProfile[] {
   try {
     ensureDataFile();
@@ -107,7 +140,7 @@ export function loadCreatorsFromDisk(): CreatorProfile[] {
 
     if (content) {
       const parsed: CreatorProfile[] = JSON.parse(content || '[]');
-      memoryCreators = parsed.map((c) => {
+      const diskList = parsed.map((c) => {
         const slug = (c.slug || c.passportId || c.username || 'creator')
           .toLowerCase()
           .replace(/^@/, '')
@@ -121,12 +154,32 @@ export function loadCreatorsFromDisk(): CreatorProfile[] {
           connections: c.connections || {},
         };
       });
+
+      if (memoryCreators.length === 0) {
+        memoryCreators = diskList;
+      } else {
+        mergeIncomingCreators(diskList);
+      }
       isLoaded = true;
-      return memoryCreators;
     }
   } catch (err) {
     console.error('[DB] Error loading creators from disk:', err);
   }
+
+  // Non-blocking background sync with live cloud store
+  fetchFromCloudStore()
+    .then((cloud) => {
+      if (cloud.creators && cloud.creators.length > 0) {
+        if (mergeIncomingCreators(cloud.creators)) {
+          try {
+            const paths = getWritablePaths();
+            fs.writeFileSync(paths.dbFile, JSON.stringify(memoryCreators, null, 2), 'utf8');
+          } catch (e) {}
+        }
+      }
+    })
+    .catch(() => {});
+
   return memoryCreators;
 }
 
@@ -148,11 +201,16 @@ export function saveCreatorsToDisk(creators: CreatorProfile[]): boolean {
         // Read-only filesystem on Vercel is expected and handled
       }
     }
-    return true;
   } catch (err) {
     console.error('[DB] Error saving creators to disk:', err);
-    return false;
   }
+
+  // Instantly push to persistent cloud database so all Vercel instances stay in sync
+  pushCreatorsToCloudStore(memoryCreators).catch((err) => {
+    console.warn('[DB] Cloud sync notice:', err);
+  });
+
+  return true;
 }
 
 export function getAllCreatorsDB(): CreatorProfile[] {
@@ -161,6 +219,16 @@ export function getAllCreatorsDB(): CreatorProfile[] {
     ...c,
     connections: c.connections || {},
   }));
+}
+
+export async function getAllCreatorsDBAsync(): Promise<CreatorProfile[]> {
+  try {
+    const cloud = await fetchFromCloudStore();
+    if (cloud.creators && cloud.creators.length > 0) {
+      mergeIncomingCreators(cloud.creators);
+    }
+  } catch (e) {}
+  return getAllCreatorsDB();
 }
 
 export function getCreatorBySlugDB(slug: string): CreatorProfile | null {
@@ -199,6 +267,21 @@ export function getCreatorByIdDB(target: string): CreatorProfile | null {
   });
   if (!found) return null;
   return { ...found, connections: found.connections || {} };
+}
+
+export async function getCreatorByIdDBAsync(target: string): Promise<CreatorProfile | null> {
+  const local = getCreatorByIdDB(target);
+  if (local) return local;
+
+  try {
+    const cloud = await fetchFromCloudStore();
+    if (cloud.creators && cloud.creators.length > 0) {
+      mergeIncomingCreators(cloud.creators);
+      return getCreatorByIdDB(target);
+    }
+  } catch (e) {}
+
+  return null;
 }
 
 export function getCreatorByUsernameDB(username: string): CreatorProfile | null {
@@ -427,6 +510,28 @@ export async function deleteCreatorDB(target: string | string[]): Promise<boolea
 // VERIFICATION SYSTEM
 // ==========================================
 
+function mergeIncomingVerifications(incoming: VerificationSubmission[]): boolean {
+  let changed = false;
+  for (const v of incoming) {
+    const cleanId = (v.id || '').toLowerCase().trim();
+    const cleanSlug = (v.creatorSlug || '').toLowerCase().replace(/^@/, '').trim();
+    if (!cleanId && !cleanSlug) continue;
+    const idx = memoryVerifications.findIndex(
+      (m) => (m.id || '').toLowerCase().trim() === cleanId || (m.creatorSlug || '').toLowerCase().replace(/^@/, '').trim() === cleanSlug
+    );
+    if (idx === -1) {
+      memoryVerifications.push(v);
+      changed = true;
+    } else {
+      memoryVerifications[idx] = {
+        ...memoryVerifications[idx],
+        ...v,
+      };
+    }
+  }
+  return changed;
+}
+
 function loadVerificationsFromDisk(): VerificationSubmission[] {
   try {
     ensureDataFile();
@@ -440,12 +545,31 @@ function loadVerificationsFromDisk(): VerificationSubmission[] {
     }
 
     if (content) {
-      memoryVerifications = JSON.parse(content || '[]');
-      return memoryVerifications;
+      const parsed: VerificationSubmission[] = JSON.parse(content || '[]');
+      if (memoryVerifications.length === 0) {
+        memoryVerifications = parsed;
+      } else {
+        mergeIncomingVerifications(parsed);
+      }
     }
   } catch (err) {
     console.error('[DB] Error loading verifications:', err);
   }
+
+  // Non-blocking background sync with live cloud store
+  fetchFromCloudStore()
+    .then((cloud) => {
+      if (cloud.verifications && cloud.verifications.length > 0) {
+        if (mergeIncomingVerifications(cloud.verifications)) {
+          try {
+            const paths = getWritablePaths();
+            fs.writeFileSync(paths.verificationFile, JSON.stringify(memoryVerifications, null, 2), 'utf8');
+          } catch (e) {}
+        }
+      }
+    })
+    .catch(() => {});
+
   return memoryVerifications;
 }
 
@@ -461,11 +585,13 @@ function saveVerificationsToDisk(items: VerificationSubmission[]): boolean {
         fs.writeFileSync(SEED_VERIFICATION_FILE, JSON.stringify(items, null, 2), 'utf8');
       } catch (e) {}
     }
-    return true;
   } catch (err) {
     console.error('[DB] Error saving verifications:', err);
-    return false;
   }
+
+  // Push to cloud store immediately
+  pushVerificationsToCloudStore(memoryVerifications).catch(() => {});
+  return true;
 }
 
 /**
@@ -590,6 +716,16 @@ export function getAllVerificationsDB(): VerificationSubmission[] {
   } catch (e) {}
 
   return memoryVerifications;
+}
+
+export async function getAllVerificationsDBAsync(): Promise<VerificationSubmission[]> {
+  try {
+    const cloud = await fetchFromCloudStore();
+    if (cloud.verifications && cloud.verifications.length > 0) {
+      mergeIncomingVerifications(cloud.verifications);
+    }
+  } catch (e) {}
+  return getAllVerificationsDB();
 }
 
 export function getVerificationByIdDB(id: string): VerificationSubmission | null {

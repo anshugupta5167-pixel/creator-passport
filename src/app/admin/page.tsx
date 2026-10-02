@@ -1002,7 +1002,21 @@ export default function AdminPage() {
           </span>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={async () => {
+              setActionFeedback('Syncing live data from cloud store...');
+              await loadLiveData();
+              setActionFeedback('✓ Database synced with latest cloud changes.');
+              setTimeout(() => setActionFeedback(''), 3500);
+            }}
+            className="flex items-center gap-1.5 text-xs text-sky-400 hover:text-sky-300 px-3 py-1.5 rounded-lg border border-sky-500/30 hover:border-sky-500/60 bg-sky-950/40 transition-colors"
+            title="Force refresh database from cloud"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Sync Cloud Data</span>
+          </button>
+
           <Link
             href="/"
             className="text-xs text-slate-400 hover:text-white transition-colors"

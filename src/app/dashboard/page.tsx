@@ -911,12 +911,11 @@ export default function DashboardPage() {
           },
           x: {
             platform: 'X' as const,
-            connected: !!(detectedXReach || detectedXUrl || detectedXUser),
+            connected: false,
+            username: '',
             metricLabel: 'followers',
-            metricValue: detectedXReach || '',
-            verified: true,
-            profileUrl: cleanX,
-            username: (detectedXUser || '').replace(/^@/, ''),
+            metricValue: '',
+            verified: false,
           },
         },
         registeredIp: detectedIp || undefined,
@@ -1116,12 +1115,11 @@ export default function DashboardPage() {
           },
           x: {
             platform: 'X' as const,
-            connected: !!(detectedXReach || detectedXUrl || detectedXUser),
+            connected: false,
+            username: '',
             metricLabel: 'followers',
-            metricValue: detectedXReach || '',
-            verified: true,
-            profileUrl: cleanX,
-            username: (detectedXUser || '').replace(/^@/, ''),
+            metricValue: '',
+            verified: false,
           },
         },
       };
@@ -2060,56 +2058,6 @@ export default function DashboardPage() {
                         </div>
                       )}
                     </div>
-
-                    {/* 4. X / Twitter Profile Auto-Detection */}
-                    <div className="space-y-3 p-4 rounded-xl bg-[#0f0f0f] border border-[#272727]">
-                      <div className="flex items-center justify-between">
-                        <label className="text-xs font-bold text-slate-200 block mb-1 font-sans flex items-center gap-2">
-                          <svg className="w-4 h-4 fill-white" viewBox="0 0 24 24">
-                            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-                          </svg>
-                          <span>X / Twitter Profile URL / Handle</span>
-                        </label>
-                        {xUsername && (
-                          <span className="text-[11px] font-sans text-slate-300">@{xUsername}</span>
-                        )}
-                      </div>
-
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          value={xUrl}
-                          onChange={(e) => setXUrl(e.target.value)}
-                          onBlur={() => { if (xUrl && !xReach) handleDetectX(); }}
-                          placeholder="e.g. https://x.com/creator or @handle"
-                          className="flex-1 px-3.5 py-2.5 rounded-lg bg-[#0a0a0a] border border-[#2e2e2e] text-sm text-white focus:outline-none focus:border-white/50 font-sans"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => handleDetectX()}
-                          disabled={xDetecting || !xUrl.trim()}
-                          className="px-4 py-2.5 rounded-lg bg-[#222222] hover:bg-[#333333] border border-[#333333] text-white disabled:opacity-50 text-xs font-bold font-sans transition-colors shrink-0"
-                        >
-                          {xDetecting ? 'Detecting...' : 'Detect X Profile'}
-                        </button>
-                      </div>
-
-                      {xError && (
-                        <p className="text-xs text-red-400 font-medium font-sans">{xError}</p>
-                      )}
-
-                      {/* Verified X Followers Banner */}
-                      {xReach && (
-                        <div className="flex items-center justify-between p-3 rounded-lg bg-[#161616] border border-[#262626] text-xs font-sans">
-                          <div className="flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full bg-white" />
-                            <span className="text-slate-300">Live X / Twitter Followers:</span>
-                            <span className="font-bold text-white font-sans">{xReach}</span>
-                          </div>
-                          <span className="text-[11px] text-slate-300 font-sans font-semibold">✓ Auto-Fetched</span>
-                        </div>
-                      )}
-                    </div>
                   </div>
 
                   {/* Submit Button */}
@@ -2632,53 +2580,6 @@ export default function DashboardPage() {
                         )}
                       </div>
 
-                      {/* X / Twitter Section */}
-                      <div className="space-y-3 p-4 rounded-xl bg-[#0f0f0f] border border-[#272727]">
-                        <div className="flex items-center justify-between">
-                          <label className="text-xs font-bold text-slate-200 block mb-1 font-sans flex items-center gap-2">
-                            <svg className="w-4 h-4 fill-white" viewBox="0 0 24 24">
-                              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-                            </svg>
-                            <span>X / Twitter Profile URL / Handle</span>
-                          </label>
-                          {xUsername && (
-                            <span className="text-[11px] font-sans text-slate-300">@{xUsername}</span>
-                          )}
-                        </div>
-
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            value={xUrl}
-                            onChange={(e) => setXUrl(e.target.value)}
-                            placeholder="e.g. https://x.com/creator or @handle"
-                            className="flex-1 px-3.5 py-2.5 rounded-lg bg-[#0a0a0a] border border-[#2e2e2e] text-sm text-white focus:outline-none focus:border-white/50 font-sans"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => handleDetectX()}
-                            disabled={xDetecting || !xUrl.trim()}
-                            className="px-4 py-2.5 rounded-lg bg-[#222222] hover:bg-[#333333] border border-[#303030] disabled:opacity-50 text-white text-xs font-bold font-sans transition-colors shrink-0"
-                          >
-                            {xDetecting ? 'Detecting...' : 'Detect'}
-                          </button>
-                        </div>
-
-                        {xError && (
-                          <p className="text-xs text-red-400 font-medium font-sans">{xError}</p>
-                        )}
-
-                        {xReach && (
-                          <div className="flex items-center justify-between p-3 rounded-lg bg-[#161616] border border-[#262626] text-xs font-sans">
-                            <div className="flex items-center gap-2">
-                              <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                              <span className="text-slate-300">Live Verified Followers:</span>
-                              <span className="font-bold text-white font-sans">{xReach}</span>
-                            </div>
-                            <span className="text-[11px] text-slate-300 font-sans font-semibold">✓ Auto-Fetched</span>
-                          </div>
-                        )}
-                      </div>
                     </div>
 
                     {/* Section 4: More Channels & Platforms */}

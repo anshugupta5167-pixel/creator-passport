@@ -456,31 +456,6 @@ export default function CreatorProfileView({ creator, targetId }: CreatorProfile
               </a>
             )}
 
-            {/* X / Twitter */}
-            {activeCreator.connections?.x?.connected && (
-              <a
-                href={activeCreator.connections?.x?.profileUrl || `https://x.com/${activeCreator.connections?.x?.username || activeCreator.username}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group p-5 rounded-2xl bg-[#0e1217] border border-white/10 hover:border-white/30 transition-all flex items-center gap-4"
-              >
-                <div className="w-11 h-11 rounded-xl bg-white/5 flex items-center justify-center shrink-0">
-                  <svg className="w-5 h-5 fill-white" viewBox="0 0 24 24">
-                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-                  </svg>
-                </div>
-                <div>
-                  <span className="text-sm text-slate-300 block font-semibold">X / Twitter</span>
-                  <span className="text-lg font-bold text-white font-mono">
-                    {activeCreator.connections?.x?.metricValue || `@${activeCreator.connections?.x?.username || activeCreator.username}`}
-                  </span>
-                  <span className="text-xs text-slate-400 block font-medium">
-                    @{activeCreator.connections?.x?.username || activeCreator.username}
-                  </span>
-                </div>
-                <ExternalLink className="w-4 h-4 text-slate-500 group-hover:text-white ml-auto transition-colors" />
-              </a>
-            )}
           </div>
 
           {/* ================= 3D PASSPORT CARD SHOWCASE ================= */}

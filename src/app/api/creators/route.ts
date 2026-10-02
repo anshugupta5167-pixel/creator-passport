@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAllCreatorsDB, addCreatorDB, deleteCreatorDB, getCreatorByIpDB, getCreatorByIdDB, normalizeIp, isSameIp } from '@/lib/db';
+import { getAllCreatorsDB, getAllCreatorsDBAsync, addCreatorDB, deleteCreatorDB, getCreatorByIpDB, getCreatorByIdDB, normalizeIp, isSameIp } from '@/lib/db';
 import { CreatorProfile } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
   const platform = searchParams.get('platform');
   const query = searchParams.get('q');
 
-  let creators = getAllCreatorsDB();
+  let creators = await getAllCreatorsDBAsync();
 
   const checkParam = searchParams.get('check');
   if (checkParam) {
@@ -58,8 +58,6 @@ export async function GET(request: NextRequest) {
       creators = creators.filter((c) => c.connections?.discord?.connected);
     } else if (p === 'INSTAGRAM') {
       creators = creators.filter((c) => c.connections?.instagram?.connected);
-    } else if (p === 'X' || p === 'TWITTER') {
-      creators = creators.filter((c) => c.connections?.x?.connected);
     }
   }
 

@@ -190,7 +190,7 @@ export async function fetchXProfile(
       let followers =
         scrapedFollowers !== null
           ? scrapedFollowers
-          : options?.previousCount || (known ? known.followers : 34200);
+          : options?.previousCount || (known ? known.followers : 0);
 
       let displayName = scrapedName || (known ? known.displayName : cleanHandle);
       let avatar =

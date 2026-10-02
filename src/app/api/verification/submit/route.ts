@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import {
   submitVerificationDB,
   getAllVerificationsDB,
+  getAllVerificationsDBAsync,
   saveProofDocumentDB,
   getCreatorBySlugDB,
 } from '@/lib/db';
@@ -15,7 +16,7 @@ export async function GET(request: NextRequest) {
   const slug = searchParams.get('slug');
   const status = searchParams.get('status');
 
-  let verifications = getAllVerificationsDB();
+  let verifications = await getAllVerificationsDBAsync();
 
   if (slug) {
     const clean = slug.replace(/^@/, '').toLowerCase();

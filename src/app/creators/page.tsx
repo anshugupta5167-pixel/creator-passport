@@ -127,7 +127,7 @@ export default function CreatorsDirectoryPage() {
   ];
 
   // Strictly ONLY YouTube and Discord everywhere per user specification
-  const platforms = ['ALL', 'YOUTUBE', 'DISCORD', 'INSTAGRAM', 'X'];
+  const platforms = ['ALL', 'YOUTUBE', 'DISCORD', 'INSTAGRAM'];
 
   const filteredCreators = useMemo(() => {
     return creatorsList.filter((creator) => {

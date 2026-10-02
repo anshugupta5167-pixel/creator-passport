@@ -1,8 +1,7 @@
 import React from 'react';
 import { notFound } from 'next/navigation';
 import CreatorProfileView from '@/components/CreatorProfileView';
-import { getCreatorByUsername, getCreatorByPassportId } from '@/lib/data';
-import { getAllCreatorsDB, getCreatorByIdDB, getCreatorByUsernameDB } from '@/lib/db';
+import { getAllCreatorsDBAsync, getCreatorByIdDBAsync } from '@/lib/db';
 import { CreatorProfile } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -15,22 +14,23 @@ interface PageProps {
 export async function generateMetadata({ params }: PageProps) {
   const { handle } = await params;
   const cleanHandle = decodeURIComponent(handle).replace(/^@/, '');
-  const all = getAllCreatorsDB();
-  const creator =
-    getCreatorByIdDB(cleanHandle) ||
-    getCreatorByUsernameDB(cleanHandle) ||
-    all.find(
+  let creator = await getCreatorByIdDBAsync(cleanHandle);
+  if (!creator) {
+    const all = await getAllCreatorsDBAsync();
+    creator = all.find(
       (c: CreatorProfile) =>
         (c.slug && c.slug.toLowerCase() === cleanHandle.toLowerCase()) ||
         (c.passportId && c.passportId.toLowerCase() === cleanHandle.toLowerCase()) ||
         (c.username && c.username.toLowerCase() === cleanHandle.toLowerCase()) ||
         (c.handle && c.handle.toLowerCase().replace(/^@/, '') === cleanHandle.toLowerCase()) ||
         (c.id && c.id.toLowerCase() === cleanHandle.toLowerCase())
-    );
+    ) || null;
+  }
 
   if (!creator) {
     return {
-      title: 'Creator Pass - CreatorHQ',
+      title: `${cleanHandle} - Creator Pass | CreatorHQ`,
+      description: `Verified Creator Pass profile for @${cleanHandle} on the CreatorHQ Talent Network.`,
     };
   }
 
@@ -71,22 +71,19 @@ export default async function HandlePage({ params }: PageProps) {
   }
 
   const cleanHandle = decoded.replace(/^@/, '');
-  const all = getAllCreatorsDB();
-  const creator =
-    getCreatorByIdDB(cleanHandle) ||
-    getCreatorByUsernameDB(cleanHandle) ||
-    all.find(
+  let creator = await getCreatorByIdDBAsync(cleanHandle);
+  if (!creator) {
+    const all = await getAllCreatorsDBAsync();
+    creator = all.find(
       (c: CreatorProfile) =>
         (c.slug && c.slug.toLowerCase() === cleanHandle.toLowerCase()) ||
         (c.passportId && c.passportId.toLowerCase() === cleanHandle.toLowerCase()) ||
         (c.username && c.username.toLowerCase() === cleanHandle.toLowerCase()) ||
         (c.handle && c.handle.toLowerCase().replace(/^@/, '') === cleanHandle.toLowerCase()) ||
         (c.id && c.id.toLowerCase() === cleanHandle.toLowerCase())
-    );
-
-  if (!creator) {
-    notFound();
+    ) || null;
   }
 
+  // Gracefully render CreatorProfileView: client checks localStorage and live API before showing empty state
   return <CreatorProfileView creator={creator} targetId={cleanHandle} />;
 }
