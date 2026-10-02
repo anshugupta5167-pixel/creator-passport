@@ -665,7 +665,7 @@ export default function AdminPage() {
         filename: 'YouTube Studio Proof',
         platform: 'YOUTUBE',
         uploadedAt: c.issuedAt || new Date().toISOString(),
-        notes: `YouTube Channel Proof (${c.connections.youtube.metricValue || 'Subscribers'})`,
+        notes: `YouTube Channel Proof (${c.connections?.youtube?.metricValue || 'Subscribers'})`,
       });
     }
 
@@ -677,7 +677,7 @@ export default function AdminPage() {
         filename: 'Discord Server Proof',
         platform: 'DISCORD',
         uploadedAt: c.issuedAt || new Date().toISOString(),
-        notes: `Discord Server Proof (${c.connections.discord.metricValue || 'Members'})`,
+        notes: `Discord Server Proof (${c.connections?.discord?.metricValue || 'Members'})`,
       });
     }
 

@@ -219,9 +219,9 @@ export default function BrandsPage() {
                         </div>
                         <span className="text-sm font-semibold text-slate-200 block">{c.category}</span>
                         <div className="flex items-center gap-3 text-xs font-mono text-slate-200 mt-1 font-semibold">
-                          <span>YT: {c.connections.youtube?.metricValue || 'N/A'}</span>
+                          <span>YT: {c.connections?.youtube?.metricValue || 'N/A'}</span>
                           <span className="text-slate-500">•</span>
-                          <span>DC: {c.connections.discord?.metricValue || 'N/A'}</span>
+                          <span>DC: {c.connections?.discord?.metricValue || 'N/A'}</span>
                         </div>
                       </div>
                     </div>

@@ -48,20 +48,22 @@ const leadershipTeam = [
   {
     name: 'Anshu Gupta',
     role: 'Founder & CEO',
+    monogram: 'AG',
+    badge: 'Founder',
+    accentColor: 'from-sky-500/20 via-sky-600/30 to-[#0c1017]',
+    borderColor: 'border-sky-400/40 group-hover:border-sky-400',
+    textColor: 'text-sky-300',
     bio: 'Visionary behind CreatorHQ. Founded the platform in September 2026 to pioneer verifiable creator identity, fraud-proof media analytics, and direct brand sponsorship networks.',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
   },
   {
     name: 'Pranav Sharma',
     role: 'Co-Founder & COO',
+    monogram: 'PS',
+    badge: 'Co-Founder',
+    accentColor: 'from-indigo-500/20 via-purple-600/30 to-[#0c1017]',
+    borderColor: 'border-indigo-400/40 group-hover:border-indigo-400',
+    textColor: 'text-indigo-300',
     bio: 'Creator ecosystem architect. Spearheads creator partnerships, trust & verification protocol operations, and scaling high-conviction brand sponsor deals.',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=300&q=80',
-  },
-  {
-    name: 'Julian Chen',
-    role: 'VP of Platform Engineering',
-    bio: 'Architect behind CreatorHQ cryptographic passkey generation, Discord verification webhooks, and virtual card engines.',
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=300&q=80',
   },
 ];
 
@@ -254,7 +256,7 @@ export default function AboutPage() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
               {leadershipTeam.map((member) => (
                 <TiltCard
                   key={member.name}
@@ -263,11 +265,14 @@ export default function AboutPage() {
                   className="p-7 rounded-2xl bg-[#12151c] border border-white/15 hover:border-sky-400/60 transition-colors space-y-4 text-center flex flex-col items-center shadow-lg cursor-default group"
                 >
                   <div className="flex flex-col items-center space-y-4" style={{ transform: 'translateZ(16px)' }}>
-                    <img
-                      src={member.avatar}
-                      alt={member.name}
-                      className="w-20 h-20 rounded-full object-cover border-2 border-white/15 group-hover:border-sky-400/60 transition-colors"
-                    />
+                    <div className={`w-20 h-20 rounded-2xl bg-gradient-to-br ${member.accentColor} border-2 ${member.borderColor} flex flex-col items-center justify-center transition-all shadow-xl backdrop-blur-md`}>
+                      <span className={`text-2xl font-black font-mono tracking-wider ${member.textColor}`}>
+                        {member.monogram}
+                      </span>
+                      <span className="text-[9px] font-mono uppercase tracking-widest text-slate-400 font-semibold">
+                        {member.badge}
+                      </span>
+                    </div>
                     <div>
                       <h3 className="text-xl font-bold text-white font-sans group-hover:text-sky-300 transition-colors">{member.name}</h3>
                       <span className="text-xs text-sky-400 font-semibold">{member.role}</span>

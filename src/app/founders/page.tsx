@@ -48,6 +48,10 @@ export default function FoundersPage() {
       name: 'Anshu Gupta',
       role: 'Founder & Chief Executive Officer',
       badge: 'Founder',
+      monogram: 'AG',
+      accentColor: 'from-sky-500/20 via-sky-600/30 to-[#0c1017]',
+      borderColor: 'border-sky-400/40 group-hover:border-sky-400',
+      textColor: 'text-sky-300',
       quote:
         '“In an internet flooded with artificial metrics and bought followers, genuine creators deserve an unforgeable sovereign passport that brands respect on sight.”',
       bio: [
@@ -55,7 +59,6 @@ export default function FoundersPage() {
         'Recognizing that traditional agencies take 30% to 50% cuts while providing zero technical transparency, Anshu architected the concept of the 3D verifiable Creator Pass – bringing audit-grade verification to YouTube channels and Discord servers.',
         'As CEO, Anshu steers executive strategy, protocol security, global ecosystem partnerships, and institutional brand relationships across gaming, tech, and digital entertainment sectors.'
       ],
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80',
       focus: ['Executive Strategy', 'Cryptographic Infrastructure', 'Brand Alliances', 'Core Governance'],
       stats: [
         { label: 'Founded', value: 'Sept 2026' },
@@ -67,6 +70,10 @@ export default function FoundersPage() {
       name: 'Pranav Sharma',
       role: 'Co-Founder & Chief Operating Officer',
       badge: 'Co-Founder',
+      monogram: 'PS',
+      accentColor: 'from-indigo-500/20 via-purple-600/30 to-[#0c1017]',
+      borderColor: 'border-indigo-400/40 group-hover:border-indigo-400',
+      textColor: 'text-indigo-300',
       quote:
         '“We treat creator careers like elite athletics. High-growth creators need real-time data synchronization, audit trails, and instant access to blue-chip sponsor capital.”',
       bio: [
@@ -74,7 +81,6 @@ export default function FoundersPage() {
         'With extensive expertise in creator talent dynamics, community infrastructure, and digital distribution, Pranav designed the human-in-the-loop Trust & Verification auditing protocol that ensures zero fraudulent passes exist on the network.',
         'Pranav works directly with top gaming creators, streaming collectives, and brand marketers to turn verified digital passports into multi-year sponsorship contracts.'
       ],
-      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=600&q=80',
       focus: ['Creator Onboarding', 'Trust & Verification Operations', 'Talent Scaling', 'Community Growth'],
       stats: [
         { label: 'Protocol', value: 'Human-in-the-Loop' },
@@ -197,14 +203,17 @@ export default function FoundersPage() {
                   <div className="absolute top-0 right-0 w-64 h-64 bg-sky-500/5 rounded-full blur-3xl pointer-events-none group-hover:bg-sky-500/10 transition-all duration-700" />
 
                   <div className="relative z-10 space-y-6">
-                    {/* Header: Avatar, Badge, Name, Role */}
+                    {/* Header: Executive Monogram Crest, Badge, Name, Role (No images per requirement) */}
                     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
-                      <div className="relative">
-                        <img
-                          src={founder.avatar}
-                          alt={founder.name}
-                          className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl object-cover border-2 border-white/15 group-hover:border-sky-400/70 transition-all shadow-xl"
-                        />
+                      <div className="relative shrink-0">
+                        <div className={`w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-gradient-to-br ${founder.accentColor} border-2 ${founder.borderColor} flex flex-col items-center justify-center transition-all shadow-xl backdrop-blur-md`}>
+                          <span className={`text-3xl sm:text-4xl font-black font-mono tracking-wider ${founder.textColor}`}>
+                            {founder.monogram}
+                          </span>
+                          <span className="text-[10px] font-mono uppercase tracking-widest text-slate-400 font-semibold mt-0.5">
+                            {founder.badge}
+                          </span>
+                        </div>
                         <div className="absolute -bottom-2 -right-2 bg-sky-500 text-black p-1 rounded-full shadow-lg">
                           <CheckCircle2 className="w-4 h-4 fill-sky-400 text-[#0b0d11]" />
                         </div>

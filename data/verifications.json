@@ -1,173 +1,48 @@
 [
   {
-    "id": "vrf_1790944926276_brand_new_creator",
-    "creatorSlug": "brand_new_creator",
-    "creatorName": "Brand New Creator",
-    "creatorHandle": "@brand_new_creator",
-    "creatorAvatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80",
-    "category": "Gaming",
-    "platforms": [
-      "YOUTUBE",
-      "DISCORD"
-    ],
-    "connectedPlatforms": {},
-    "proofDocuments": [],
-    "status": "VERIFIED",
-    "submittedAt": "2026-10-02T12:42:06.271Z",
-    "reviewedAt": "2026-10-02T12:42:06.278Z",
-    "reviewedBy": "Admin"
-  },
-  {
-    "id": "vrf_1790944214964_uniqueplayz",
-    "creatorSlug": "uniqueplayz",
-    "creatorName": "UniquePlayz",
-    "creatorHandle": "@uniqueplayz",
-    "creatorAvatar": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=300&q=80",
-    "category": "Gaming & Tech",
-    "platforms": [
-      "YOUTUBE",
-      "DISCORD"
-    ],
+    "id": "vrf_unrulek",
+    "creatorSlug": "unrulek",
+    "creatorName": "Unrulek",
+    "passportId": "unrulek",
+    "registeredIp": "49.36.192.210",
+    "clientIp": "49.36.192.210",
+    "platform": "YOUTUBE",
+    "accountUsername": "Unrulek",
+    "metricAudience": "59 Subscribers",
     "connectedPlatforms": {
       "youtube": {
         "platform": "YOUTUBE",
         "connected": true,
-        "username": "UniquePlayzOfficial",
+        "username": "Unrulek",
         "metricLabel": "subscribers",
-        "metricValue": "1.4M Subscribers",
+        "metricValue": "59 Subscribers",
         "verified": true,
-        "profileUrl": "https://youtube.com/@uniqueplayz"
+        "profileUrl": "https://youtube.com/@unrulek"
       },
       "discord": {
         "platform": "DISCORD",
         "connected": true,
-        "username": "UniqueSquad",
+        "username": "Unrulek",
         "metricLabel": "members",
-        "metricValue": "85K Members",
+        "metricValue": "578 Members",
         "verified": true,
-        "profileUrl": "https://discord.gg/uniquesquad"
+        "profileUrl": "https://discord.gg/unrulek"
       }
     },
-    "proofDocuments": [],
-    "status": "VERIFIED",
-    "submittedAt": "2026-10-02T12:30:14.964Z",
-    "reviewedAt": "2026-10-02T12:42:06.266Z",
-    "reviewedBy": "Admin"
-  },
-  {
-    "id": "vrf_1790944214958_senpainova",
-    "creatorSlug": "senpainova",
-    "creatorName": "SenpaiNova",
-    "creatorHandle": "@senpainova",
-    "creatorAvatar": "https://images.unsplash.com/photo-1566492031773-4f4e44671857?auto=format&fit=crop&w=300&q=80",
-    "category": "Gaming",
-    "platforms": [
-      "YOUTUBE",
-      "DISCORD"
-    ],
-    "connectedPlatforms": {
-      "youtube": {
+    "proofDocuments": [
+      {
+        "id": "proof_yt_unrulek",
+        "url": "/api/verification/proof/unrulek/youtube_proof.png",
+        "filename": "youtube_studio_proof.png",
+        "mimeType": "image/png",
         "platform": "YOUTUBE",
-        "connected": true,
-        "username": "SenpaiNova",
-        "metricLabel": "subscribers",
-        "metricValue": "850K Subscribers",
-        "verified": true,
-        "profileUrl": "https://youtube.com/@senpainova"
-      },
-      "discord": {
-        "platform": "DISCORD",
-        "connected": true,
-        "username": "NovaSanctuary",
-        "metricLabel": "members",
-        "metricValue": "42K Members",
-        "verified": true,
-        "profileUrl": "https://discord.gg/novasanctuary"
+        "uploadedAt": "2026-09-30",
+        "notes": "YouTube Channel Proof for Unrulek (59 Subscribers)"
       }
-    },
-    "proofDocuments": [],
+    ],
     "status": "VERIFIED",
-    "submittedAt": "2026-10-02T12:30:14.958Z",
-    "reviewedAt": "2026-10-02T12:42:06.259Z",
-    "reviewedBy": "Admin"
-  },
-  {
-    "id": "vrf_1790944157141_gamma",
-    "creatorSlug": "gamma",
-    "creatorName": "Gamma Lifestyle",
-    "creatorHandle": "@gamma",
-    "category": "Lifestyle",
-    "platforms": [
-      "YOUTUBE",
-      "DISCORD"
-    ],
-    "connectedPlatforms": {},
-    "proofDocuments": [],
-    "status": "PENDING",
-    "submittedAt": "2026-10-02T12:29:17.141Z"
-  },
-  {
-    "id": "vrf_1790944157139_beta",
-    "creatorSlug": "beta",
-    "creatorName": "Beta Tech",
-    "creatorHandle": "@beta",
-    "category": "Tech",
-    "platforms": [
-      "YOUTUBE",
-      "DISCORD"
-    ],
-    "connectedPlatforms": {
-      "youtube": {
-        "platform": "YOUTUBE",
-        "connected": true,
-        "username": "BetaTechReviews",
-        "metricLabel": "subscribers",
-        "metricValue": "1.2M Subscribers",
-        "verified": true,
-        "profileUrl": "https://youtube.com/@betatech"
-      }
-    },
-    "proofDocuments": [],
-    "status": "REJECTED",
-    "submittedAt": "2026-10-02T12:29:17.139Z",
-    "reviewedAt": "2026-10-02T12:29:17.152Z",
-    "reviewedBy": "Insufficient subscriber proof",
-    "rejectionReason": "Proof inconclusive"
-  },
-  {
-    "id": "vrf_1790944157136_alpha",
-    "creatorSlug": "alpha",
-    "creatorName": "Alpha Creator",
-    "creatorHandle": "@alpha",
-    "category": "Gaming",
-    "platforms": [
-      "YOUTUBE",
-      "DISCORD"
-    ],
-    "connectedPlatforms": {
-      "youtube": {
-        "platform": "YOUTUBE",
-        "connected": true,
-        "username": "AlphaGaming",
-        "metricLabel": "subscribers",
-        "metricValue": "450K Subscribers",
-        "verified": true,
-        "profileUrl": "https://youtube.com/@alphagaming"
-      },
-      "discord": {
-        "platform": "DISCORD",
-        "connected": true,
-        "username": "AlphaArmy",
-        "metricLabel": "members",
-        "metricValue": "35K Members",
-        "verified": true,
-        "profileUrl": "https://discord.gg/alphaarmy"
-      }
-    },
-    "proofDocuments": [],
-    "status": "VERIFIED",
-    "submittedAt": "2026-10-02T12:29:17.136Z",
-    "reviewedAt": "2026-10-02T12:29:17.146Z",
+    "submittedAt": "2026-09-30",
+    "reviewedAt": "2026-10-02T12:40:00.000Z",
     "reviewedBy": "Admin"
   }
 ]

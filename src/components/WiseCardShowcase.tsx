@@ -25,16 +25,28 @@ export default function WiseCardShowcase() {
   const [customDiscord, setCustomDiscord] = useState('85K');
 
   // Dynamic preview creator
+  const baseCreator: Partial<CreatorProfile> = allCreators[activeCardIndex] || {
+    id: 'preview_creator_pass',
+    slug: 'creator',
+    username: 'creator',
+    displayName: 'Creator',
+    category: 'Gaming Creator',
+    tierName: 'Founding Member Tier I',
+    isVerified: true,
+    verification_status: 'VERIFIED',
+    connections: {},
+  };
+
   const liveCreator: CreatorProfile = {
-    ...allCreators[activeCardIndex],
+    ...baseCreator,
     displayName: customName || 'Creator',
-    category: customCategory,
+    category: customCategory || 'Content Creator',
     connections: {
-      ...allCreators[activeCardIndex].connections,
+      ...(baseCreator.connections || {}),
       youtube: {
         platform: 'YOUTUBE',
         connected: true,
-        username: `${customName.toLowerCase().replace(/\s+/g, '')}TV`,
+        username: `${(customName || 'creator').toLowerCase().replace(/\s+/g, '')}TV`,
         metricLabel: 'subscribers',
         metricValue: customYouTube,
         verified: true,
@@ -42,13 +54,13 @@ export default function WiseCardShowcase() {
       discord: {
         platform: 'DISCORD',
         connected: true,
-        username: `${customName.toLowerCase().replace(/\s+/g, '')}#0001`,
+        username: `${(customName || 'creator').toLowerCase().replace(/\s+/g, '')}#0001`,
         metricLabel: 'members',
         metricValue: customDiscord,
         verified: true,
       },
     },
-  };
+  } as CreatorProfile;
 
   const handleIssueTest = () => {
     try {
@@ -89,27 +101,29 @@ export default function WiseCardShowcase() {
           <div className="lg:col-span-7 flex flex-col items-center">
             
             {/* Card Switcher Pills for YouTubers */}
-            <div className="flex flex-wrap items-center justify-center gap-2 mb-8 p-1.5 rounded-xl bg-[#11141a] border border-white/10 text-xs font-mono shadow-md">
-              {allCreators.slice(0, 4).map((c, idx) => (
-                <button
-                  key={c.id}
-                  onClick={() => {
-                    setActiveCardIndex(idx);
-                    setCustomName(c.displayName);
-                    setCustomCategory(c.category);
-                    setCustomYouTube(c.connections.youtube?.metricValue || '100K');
-                    setCustomDiscord(c.connections.discord?.metricValue || '10K');
-                  }}
-                  className={`px-3.5 py-1.5 rounded-lg transition-colors font-semibold ${
-                    activeCardIndex === idx
-                      ? 'bg-sky-500 text-white font-bold'
-                      : 'text-slate-400 hover:text-white hover:bg-white/5'
-                  }`}
-                >
-                  {c.displayName} ({c.connections.youtube?.metricValue || '100K'})
-                </button>
-              ))}
-            </div>
+            {allCreators.length > 0 && (
+              <div className="flex flex-wrap items-center justify-center gap-2 mb-8 p-1.5 rounded-xl bg-[#11141a] border border-white/10 text-xs font-mono shadow-md">
+                {allCreators.slice(0, 4).map((c, idx) => (
+                  <button
+                    key={c.id}
+                    onClick={() => {
+                      setActiveCardIndex(idx);
+                      setCustomName(c.displayName);
+                      setCustomCategory(c.category);
+                      setCustomYouTube(c.connections?.youtube?.metricValue || '100K');
+                      setCustomDiscord(c.connections?.discord?.metricValue || '10K');
+                    }}
+                    className={`px-3.5 py-1.5 rounded-lg transition-colors font-semibold ${
+                      activeCardIndex === idx
+                        ? 'bg-sky-500 text-white font-bold'
+                        : 'text-slate-400 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    {c.displayName} ({c.connections?.youtube?.metricValue || '100K'})
+                  </button>
+                ))}
+              </div>
+            )}
 
             {/* Fanned 3D Cards Container */}
             <div className="relative w-full max-w-[580px] flex items-center justify-center">

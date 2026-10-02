@@ -119,15 +119,15 @@ export default function Navbar() {
     };
   }, [pathname]);
 
-  // Dedicated professional pages per corporate architecture
+  // Dedicated professional pages per corporate architecture (Founders in last slot)
   const navLinks = [
     { name: 'About', href: '/about' },
-    { name: 'Founders', href: '/founders' },
     { name: 'Services', href: '/services' },
     { name: 'Our Talents', href: '/talents' },
     { name: 'For Creators', href: '/dashboard' },
     { name: 'FAQ', href: '/faq' },
     { name: 'Contact', href: '/contact' },
+    { name: 'Founders', href: '/founders' },
   ];
 
   const routePageNames: Record<string, string> = {

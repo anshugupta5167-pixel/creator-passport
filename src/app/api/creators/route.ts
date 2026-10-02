@@ -53,13 +53,13 @@ export async function GET(request: NextRequest) {
   if (platform) {
     const p = platform.toUpperCase();
     if (p === 'YOUTUBE') {
-      creators = creators.filter((c) => c.connections.youtube?.connected);
+      creators = creators.filter((c) => c.connections?.youtube?.connected);
     } else if (p === 'DISCORD') {
-      creators = creators.filter((c) => c.connections.discord?.connected);
+      creators = creators.filter((c) => c.connections?.discord?.connected);
     } else if (p === 'INSTAGRAM') {
-      creators = creators.filter((c) => c.connections.instagram?.connected);
+      creators = creators.filter((c) => c.connections?.instagram?.connected);
     } else if (p === 'X' || p === 'TWITTER') {
-      creators = creators.filter((c) => c.connections.x?.connected);
+      creators = creators.filter((c) => c.connections?.x?.connected);
     }
   }
 

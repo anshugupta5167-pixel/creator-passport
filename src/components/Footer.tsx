@@ -51,11 +51,6 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/founders" className="hover:text-white transition-colors">
-                  Founders & Leadership
-                </Link>
-              </li>
-              <li>
                 <Link href="/services" className="hover:text-white transition-colors">
                   Creator Services
                 </Link>
@@ -68,6 +63,11 @@ export default function Footer() {
               <li>
                 <Link href="/dashboard" className="hover:text-white transition-colors">
                   Creator Studio
+                </Link>
+              </li>
+              <li>
+                <Link href="/founders" className="hover:text-white transition-colors">
+                  Founders & Leadership
                 </Link>
               </li>
             </ul>

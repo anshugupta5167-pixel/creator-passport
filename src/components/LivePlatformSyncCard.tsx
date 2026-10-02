@@ -30,7 +30,7 @@ export default function LivePlatformSyncCard({
   // Update relative time every 10 seconds
   useEffect(() => {
     const updateTimes = () => {
-      const ytTs = activeCreator.connections.youtube?.lastSyncedTimestamp || lastRefreshedAt;
+      const ytTs = activeCreator.connections?.youtube?.lastSyncedTimestamp || lastRefreshedAt;
       setRelativeTime(formatTimeAgo(ytTs));
     };
     updateTimes();
@@ -49,7 +49,7 @@ export default function LivePlatformSyncCard({
 
   // Refresh YouTube Channel
   const handleRefreshYouTube = async () => {
-    if (isSyncingYT || !activeCreator.connections.youtube?.connected) return;
+    if (isSyncingYT || !activeCreator.connections?.youtube?.connected) return;
     setIsSyncingYT(true);
 
     try {
@@ -62,9 +62,9 @@ export default function LivePlatformSyncCard({
           const updatedCreator = {
             ...activeCreator,
             connections: {
-              ...activeCreator.connections,
+              ...(activeCreator.connections || {}),
               youtube: {
-                ...activeCreator.connections.youtube!,
+                ...(activeCreator.connections?.youtube || {}),
                 metricValue: data.channel.subscriberCountFormatted,
                 rawCount: data.channel.subscriberCount,
                 channelId: data.channel.channelId,
@@ -90,7 +90,7 @@ export default function LivePlatformSyncCard({
 
   // Refresh Discord Server
   const handleRefreshDiscord = async () => {
-    if (isSyncingDC || !activeCreator.connections.discord?.connected) return;
+    if (isSyncingDC || !activeCreator.connections?.discord?.connected) return;
     setIsSyncingDC(true);
 
     try {
@@ -103,9 +103,9 @@ export default function LivePlatformSyncCard({
           const updatedCreator = {
             ...activeCreator,
             connections: {
-              ...activeCreator.connections,
+              ...(activeCreator.connections || {}),
               discord: {
-                ...activeCreator.connections.discord!,
+                ...(activeCreator.connections?.discord || {}),
                 metricValue: data.server.memberCountFormatted,
                 rawCount: data.server.memberCount,
                 guildId: data.server.guildId,
@@ -136,8 +136,8 @@ export default function LivePlatformSyncCard({
     handleRefreshDiscord();
   };
 
-  const yt = activeCreator.connections.youtube;
-  const dc = activeCreator.connections.discord;
+  const yt = activeCreator.connections?.youtube;
+  const dc = activeCreator.connections?.discord;
 
   return (
     <div className="space-y-4">

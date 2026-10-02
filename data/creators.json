@@ -1,201 +1,100 @@
 [
   {
-    "id": "creator_uniqueplayz",
-    "passportId": "uniqueplayz",
-    "slug": "uniqueplayz",
-    "handle": "@uniqueplayz",
-    "username": "uniqueplayz",
-    "displayName": "UniquePlayz",
-    "avatarUrl": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=300&q=80",
-    "bio": "Competitive multiplayer strategy, tech reviews, and custom Minecraft survival networks.",
+    "id": "creator_unrulek",
+    "passportId": "unrulek",
+    "slug": "unrulek",
+    "handle": "@unrulek",
+    "username": "unrulek",
+    "displayName": "Unrulek",
+    "avatarUrl": "https://yt3.googleusercontent.com/fsTkU4pgO2Xyjf7IfshXvFE5wf7aQ1PJjrfwmON3vgPfKgZmb0DXGqGDypWjcDRmVWjvlGZQwA=s800-c-k-c0x00ffffff-no-rj",
+    "bio": "Welcome to Unrulek – your go-to place for tech content, tutorials, hosting guides, cloud projects, gaming servers, bots, websites, panels, VPS setups, troubleshooting, and the latest online tools.",
     "category": "Gaming & Tech",
     "niche": "Gaming & Tech",
-    "country": "United Kingdom",
-    "location": "United Kingdom",
-    "isVerified": true,
-    "isFounding": true,
-    "tierName": "Founding Member Tier I",
-    "verification_status": "VERIFIED",
-    "connections": {
-      "youtube": {
-        "platform": "YOUTUBE",
-        "connected": true,
-        "username": "UniquePlayzOfficial",
-        "metricLabel": "subscribers",
-        "metricValue": "1.4M Subscribers",
-        "verified": true,
-        "profileUrl": "https://youtube.com/@uniqueplayz"
-      },
-      "discord": {
-        "platform": "DISCORD",
-        "connected": true,
-        "username": "UniqueSquad",
-        "metricLabel": "members",
-        "metricValue": "85K Members",
-        "verified": true,
-        "profileUrl": "https://discord.gg/uniquesquad"
-      }
-    },
-    "skills": [
-      "Live Streaming",
-      "Esports Commentary",
-      "Brand Sponsorships"
-    ],
-    "achievements": [
-      "CreatorHQ Founding Member",
-      "Top 10 Gaming Creators 2026"
-    ],
-    "lastVerifiedAt": "2026-10-02"
-  },
-  {
-    "id": "creator_senpainova",
-    "passportId": "senpainova",
-    "slug": "senpainova",
-    "handle": "@senpainova",
-    "username": "senpainova",
-    "displayName": "SenpaiNova",
-    "avatarUrl": "https://images.unsplash.com/photo-1566492031773-4f4e44671857?auto=format&fit=crop&w=300&q=80",
-    "bio": "Gaming entertainment, walkthroughs, and creator community founder. Verified on CreatorHQ.",
-    "category": "Gaming",
-    "niche": "Gaming",
-    "country": "United States",
-    "location": "United States",
-    "isVerified": true,
-    "isFounding": true,
-    "tierName": "Founding Member Tier I",
-    "verification_status": "VERIFIED",
-    "connections": {
-      "youtube": {
-        "platform": "YOUTUBE",
-        "connected": true,
-        "username": "SenpaiNova",
-        "metricLabel": "subscribers",
-        "metricValue": "850K Subscribers",
-        "verified": true,
-        "profileUrl": "https://youtube.com/@senpainova"
-      },
-      "discord": {
-        "platform": "DISCORD",
-        "connected": true,
-        "username": "NovaSanctuary",
-        "metricLabel": "members",
-        "metricValue": "42K Members",
-        "verified": true,
-        "profileUrl": "https://discord.gg/novasanctuary"
-      }
-    },
-    "skills": [
-      "Gaming",
-      "Community Building",
-      "Video Editing"
-    ],
-    "achievements": [
-      "CreatorHQ Founding Member",
-      "100M+ Lifetime Views"
-    ],
-    "lastVerifiedAt": "2026-10-02"
-  },
-  {
-    "id": "creator_gamma",
-    "passportId": "gamma",
-    "slug": "gamma",
-    "handle": "@gamma",
-    "username": "gamma",
-    "displayName": "Gamma Lifestyle",
-    "bio": "Travel & Vlogs",
-    "category": "Lifestyle",
-    "isVerified": false,
-    "verification_status": "PENDING",
-    "niche": "Lifestyle"
-  },
-  {
-    "id": "creator_beta",
-    "passportId": "beta",
-    "slug": "beta",
-    "handle": "@beta",
-    "username": "beta",
-    "displayName": "Beta Tech",
-    "bio": "Hardware & AI Reviews",
-    "category": "Tech",
-    "isVerified": false,
-    "verification_status": "REJECTED",
-    "connections": {
-      "youtube": {
-        "platform": "YOUTUBE",
-        "connected": true,
-        "username": "BetaTechReviews",
-        "metricLabel": "subscribers",
-        "metricValue": "1.2M Subscribers",
-        "verified": true,
-        "profileUrl": "https://youtube.com/@betatech"
-      }
-    },
-    "niche": "Tech",
-    "tierName": "Candidate Member",
-    "rejectionReason": "Proof inconclusive"
-  },
-  {
-    "id": "creator_alpha",
-    "passportId": "alpha",
-    "slug": "alpha",
-    "handle": "@alpha",
-    "username": "alpha",
-    "displayName": "Alpha Creator",
-    "bio": "Pioneer YouTube Gamer",
-    "category": "Gaming",
-    "isVerified": true,
-    "verification_status": "VERIFIED",
-    "connections": {
-      "youtube": {
-        "platform": "YOUTUBE",
-        "connected": true,
-        "username": "AlphaGaming",
-        "metricLabel": "subscribers",
-        "metricValue": "450K Subscribers",
-        "verified": true,
-        "profileUrl": "https://youtube.com/@alphagaming"
-      },
-      "discord": {
-        "platform": "DISCORD",
-        "connected": true,
-        "username": "AlphaArmy",
-        "metricLabel": "members",
-        "metricValue": "35K Members",
-        "verified": true,
-        "profileUrl": "https://discord.gg/alphaarmy"
-      }
-    },
-    "niche": "Gaming",
-    "tierName": "Founding Member Tier I",
-    "lastVerifiedAt": "2026-10-02"
-  },
-  {
-    "id": "creator_brand_new_creator",
-    "passportId": "brand_new_creator",
-    "slug": "brand_new_creator",
-    "handle": "@brand_new_creator",
-    "username": "brand_new_creator",
-    "displayName": "Brand New Creator",
-    "avatarUrl": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80",
-    "bio": "Creator on CreatorHQ",
-    "category": "Gaming",
-    "country": "Global",
-    "location": "Global",
-    "contactEmail": "brand_new_creator@creatorhq.fun",
-    "issuedAt": "2026-10-02T12:42:06.271Z",
+    "country": "India",
+    "location": "India",
+    "contactEmail": "unrulek@creatorhq.fun",
+    "issuedAt": "2026-09-30T14:15:00.000Z",
     "lastVerifiedAt": "2026-10-02",
-    "digitalSignature": "0x1a0fca2da3f",
+    "digitalSignature": "0x4a9fb2d31c0e",
     "isSuspended": false,
     "isVerified": true,
     "verification_status": "VERIFIED",
+    "isFounding": true,
     "tierName": "Founding Member Tier I",
     "profileCompletion": 100,
+    "connections": {
+      "youtube": {
+        "platform": "YOUTUBE",
+        "connected": true,
+        "username": "Unrulek",
+        "metricLabel": "subscribers",
+        "metricValue": "59 Subscribers",
+        "rawCount": 59,
+        "verified": true,
+        "profileUrl": "https://youtube.com/@unrulek",
+        "channelId": "UC_unrulek"
+      },
+      "discord": {
+        "platform": "DISCORD",
+        "connected": true,
+        "username": "Unrulek",
+        "metricLabel": "members",
+        "metricValue": "578 Members",
+        "rawCount": 578,
+        "verified": true,
+        "profileUrl": "https://discord.gg/unrulek",
+        "guildId": "unrulek_community"
+      },
+      "instagram": {
+        "platform": "INSTAGRAM",
+        "connected": true,
+        "username": "anshu_gupta_official",
+        "metricLabel": "followers",
+        "metricValue": "482 Followers",
+        "rawCount": 482,
+        "verified": true,
+        "profileUrl": "https://instagram.com/anshu_gupta_official"
+      },
+      "x": {
+        "platform": "X",
+        "connected": false,
+        "username": "unrulek",
+        "metricLabel": "followers",
+        "metricValue": "",
+        "verified": false,
+        "profileUrl": "https://x.com/unrulek"
+      }
+    },
+    "moreChannels": [],
     "skills": [
-      "Content Creator"
+      "Content Creation",
+      "Livestreaming",
+      "Brand Partnerships",
+      "Video Production",
+      "Cloud & Server Hosting"
     ],
-    "achievements": [],
+    "achievements": [
+      {
+        "id": "ach_founding",
+        "slug": "founding-creator",
+        "name": "Founding Member",
+        "description": "Verified creator on CreatorHQ Talent Network.",
+        "badgeIcon": "shield-check",
+        "unlockedAt": "2026-09-30"
+      },
+      {
+        "id": "ach_verified",
+        "slug": "verified-creator",
+        "name": "Dual Platform Verified",
+        "description": "Confirmed audience across video and community platforms.",
+        "badgeIcon": "badge-check",
+        "unlockedAt": "2026-09-30"
+      }
+    ],
     "collaborations": [],
     "portfolio": [],
-    "connections": {}
+    "registeredIp": "49.36.192.210",
+    "clientIp": "49.36.192.210",
+    "proofDocuments": []
   }
 ]

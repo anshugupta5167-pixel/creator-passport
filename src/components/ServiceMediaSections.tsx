@@ -622,7 +622,7 @@ export default function ServiceMediaSections({
                   <div className="flex items-center justify-center gap-2 text-sky-400 font-semibold text-sm">
                     <TrendingUp className="w-4 h-4 text-sky-400" />
                     <span>
-                      {creator.connections.youtube?.metricValue || '1.8M'} subscribers
+                      {creator.connections?.youtube?.metricValue || '1.8M'} subscribers
                     </span>
                   </div>
 
@@ -829,7 +829,7 @@ export default function ServiceMediaSections({
                   {inspectingCreator.displayName}
                 </h3>
                 <p className="text-xs text-slate-400">
-                  {inspectingCreator.category} • Verified Reach: <strong className="text-white font-semibold">{inspectingCreator.connections.youtube?.metricValue || '1.8M'} subscribers</strong>
+                  {inspectingCreator.category} • Verified Reach: <strong className="text-white font-semibold">{inspectingCreator.connections?.youtube?.metricValue || '1.8M'} subscribers</strong>
                 </p>
               </div>
             </div>

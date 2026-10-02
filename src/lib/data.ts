@@ -64,7 +64,7 @@ export function getCreatorByUsername(username: string): CreatorProfile | null {
 export function getCreatorByDiscordId(discordId: string): CreatorProfile | null {
   const all = getAllCreators();
   const match = all.find(c => 
-    c.connections.discord?.username.includes(discordId) || 
+    c.connections?.discord?.username?.includes(discordId) || 
     c.id.includes(discordId)
   );
   return match || all[0] || null;

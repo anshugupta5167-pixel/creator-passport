@@ -27,8 +27,8 @@ export async function generateMetadata({ params }: PageProps) {
     };
   }
 
-  const ytMetric = creator.connections.youtube?.metricValue
-    ? ` • YouTube: ${creator.connections.youtube.metricValue}`
+  const ytMetric = creator.connections?.youtube?.metricValue
+    ? ` • YouTube: ${creator.connections?.youtube?.metricValue}`
     : '';
 
   return {

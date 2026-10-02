@@ -151,8 +151,8 @@ export default function CreatorsDirectoryPage() {
       }
 
       // Platform filter (Only YouTube and Discord)
-      if (selectedPlatform === 'YOUTUBE' && !creator.connections.youtube?.connected) return false;
-      if (selectedPlatform === 'DISCORD' && !creator.connections.discord?.connected) return false;
+      if (selectedPlatform === 'YOUTUBE' && !creator.connections?.youtube?.connected) return false;
+      if (selectedPlatform === 'DISCORD' && !creator.connections?.discord?.connected) return false;
 
       // Tier filter
       if (selectedTier === 'FOUNDING' && !creator.isFounding) return false;
@@ -378,25 +378,25 @@ export default function CreatorsDirectoryPage() {
 
                     {/* Platform Badges with Stats */}
                     <div className="p-4 rounded-xl bg-[#161922] border border-white/10 space-y-2.5 text-sm">
-                      {creator.connections.youtube?.connected && (
+                      {creator.connections?.youtube?.connected && (
                         <div className="flex items-center justify-between">
                           <span className="text-slate-200 flex items-center gap-2 font-medium">
                             <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
                             <span>YouTube</span>
                           </span>
                           <span className="font-mono text-white font-bold text-sm sm:text-base">
-                            {creator.connections.youtube.metricValue} subscribers
+                            {creator.connections?.youtube?.metricValue || '–'} subscribers
                           </span>
                         </div>
                       )}
-                      {creator.connections.discord?.connected && (
+                      {creator.connections?.discord?.connected && (
                         <div className="flex items-center justify-between">
                           <span className="text-slate-200 flex items-center gap-2 font-medium">
                             <span className="w-2.5 h-2.5 rounded-full bg-[#5865F2]" />
                             <span>Discord</span>
                           </span>
                           <span className="font-mono text-white font-bold text-sm sm:text-base">
-                            {creator.connections.discord.metricValue} members
+                            {creator.connections?.discord?.metricValue || '–'} members
                           </span>
                         </div>
                       )}

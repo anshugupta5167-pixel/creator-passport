@@ -36,7 +36,7 @@ export async function generateMetadata({ params }: PageProps) {
   }
 
   const ytChannel = creator.connections?.youtube?.username || creator.displayName;
-  const ytMetric = creator.connections?.youtube?.metricValue ? ` (${creator.connections.youtube.metricValue} Subscribers)` : '';
+  const ytMetric = creator.connections?.youtube?.metricValue ? ` (${creator.connections?.youtube?.metricValue} Subscribers)` : '';
 
   return {
     title: `${creator.displayName} | YouTube: ${ytChannel}${ytMetric} • CreatorHQ`,

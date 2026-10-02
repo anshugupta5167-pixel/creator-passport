@@ -243,8 +243,8 @@ export default function CreatorProfileView({ creator, targetId }: CreatorProfile
     );
   }
 
-  const yt = activeCreator.connections.youtube;
-  const dc = activeCreator.connections.discord;
+  const yt = activeCreator.connections?.youtube;
+  const dc = activeCreator.connections?.discord;
   const isActuallyVerified = Boolean(activeCreator.isVerified || activeCreator.verification_status === 'VERIFIED');
   const isRejected = activeCreator.verification_status === 'REJECTED';
   const verificationStatus = isActuallyVerified
@@ -431,9 +431,9 @@ export default function CreatorProfileView({ creator, targetId }: CreatorProfile
             )}
 
             {/* Instagram */}
-            {activeCreator.connections.instagram?.connected && (
+            {activeCreator.connections?.instagram?.connected && (
               <a
-                href={activeCreator.connections.instagram.profileUrl || `https://instagram.com/${activeCreator.connections.instagram.username || activeCreator.username}`}
+                href={activeCreator.connections?.instagram?.profileUrl || `https://instagram.com/${activeCreator.connections?.instagram?.username || activeCreator.username}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="group p-5 rounded-2xl bg-[#0e1217] border border-white/10 hover:border-pink-500/40 transition-all flex items-center gap-4"
@@ -446,10 +446,10 @@ export default function CreatorProfileView({ creator, targetId }: CreatorProfile
                 <div>
                   <span className="text-sm text-slate-300 block font-semibold">Instagram</span>
                   <span className="text-lg font-bold text-white font-mono">
-                    {activeCreator.connections.instagram.metricValue || `@${activeCreator.connections.instagram.username || activeCreator.username}`}
+                    {activeCreator.connections?.instagram?.metricValue || `@${activeCreator.connections?.instagram?.username || activeCreator.username}`}
                   </span>
                   <span className="text-xs text-slate-400 block font-medium">
-                    @{activeCreator.connections.instagram.username || activeCreator.username}
+                    @{activeCreator.connections?.instagram?.username || activeCreator.username}
                   </span>
                 </div>
                 <ExternalLink className="w-4 h-4 text-slate-500 group-hover:text-white ml-auto transition-colors" />
@@ -457,9 +457,9 @@ export default function CreatorProfileView({ creator, targetId }: CreatorProfile
             )}
 
             {/* X / Twitter */}
-            {activeCreator.connections.x?.connected && (
+            {activeCreator.connections?.x?.connected && (
               <a
-                href={activeCreator.connections.x.profileUrl || `https://x.com/${activeCreator.connections.x.username || activeCreator.username}`}
+                href={activeCreator.connections?.x?.profileUrl || `https://x.com/${activeCreator.connections?.x?.username || activeCreator.username}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="group p-5 rounded-2xl bg-[#0e1217] border border-white/10 hover:border-white/30 transition-all flex items-center gap-4"
@@ -472,10 +472,10 @@ export default function CreatorProfileView({ creator, targetId }: CreatorProfile
                 <div>
                   <span className="text-sm text-slate-300 block font-semibold">X / Twitter</span>
                   <span className="text-lg font-bold text-white font-mono">
-                    {activeCreator.connections.x.metricValue || `@${activeCreator.connections.x.username || activeCreator.username}`}
+                    {activeCreator.connections?.x?.metricValue || `@${activeCreator.connections?.x?.username || activeCreator.username}`}
                   </span>
                   <span className="text-xs text-slate-400 block font-medium">
-                    @{activeCreator.connections.x.username || activeCreator.username}
+                    @{activeCreator.connections?.x?.username || activeCreator.username}
                   </span>
                 </div>
                 <ExternalLink className="w-4 h-4 text-slate-500 group-hover:text-white ml-auto transition-colors" />
