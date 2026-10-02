@@ -134,11 +134,11 @@ export default function CreatorsDirectoryPage() {
       // Search matching name, handle, passportId, skills
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
-        const matchesName = creator.displayName.toLowerCase().includes(q);
-        const matchesUsername = creator.username.toLowerCase().includes(q);
+        const matchesName = (creator.displayName || '').toLowerCase().includes(q);
+        const matchesUsername = (creator.username || '').toLowerCase().includes(q);
         const matchesId = (creator.passportId || '').toLowerCase().includes(q);
-        const matchesCategory = creator.category.toLowerCase().includes(q);
-        const matchesSkill = creator.skills.some((s) => s.toLowerCase().includes(q));
+        const matchesCategory = (creator.category || creator.niche || '').toLowerCase().includes(q);
+        const matchesSkill = Array.isArray(creator.skills) && creator.skills.some((s) => (s || '').toLowerCase().includes(q));
 
         if (!matchesName && !matchesUsername && !matchesId && !matchesCategory && !matchesSkill) {
           return false;
@@ -146,17 +146,18 @@ export default function CreatorsDirectoryPage() {
       }
 
       // Category filter
-      if (selectedCategory !== 'ALL' && creator.category !== selectedCategory) {
+      if (selectedCategory !== 'ALL' && (creator.category || creator.niche) !== selectedCategory) {
         return false;
       }
 
-      // Platform filter (Only YouTube and Discord)
+      // Platform filter
       if (selectedPlatform === 'YOUTUBE' && !creator.connections?.youtube?.connected) return false;
       if (selectedPlatform === 'DISCORD' && !creator.connections?.discord?.connected) return false;
+      if (selectedPlatform === 'INSTAGRAM' && !creator.connections?.instagram?.connected) return false;
 
       // Tier filter
       if (selectedTier === 'FOUNDING' && !creator.isFounding) return false;
-      if (selectedTier === 'VERIFIED' && !creator.isVerified) return false;
+      if (selectedTier === 'VERIFIED' && !creator.isVerified && creator.verification_status !== 'VERIFIED') return false;
 
       return true;
     });
@@ -248,6 +249,7 @@ export default function CreatorsDirectoryPage() {
                     <option value="ALL">All Platforms</option>
                     <option value="YOUTUBE">YouTube Verified</option>
                     <option value="DISCORD">Discord Verified</option>
+                    <option value="INSTAGRAM">Instagram Verified</option>
                   </select>
                 </div>
 
@@ -397,6 +399,17 @@ export default function CreatorsDirectoryPage() {
                           </span>
                           <span className="font-mono text-white font-bold text-sm sm:text-base">
                             {creator.connections?.discord?.metricValue || '–'} members
+                          </span>
+                        </div>
+                      )}
+                      {creator.connections?.instagram?.connected && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-slate-200 flex items-center gap-2 font-medium">
+                            <span className="w-2.5 h-2.5 rounded-full bg-[#E1306C]" />
+                            <span>Instagram</span>
+                          </span>
+                          <span className="font-mono text-white font-bold text-sm sm:text-base">
+                            {creator.connections?.instagram?.metricValue || (creator.connections?.instagram?.username ? `@${creator.connections.instagram.username}` : '–')}
                           </span>
                         </div>
                       )}

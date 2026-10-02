@@ -186,6 +186,13 @@ export default function DashboardPage() {
     setAvatarUrl(active.avatarUrl || null);
     setIsVerified(active.isVerified === true);
 
+    if (typeof window !== 'undefined' && active.username) {
+      try {
+        localStorage.setItem('creatorhq_last_username', active.username);
+        document.cookie = `chq_user=${encodeURIComponent(active.username)}; path=/; max-age=31536000; SameSite=Lax;`;
+      } catch (e) {}
+    }
+
     if (active.connections?.youtube) {
       const ytClean = resolveYouTubeUrl(
         active.connections.youtube.profileUrl,
@@ -247,18 +254,10 @@ export default function DashboardPage() {
           active.username
         )
       );
-    }
-
-    if (active.connections?.x) {
-      setXUsername(active.connections.x.username || '');
-      setXReach(active.connections.x.metricValue || '');
-      setXUrl(
-        resolveXUrl(
-          active.connections.x.profileUrl,
-          active.connections.x.username,
-          active.username
-        )
-      );
+    } else {
+      setInstagramUsername('');
+      setInstagramReach('');
+      setInstagramUrl('');
     }
 
     if (active.moreChannels) {
@@ -348,6 +347,33 @@ export default function DashboardPage() {
         }
       }
 
+      // Check query params: ?user= or ?creator= or ?handle= or ?u=
+      const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+      const requestedHandle = urlParams ? (urlParams.get('user') || urlParams.get('creator') || urlParams.get('handle') || urlParams.get('u')) : null;
+      const lastKnownUser = typeof window !== 'undefined' ? localStorage.getItem('creatorhq_last_username') : null;
+
+      const lookupHandle = requestedHandle || (!saved ? lastKnownUser : null);
+      if (lookupHandle) {
+        const lookup = lookupHandle.trim().toLowerCase().replace(/^@/, '');
+        fetch(`/api/creators?q=${encodeURIComponent(lookup)}`)
+          .then((res) => res.json())
+          .then((data) => {
+            const list: CreatorProfile[] = data.creators || [];
+            const found = list.find(
+              (c) =>
+                (c.username && c.username.toLowerCase().replace(/^@/, '') === lookup) ||
+                (c.slug && c.slug.toLowerCase() === lookup) ||
+                (c.passportId && c.passportId.toLowerCase() === lookup)
+            );
+            if (found) {
+              applyCreatorToState(found);
+              localStorage.setItem(STORAGE_KEY, JSON.stringify(found));
+              setHasCreatedCard(true);
+            }
+          })
+          .catch(() => {});
+      }
+
       // Detect client IP and check for any registered card under 1-Person 1-Card policy
       const detectIp = async () => {
         try {
@@ -366,6 +392,12 @@ export default function DashboardPage() {
             setDetectedIp(clientIp);
             if (data.hasExistingCard && data.existingCreator) {
               setIpExistingCard(data.existingCreator);
+              // Auto-restore previous info when re-accessing the site!
+              applyCreatorToState(data.existingCreator);
+              localStorage.setItem(STORAGE_KEY, JSON.stringify(data.existingCreator));
+              setHasCreatedCard(true);
+              setToastMessage(`✓ Welcome back! Loaded your Creator Pass (@${data.existingCreator.username})`);
+              setTimeout(() => setToastMessage(null), 4000);
             }
           }
         } catch (err) {
@@ -466,21 +498,12 @@ export default function DashboardPage() {
       },
       instagram: {
         platform: 'INSTAGRAM',
-        connected: hasCreatedCard ? !!(instagramReach || instagramUrl || instagramUsername) : true,
-        username: (instagramUsername && instagramUsername !== 'creator') ? instagramUsername : (username || 'yourchannel'),
+        connected: !!(instagramReach || instagramUrl || (instagramUsername && instagramUsername !== 'creator')),
+        username: (instagramUsername && instagramUsername !== 'creator') ? instagramUsername : (username || ''),
         metricLabel: 'followers',
-        metricValue: instagramReach || (hasCreatedCard ? (instagramUrl ? 'Auto-Detecting...' : '') : '48.6K Followers'),
-        verified: true,
-        profileUrl: resolveInstagramUrl(instagramUrl, instagramUsername, username || 'yourchannel'),
-      },
-      x: {
-        platform: 'X',
-        connected: hasCreatedCard ? !!(xReach || xUrl || xUsername) : true,
-        username: (xUsername && xUsername !== 'creator') ? xUsername : (username || 'yourchannel'),
-        metricLabel: 'followers',
-        metricValue: xReach || (hasCreatedCard ? (xUrl ? 'Auto-Detecting...' : '') : '29.3K Followers'),
-        verified: true,
-        profileUrl: resolveXUrl(xUrl, xUsername, username || 'yourchannel'),
+        metricValue: instagramReach || (instagramUrl ? 'Auto-Detecting...' : ''),
+        verified: !!(instagramReach || instagramUrl),
+        profileUrl: resolveInstagramUrl(instagramUrl, instagramUsername, username || ''),
       },
     },
     moreChannels: moreChannels || [],
@@ -682,18 +705,23 @@ export default function DashboardPage() {
       }
 
       const p = data.profile;
-      const cleanUser = p.username.replace(/^@/, '');
-      const reachFormatted = p.compactFollowers?.includes('Followers') ? p.compactFollowers : `${p.compactFollowers || '0'} Followers`;
+      const cleanUser = (p.username || '').replace(/^@/, '');
+      let reachFormatted = '';
+      if (p.followersCount > 0 && p.compactFollowers) {
+        reachFormatted = p.compactFollowers.includes('Followers') ? p.compactFollowers : `${p.compactFollowers} Followers`;
+        setInstagramReach(reachFormatted);
+      } else if (instagramReach) {
+        reachFormatted = instagramReach;
+      }
 
       setInstagramUsername(cleanUser);
-      setInstagramReach(reachFormatted);
       setInstagramUrl(p.url);
 
       if (!avatarUrl && p.avatarUrl) {
         setAvatarUrl(p.avatarUrl);
       }
 
-      setToastMessage(`✓ Instagram Connected: @${cleanUser} (${reachFormatted})`);
+      setToastMessage(reachFormatted ? `✓ Instagram Connected: @${cleanUser} (${reachFormatted})` : `✓ Instagram Connected: @${cleanUser}`);
       setTimeout(() => setToastMessage(null), 3500);
 
       return {
@@ -2046,6 +2074,23 @@ export default function DashboardPage() {
                         <p className="text-xs text-red-400 font-medium font-sans">{instagramError}</p>
                       )}
 
+                      {/* Real Follower Count Input */}
+                      <div className="space-y-1 pt-1">
+                        <div className="flex items-center justify-between">
+                          <label className="text-[11px] font-semibold text-slate-300 block font-sans">
+                            Real Instagram Followers
+                          </label>
+                          <span className="text-[10px] text-slate-400">Auto-detected or enter real number</span>
+                        </div>
+                        <input
+                          type="text"
+                          value={instagramReach}
+                          onChange={(e) => setInstagramReach(e.target.value)}
+                          placeholder="e.g. 15.4K Followers or 3,250"
+                          className="w-full px-3.5 py-2 rounded-lg bg-[#0a0a0a] border border-[#2e2e2e] text-xs text-white focus:outline-none focus:border-[#E1306C] font-sans"
+                        />
+                      </div>
+
                       {/* Verified Instagram Followers Banner */}
                       {instagramReach && (
                         <div className="flex items-center justify-between p-3 rounded-lg bg-[#161616] border border-[#262626] text-xs font-sans">
@@ -2054,7 +2099,7 @@ export default function DashboardPage() {
                             <span className="text-slate-300">Live Instagram Followers:</span>
                             <span className="font-bold text-white font-sans">{instagramReach}</span>
                           </div>
-                          <span className="text-[11px] text-pink-400 font-sans font-semibold">✓ Auto-Fetched</span>
+                          <span className="text-[11px] text-pink-400 font-sans font-semibold">✓ Confirmed</span>
                         </div>
                       )}
                     </div>
@@ -2568,6 +2613,23 @@ export default function DashboardPage() {
                           <p className="text-xs text-red-400 font-medium font-sans">{instagramError}</p>
                         )}
 
+                        {/* Real Follower Count Input */}
+                        <div className="space-y-1 pt-1">
+                          <div className="flex items-center justify-between">
+                            <label className="text-[11px] font-semibold text-slate-300 block font-sans">
+                              Real Instagram Followers
+                            </label>
+                            <span className="text-[10px] text-slate-400">Auto-detected or enter real number</span>
+                          </div>
+                          <input
+                            type="text"
+                            value={instagramReach}
+                            onChange={(e) => setInstagramReach(e.target.value)}
+                            placeholder="e.g. 15.4K Followers or 3,250"
+                            className="w-full px-3.5 py-2 rounded-lg bg-[#0a0a0a] border border-[#2e2e2e] text-xs text-white focus:outline-none focus:border-[#d62976] font-sans"
+                          />
+                        </div>
+
                         {instagramReach && (
                           <div className="flex items-center justify-between p-3 rounded-lg bg-[#161616] border border-[#262626] text-xs font-sans">
                             <div className="flex items-center gap-2">
@@ -2575,7 +2637,7 @@ export default function DashboardPage() {
                               <span className="text-slate-300">Live Verified Followers:</span>
                               <span className="font-bold text-white font-sans">{instagramReach}</span>
                             </div>
-                            <span className="text-[11px] text-pink-400 font-sans font-semibold">✓ Auto-Fetched</span>
+                            <span className="text-[11px] text-pink-400 font-sans font-semibold">✓ Confirmed</span>
                           </div>
                         )}
                       </div>

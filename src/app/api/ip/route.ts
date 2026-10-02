@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCreatorByIpDB, normalizeIp } from '@/lib/db';
+import { getCreatorByIpDBAsync, getCreatorByIdDBAsync, normalizeIp } from '@/lib/db';
+import { CreatorProfile } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,27 +52,27 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Check if a creator already exists in database with this IP
-    const existing = getCreatorByIpDB(detectedIp);
+    // 1. Check if user handle was passed via cookie or query param
+    const cookieUser = request.cookies.get('chq_user')?.value || request.cookies.get('creatorhq_user')?.value;
+    const { searchParams } = new URL(request.url);
+    const paramUser = searchParams.get('user') || searchParams.get('handle') || searchParams.get('creator');
+    const targetUser = (paramUser || cookieUser || '').trim();
+
+    let existing: CreatorProfile | null = null;
+    if (targetUser) {
+      existing = await getCreatorByIdDBAsync(targetUser);
+    }
+
+    // 2. If not found by cookie/param, check by detected IP
+    if (!existing && detectedIp) {
+      existing = await getCreatorByIpDBAsync(detectedIp);
+    }
 
     return NextResponse.json({
       success: true,
       ip: detectedIp,
       hasExistingCard: !!existing,
-      existingCreator: existing
-        ? {
-            id: existing.id,
-            displayName: existing.displayName,
-            username: existing.username,
-            slug: existing.slug,
-            passportId: existing.passportId,
-            avatarUrl: existing.avatarUrl,
-            category: existing.category,
-            bio: existing.bio,
-            connections: existing.connections,
-            registeredIp: existing.registeredIp,
-          }
-        : null,
+      existingCreator: existing || null,
     });
   } catch (err: any) {
     return NextResponse.json({

@@ -14,7 +14,7 @@ import {
   pushCreatorsToCloudStore, 
   pushVerificationsToCloudStore 
 } from './cloudStore';
-import { resolveYouTubeUrl, resolveDiscordUrl } from './urls';
+import { resolveYouTubeUrl, resolveDiscordUrl, resolveInstagramUrl } from './urls';
 import { notifySubscribers } from './events';
 
 // Seed directory bundled with project (read-only in Vercel lambdas)
@@ -318,6 +318,16 @@ export function getCreatorByIpDB(ip: string): CreatorProfile | null {
   );
 }
 
+export async function getCreatorByIpDBAsync(ip: string): Promise<CreatorProfile | null> {
+  if (!ip) return null;
+  const all = await getAllCreatorsDBAsync();
+  return (
+    all.find((c) => {
+      return isSameIp(c.registeredIp, ip) || isSameIp(c.clientIp, ip);
+    }) || null
+  );
+}
+
 export async function addCreatorDB(creator: CreatorProfile): Promise<CreatorProfile> {
   const current = getAllCreatorsDB();
 
@@ -401,6 +411,23 @@ export async function addCreatorDB(creator: CreatorProfile): Promise<CreatorProf
             creator.username || existing.username
           ),
         },
+        ...(creator.connections?.instagram ? {
+          instagram: {
+            ...existing.connections?.instagram,
+            ...creator.connections.instagram,
+            platform: 'INSTAGRAM' as const,
+            connected: true,
+            metricLabel: 'followers',
+            verified: true,
+            metricValue: creator.connections.instagram.metricValue || existing.connections?.instagram?.metricValue || '',
+            username: creator.connections.instagram.username || existing.connections?.instagram?.username || creator.username || '',
+            profileUrl: resolveInstagramUrl(
+              creator.connections.instagram.profileUrl || existing.connections?.instagram?.profileUrl,
+              creator.connections.instagram.username || existing.connections?.instagram?.username,
+              creator.username || existing.username
+            ),
+          }
+        } : (existing.connections?.instagram ? { instagram: existing.connections.instagram } : {})),
       },
       moreChannels: Array.isArray(creator.moreChannels)
         ? creator.moreChannels

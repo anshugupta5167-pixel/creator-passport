@@ -9,13 +9,13 @@ import CreatorComparisons from '@/components/CreatorComparisons';
 import CamouflageBannerBg from '@/components/CamouflageBannerBg';
 import ScrollReveal from '@/components/ScrollReveal';
 import HeroAnimatedHeading from '@/components/HeroAnimatedHeading';
-import { getAllCreatorsDB } from '@/lib/db';
+import { getAllCreatorsDBAsync } from '@/lib/db';
 import { ArrowRight } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
-export default function LandingPage() {
-  const allCreators = getAllCreatorsDB();
+export default async function LandingPage() {
+  const allCreators = await getAllCreatorsDBAsync();
 
   return (
     <div className="min-h-screen bg-[#0b0d11] text-slate-100 flex flex-col font-sans selection:bg-sky-500/30 selection:text-white">

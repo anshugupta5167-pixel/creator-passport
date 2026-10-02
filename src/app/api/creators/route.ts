@@ -36,13 +36,14 @@ export async function GET(request: NextRequest) {
     const q = query.toLowerCase().trim().replace(/^@/, '');
     creators = creators.filter(
       (c) =>
-        c.displayName.toLowerCase().includes(q) ||
-        c.username.toLowerCase().includes(q) ||
+        (c.displayName || '').toLowerCase().includes(q) ||
+        (c.username || '').toLowerCase().includes(q) ||
         (c.slug && c.slug.toLowerCase().includes(q)) ||
         (c.passportId && c.passportId.toLowerCase().includes(q)) ||
         (c.handle && c.handle.toLowerCase().replace(/^@/, '').includes(q)) ||
         (c.id && c.id.toLowerCase().includes(q)) ||
-        c.category.toLowerCase().includes(q)
+        (c.category && c.category.toLowerCase().includes(q)) ||
+        (c.niche && c.niche.toLowerCase().includes(q))
     );
   }
 
@@ -231,7 +232,13 @@ export async function POST(request: NextRequest) {
     }
 
     const saved = await addCreatorDB(body);
-    return NextResponse.json({ success: true, creator: saved, clientIp: detectedIp });
+    const response = NextResponse.json({ success: true, creator: saved, clientIp: detectedIp });
+    response.cookies.set('chq_user', saved.username, {
+      path: '/',
+      maxAge: 60 * 60 * 24 * 365, // 1 year
+      sameSite: 'lax',
+    });
+    return response;
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Error saving creator' }, { status: 500 });
   }

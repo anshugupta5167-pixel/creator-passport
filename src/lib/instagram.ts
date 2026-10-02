@@ -108,12 +108,6 @@ const KNOWN_INSTAGRAM: Record<string, { fullName: string; followers: number; ava
     avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=400&q=80',
     bio: 'Pewds',
   },
-  example: {
-    fullName: 'Example Creator',
-    followers: 54300,
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
-    bio: 'Digital Creator • Content & Brand Partner',
-  },
 };
 
 function decodeHtmlEntities(str: string): string {
@@ -285,7 +279,7 @@ export async function fetchInstagramProfile(
         (known ? known.avatar : `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=E1306C&color=fff&size=512&bold=true`);
       let bio = scrapedBio || (known ? known.bio : `Official verified Instagram profile for @${cleanHandle}`);
 
-      const formatted = formatFollowersCount(followers);
+      const formatted = followers > 0 ? formatFollowersCount(followers) : { full: '', compact: '' };
 
       const result: InstagramProfileResult = {
         username: cleanHandle,
@@ -300,7 +294,7 @@ export async function fetchInstagramProfile(
         verified: true,
         lastUpdated: new Date().toISOString(),
         lastSyncedTimestamp: Date.now(),
-        status: 'VERIFIED',
+        status: followers > 0 ? 'VERIFIED' : 'FALLBACK',
       };
 
       instagramCache.set(cacheKey, { data: result, timestamp: Date.now() });
