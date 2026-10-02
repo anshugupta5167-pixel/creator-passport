@@ -5,8 +5,8 @@ import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import CamouflageBannerBg from '@/components/CamouflageBannerBg';
-import { getAllCreators } from '@/lib/data';
 import { CreatorProfile } from '@/lib/types';
+import { subscribeToCreatorSync } from '@/lib/sync';
 import {
   Search,
   Filter,
@@ -19,8 +19,7 @@ import {
 } from 'lucide-react';
 
 export default function CreatorsDirectoryPage() {
-  const initialCreators = useMemo(() => getAllCreators(), []);
-  const [creatorsList, setCreatorsList] = useState<CreatorProfile[]>(initialCreators);
+  const [creatorsList, setCreatorsList] = useState<CreatorProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
   const [searchQuery, setSearchQuery] = useState('');
@@ -28,53 +27,20 @@ export default function CreatorsDirectoryPage() {
   const [selectedPlatform, setSelectedPlatform] = useState('ALL');
   const [selectedTier, setSelectedTier] = useState('ALL');
 
-  // Load from DB API and hydrate user-created cards
+  // Load from DB API and listen to real-time events
   React.useEffect(() => {
     let isMounted = true;
 
     async function loadCreators() {
       try {
-        const res = await fetch('/api/creators');
+        const res = await fetch('/api/creators', {
+          cache: 'no-store',
+          headers: { 'Cache-Control': 'no-cache' }
+        });
         if (res.ok) {
           const data = await res.json();
           if (data.creators && isMounted) {
-            let combined = [...data.creators];
-            
-            // Check verified overrides
-            try {
-              const verifiedOverrides = JSON.parse(localStorage.getItem('creatorhq_verified_creators') || '{}');
-              combined = combined.map((c: CreatorProfile) => {
-                const s = (c.slug || c.username || c.passportId || '').toLowerCase().replace(/^@/, '');
-                if (s in verifiedOverrides) {
-                  const isV = Boolean(verifiedOverrides[s]);
-                  return {
-                    ...c,
-                    isVerified: isV,
-                    verification_status: isV ? 'VERIFIED' : 'PENDING',
-                    tierName: isV 
-                      ? (c.tierName && c.tierName !== 'Candidate Member' ? c.tierName : 'Founding Member Tier I')
-                      : 'Candidate Member',
-                  };
-                }
-                return c;
-              });
-            } catch (e) {}
-
-            // Also check localStorage
-            try {
-              const savedCard = localStorage.getItem('creatorhq_user_card');
-              if (savedCard) {
-                const userCreator: CreatorProfile = JSON.parse(savedCard);
-                const exists = combined.some(
-                  (c) => c.id === userCreator.id || (c.passportId && userCreator.passportId && c.passportId.toUpperCase() === userCreator.passportId.toUpperCase())
-                );
-                if (!exists) {
-                  combined.unshift(userCreator);
-                }
-              }
-            } catch (e) {}
-
-            setCreatorsList(combined);
+            setCreatorsList(data.creators);
             setIsLoading(false);
             return;
           }
@@ -82,22 +48,71 @@ export default function CreatorsDirectoryPage() {
       } catch (e) {
         console.error('Failed to load creators from API:', e);
       }
-
-      // Fallback to local storage if API unreachable
-      try {
-        const savedCard = localStorage.getItem('creatorhq_user_card');
-        if (savedCard && isMounted) {
-          const userCreator: CreatorProfile = JSON.parse(savedCard);
-          setCreatorsList([userCreator]);
-        }
-      } catch (e) {}
       if (isMounted) setIsLoading(false);
     }
 
     loadCreators();
 
+    // Subscribe to real-time updates from admin actions and minting
+    const unsubscribe = subscribeToCreatorSync((payload) => {
+      if (payload.type === 'VERIFICATION_UPDATED') {
+        setCreatorsList((prev) =>
+          prev.map((c) => {
+            const s = (c.slug || c.username || c.passportId || '').toLowerCase().replace(/^@/, '');
+            const targetSlug = (payload.slug || (payload.creator && (payload.creator.slug || payload.creator.username)) || '').toLowerCase().replace(/^@/, '');
+            if (s === targetSlug) {
+              if (payload.creator) return payload.creator;
+              const isV = payload.isVerified ?? payload.status === 'VERIFIED';
+              return {
+                ...c,
+                isVerified: isV,
+                verification_status: (payload.status || (isV ? 'VERIFIED' : 'PENDING')) as any,
+                tierName: isV
+                  ? (c.tierName && c.tierName !== 'Candidate Member' ? c.tierName : 'Founding Member Tier I')
+                  : 'Candidate Member',
+              };
+            }
+            return c;
+          })
+        );
+      } else if (payload.type === 'CREATOR_CREATED' || payload.type === 'CREATOR_UPDATED') {
+        if (payload.creator) {
+          setCreatorsList((prev) => {
+            const cleanSlug = (payload.creator.slug || payload.creator.username || '').toLowerCase();
+            const exists = prev.some((c) => (c.slug || c.username || '').toLowerCase() === cleanSlug);
+            if (exists) {
+              return prev.map((c) =>
+                (c.slug || c.username || '').toLowerCase() === cleanSlug ? payload.creator : c
+              );
+            }
+            return [payload.creator, ...prev];
+          });
+        } else {
+          loadCreators();
+        }
+      } else if (payload.type === 'CREATOR_DELETED') {
+        if (payload.slug) {
+          const cleanSlug = payload.slug.toLowerCase().replace(/^@/, '');
+          setCreatorsList((prev) =>
+            prev.filter((c) => (c.slug || c.username || '').toLowerCase().replace(/^@/, '') !== cleanSlug)
+          );
+        } else {
+          loadCreators();
+        }
+      }
+    });
+
+    // Periodic sync polling as resilient fallback
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        loadCreators();
+      }
+    }, 6000);
+
     return () => {
       isMounted = false;
+      unsubscribe();
+      clearInterval(interval);
     };
   }, []);
 
@@ -337,10 +352,16 @@ export default function CreatorsDirectoryPage() {
 
                       <div className="text-right font-mono">
                         <span className="text-xs font-bold text-sky-400 block">
-                          {creator.passportId}
+                          @{creator.slug || creator.username}
                         </span>
-                        <span className={`text-[10px] uppercase font-semibold ${creator.isVerified ? 'text-emerald-400' : 'text-slate-400'}`}>
-                          {creator.isVerified ? (creator.isFounding ? 'FOUNDING' : 'VERIFIED') : 'UNVERIFIED'}
+                        <span className={`text-[10px] uppercase font-semibold ${
+                          (creator.isVerified || creator.verification_status === 'VERIFIED')
+                            ? 'text-emerald-400'
+                            : (creator.verification_status === 'REJECTED' ? 'text-red-400' : 'text-amber-400')
+                        }`}>
+                          {(creator.isVerified || creator.verification_status === 'VERIFIED')
+                            ? (creator.isFounding ? 'FOUNDING' : 'VERIFIED')
+                            : (creator.verification_status === 'REJECTED' ? 'REJECTED' : 'PENDING')}
                         </span>
                       </div>
                     </div>
@@ -383,14 +404,18 @@ export default function CreatorsDirectoryPage() {
 
                     {/* Verification Status Pill */}
                     <div className="flex items-center justify-between pt-1">
-                      {creator.isVerified ? (
+                      {(creator.isVerified || creator.verification_status === 'VERIFIED') ? (
                         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold shadow-sm">
                           <Check className="w-3.5 h-3.5 stroke-[3]" />
                           <span>VERIFIED CREATOR</span>
                         </span>
+                      ) : creator.verification_status === 'REJECTED' ? (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-bold shadow-sm">
+                          <span>REJECTED</span>
+                        </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-slate-400 text-xs font-bold shadow-sm">
-                          <span>UNVERIFIED</span>
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-bold shadow-sm">
+                          <span>PENDING REVIEW</span>
                         </span>
                       )}
                       <span className="text-xs font-mono text-slate-300 font-medium">
@@ -403,7 +428,7 @@ export default function CreatorsDirectoryPage() {
                     {/* View Creator Pass Action Button */}
                     <div className="pt-5 mt-4 border-t border-white/10">
                       <Link
-                        href={`/creator/${creator.passportId}`}
+                        href={`/${(creator.slug || creator.username || creator.passportId || '').replace(/^@/, '')}`}
                         className="inline-flex items-center justify-center gap-2 w-full py-3 rounded-lg btn-chq-primary text-sm font-semibold transition-all shadow-sm"
                       >
                         <span>View Creator Pass</span>

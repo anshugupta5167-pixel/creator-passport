@@ -10,6 +10,7 @@ import QuickInfoCard from '@/components/QuickInfoCard';
 import MoreChannelsCard from '@/components/MoreChannelsCard';
 import { CreatorProfile } from '@/lib/types';
 import { getSafeAvatarUrl } from '@/lib/urls';
+import { subscribeToCreatorSync } from '@/lib/sync';
 
 import {
   ShieldCheck,
@@ -92,87 +93,77 @@ export default function CreatorProfileView({ creator, targetId }: CreatorProfile
   const [inquiryEmail, setInquiryEmail] = useState('');
   const [inquiryMessage, setInquiryMessage] = useState('');
 
-  // Hydrate from localStorage or live API
+  // Synchronize creator and subscribe to real-time events
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('creatorhq_user_card');
-      if (creator) {
-        setActiveCreator(creator);
-        if (saved) {
-          try {
-            const parsed: CreatorProfile = JSON.parse(saved);
-            const parsedSlug = (parsed.slug || parsed.username || '').toLowerCase();
-            const creatorSlug = (creator.slug || creator.username || '').toLowerCase();
-            if (parsedSlug === creatorSlug) {
-              setIsMyOwnPass(true);
-              localStorage.setItem('creatorhq_user_card', JSON.stringify(creator));
-            }
-          } catch (e) {}
-        }
-        setIsSearching(false);
-        return;
-      }
-
-      const searchTarget = (targetId || '').toLowerCase();
-
-      if (saved) {
-        try {
-          const parsed: CreatorProfile = JSON.parse(saved);
-          if (parsed && (parsed.displayName || parsed.username)) {
-            const parsedSlug = (parsed.slug || parsed.username || '').toLowerCase();
-
-            if (
-              searchTarget === 'my-pass' ||
-              searchTarget === parsedSlug ||
-              !targetId
-            ) {
-              setActiveCreator(parsed);
-              setIsMyOwnPass(true);
-              setIsSearching(false);
-              return;
-            }
-          }
-        } catch (e) {}
-      }
-
-      // If not in local storage and not supplied by server, fetch from live API
-      if (!creator && targetId) {
-        fetch(`/api/creators?q=${encodeURIComponent(targetId)}`)
-          .then((res) => res.json())
-          .then((data) => {
-            if (data.creators && data.creators.length > 0) {
-              const cleanT = targetId.toLowerCase().replace(/^@/, '');
-              const matched = data.creators.find(
-                (c: CreatorProfile) =>
-                  (c.slug && c.slug.toLowerCase() === cleanT) ||
-                  (c.username && c.username.toLowerCase() === cleanT) ||
-                  (c.passportId && c.passportId.toLowerCase() === cleanT) ||
-                  (c.handle && c.handle.toLowerCase().replace(/^@/, '') === cleanT) ||
-                  (c.id && c.id.toLowerCase() === cleanT)
-              );
-              if (matched) {
-                setActiveCreator(matched);
-              } else {
-                setActiveCreator(data.creators[0]);
-              }
-            }
-            setIsSearching(false);
-          })
-          .catch(() => setIsSearching(false));
-      } else if (!creator) {
-        fetch('/api/creators')
-          .then((res) => res.json())
-          .then((data) => {
-            if (data.creators && data.creators.length > 0) {
-              setActiveCreator(data.creators[0]);
-            }
-            setIsSearching(false);
-          })
-          .catch(() => setIsSearching(false));
-      } else {
-        setIsSearching(false);
-      }
+    if (creator) {
+      setActiveCreator(creator);
+      setIsSearching(false);
     }
+
+    const currentSlug = (creator?.slug || creator?.username || targetId || '').toLowerCase().replace(/^@/, '');
+
+    // Check if viewer owns this card
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('creatorhq_user_card');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          const parsedSlug = (parsed.slug || parsed.username || '').toLowerCase().replace(/^@/, '');
+          setIsMyOwnPass(Boolean(parsedSlug && currentSlug && parsedSlug === currentSlug));
+        }
+      } catch (e) {}
+    }
+
+    // If no server creator was provided, fetch from /api/creators
+    if (!creator && targetId) {
+      setIsSearching(true);
+      fetch(`/api/creators?q=${encodeURIComponent(targetId)}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.creators && Array.isArray(data.creators)) {
+            const cleanT = targetId.toLowerCase().replace(/^@/, '');
+            const matched = data.creators.find(
+              (c: CreatorProfile) =>
+                (c.slug && c.slug.toLowerCase().replace(/^@/, '') === cleanT) ||
+                (c.username && c.username.toLowerCase().replace(/^@/, '') === cleanT) ||
+                (c.passportId && c.passportId.toLowerCase().replace(/^@/, '') === cleanT) ||
+                (c.handle && c.handle.toLowerCase().replace(/^@/, '') === cleanT) ||
+                (c.id && c.id.toLowerCase() === cleanT)
+            );
+            setActiveCreator(matched || null);
+          } else {
+            setActiveCreator(null);
+          }
+          setIsSearching(false);
+        })
+        .catch(() => {
+          setActiveCreator(null);
+          setIsSearching(false);
+        });
+    }
+
+    // Subscribe to live SSE status updates
+    const unsubscribe = subscribeToCreatorSync((payload) => {
+      const targetClean = (activeCreator?.slug || activeCreator?.username || currentSlug).toLowerCase();
+      const payloadSlug = (payload.slug || '').toLowerCase();
+      if (payloadSlug && (payloadSlug === targetClean || (payload.creator && (payload.creator.slug || '').toLowerCase() === targetClean))) {
+        if (payload.creator) {
+          setActiveCreator(payload.creator);
+        } else if (payload.status) {
+          setActiveCreator((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  verification_status: payload.status as any,
+                  isVerified: payload.isVerified ?? payload.status === 'VERIFIED',
+                }
+              : null
+          );
+        }
+      }
+    });
+
+    return unsubscribe;
   }, [creator, targetId]);
 
   const handleCopyLink = () => {
@@ -254,10 +245,11 @@ export default function CreatorProfileView({ creator, targetId }: CreatorProfile
 
   const yt = activeCreator.connections.youtube;
   const dc = activeCreator.connections.discord;
-  const isActuallyVerified = Boolean(activeCreator.isVerified && activeCreator.verification_status === 'VERIFIED');
+  const isActuallyVerified = Boolean(activeCreator.isVerified || activeCreator.verification_status === 'VERIFIED');
+  const isRejected = activeCreator.verification_status === 'REJECTED';
   const verificationStatus = isActuallyVerified
     ? 'VERIFIED'
-    : (activeCreator.verification_status === 'REJECTED' ? 'REJECTED' : 'PENDING');
+    : (isRejected ? 'REJECTED' : 'PENDING');
 
   return (
     <div className="min-h-screen bg-[#0b0d11] text-slate-100 flex flex-col font-sans selection:bg-sky-500/30 selection:text-white pt-20 relative overflow-hidden">

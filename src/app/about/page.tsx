@@ -46,16 +46,16 @@ const corePillars = [
 
 const leadershipTeam = [
   {
-    name: 'Marcus Vance',
-    role: 'Co-Founder & CEO',
-    bio: 'Former YouTube creator and gaming studio executive. Passionate about empowering independent creators with corporate-grade monetization tools.',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=300&q=80',
+    name: 'Anshu Gupta',
+    role: 'Founder & CEO',
+    bio: 'Visionary behind CreatorHQ. Founded the platform in September 2026 to pioneer verifiable creator identity, fraud-proof media analytics, and direct brand sponsorship networks.',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
   },
   {
-    name: 'Elena Rostova',
-    role: 'Head of Trust & Verification',
-    bio: 'Specialist in creator analytics auditing, digital identity fraud prevention, and community integrity systems.',
-    avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=300&q=80',
+    name: 'Pranav Sharma',
+    role: 'Co-Founder & COO',
+    bio: 'Creator ecosystem architect. Spearheads creator partnerships, trust & verification protocol operations, and scaling high-conviction brand sponsor deals.',
+    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=300&q=80',
   },
   {
     name: 'Julian Chen',
@@ -278,6 +278,16 @@ export default function AboutPage() {
                   </div>
                 </TiltCard>
               ))}
+            </div>
+
+            <div className="mt-12 text-center">
+              <Link
+                href="/founders"
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-sky-400 hover:text-white border border-white/10 text-sm font-semibold transition-all hover:scale-105"
+              >
+                <span>Read Full Story & Meet Founders Anshu Gupta & Pranav Sharma</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
             </div>
           </div>
         </section>

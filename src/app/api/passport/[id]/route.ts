@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCreatorByPassportId } from '@/lib/data';
+import { getCreatorByIdDB, getCreatorByUsernameDB } from '@/lib/db';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   const { id } = await context.params;
-  const creator = getCreatorByPassportId(id);
+  const clean = (id || '').replace(/^@/, '');
+  const creator = getCreatorByIdDB(clean) || getCreatorByUsernameDB(clean);
 
   if (!creator) {
     return NextResponse.json(

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCreatorBySlug, togglePlatformConnection } from '@/lib/data';
-import { getCreatorBySlugDB } from '@/lib/db';
+import { getCreatorBySlugDB, addCreatorDB } from '@/lib/db';
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,6 +15,19 @@ export async function POST(request: NextRequest) {
 
     // Connect and verify Discord platform
     const creatorSlug = creator.slug || creator.username;
+    creator.connections = {
+      ...creator.connections,
+      discord: {
+        platform: 'DISCORD',
+        metricLabel: 'members',
+        ...creator.connections?.discord,
+        username: creator.connections?.discord?.username || creator.displayName || creatorSlug || 'community',
+        metricValue: creator.connections?.discord?.metricValue || '1 Community',
+        connected: true,
+        verified: true,
+      },
+    };
+    await addCreatorDB(creator);
     togglePlatformConnection(creatorSlug, 'discord', true);
 
     return NextResponse.json({

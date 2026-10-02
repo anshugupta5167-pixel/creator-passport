@@ -26,8 +26,7 @@ export async function generateMetadata({ params }: PageProps) {
         (c.username && c.username.toLowerCase() === cleanId.toLowerCase()) ||
         (c.handle && c.handle.toLowerCase().replace(/^@/, '') === cleanId.toLowerCase()) ||
         (c.id && c.id.toLowerCase() === cleanId.toLowerCase())
-    ) ||
-    all[0];
+    );
 
   if (!creator) {
     return {
@@ -72,8 +71,7 @@ export default async function CreatorPage({ params }: PageProps) {
         (c.username && c.username.toLowerCase() === cleanId.toLowerCase()) ||
         (c.handle && c.handle.toLowerCase().replace(/^@/, '') === cleanId.toLowerCase()) ||
         (c.id && c.id.toLowerCase() === cleanId.toLowerCase())
-    ) ||
-    all[0];
+    );
 
-  return <CreatorProfileView creator={creator} targetId={cleanId} />;
+  return <CreatorProfileView creator={creator || null} targetId={cleanId} />;
 }

@@ -17,6 +17,7 @@ import { CreatorProfile } from '@/lib/types';
 import confetti from 'canvas-confetti';
 import CHQLogo from '@/components/CHQLogo';
 import { getSafeAvatarUrl } from '@/lib/urls';
+import { subscribeToCreatorSync } from '@/lib/sync';
 
 interface PassportCardProps {
   creator: CreatorProfile;
@@ -48,8 +49,34 @@ export default function PassportCard({
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('');
   const [copied, setCopied] = useState(false);
   const [copiedId, setCopiedId] = useState(false);
+  const [cardCreator, setCardCreator] = useState<CreatorProfile>(creator);
   const cardRef = useRef<HTMLDivElement>(null);
-  const cleanSlug = (creator.slug || creator.username || creator.passportId || 'creator').toLowerCase().replace(/^@/, '').trim();
+  const cleanSlug = (cardCreator.slug || cardCreator.username || cardCreator.passportId || 'creator').toLowerCase().replace(/^@/, '').trim();
+
+  // Keep cardCreator in sync with props
+  useEffect(() => {
+    setCardCreator(creator);
+  }, [creator]);
+
+  // Subscribe to real-time status and profile updates from admin and database
+  useEffect(() => {
+    const unsubscribe = subscribeToCreatorSync((payload) => {
+      const clean = (cleanSlug || '').toLowerCase();
+      const payloadSlug = (payload.slug || '').toLowerCase();
+      if (payloadSlug === clean || (payload.creator && (payload.creator.slug || '').toLowerCase() === clean)) {
+        if (payload.creator) {
+          setCardCreator(payload.creator);
+        } else if (payload.status) {
+          setCardCreator((prev) => ({
+            ...prev,
+            verification_status: payload.status as any,
+            isVerified: payload.isVerified ?? payload.status === 'VERIFIED',
+          }));
+        }
+      }
+    });
+    return unsubscribe;
+  }, [cleanSlug]);
 
   // Generate dynamic QR code matching profile URL (https://creatorhq.fun/{slug})
   useEffect(() => {
@@ -181,6 +208,8 @@ export default function PassportCard({
   };
 
   const currentTheme = themeStyles[theme];
+  const isVerified = Boolean(cardCreator.isVerified || cardCreator.verification_status === 'VERIFIED');
+  const isRejected = cardCreator.verification_status === 'REJECTED';
 
   return (
     <div className={`flex flex-col items-center select-none ${className}`}>
@@ -258,20 +287,24 @@ export default function PassportCard({
                     CREATOR PASS
                   </span>
                   <span className="text-[9px] tracking-[0.14em] text-slate-400 uppercase font-medium mt-0.5">
-                    {Boolean(creator.isVerified && creator.verification_status === 'VERIFIED') ? 'VERIFIED CREATOR' : 'PENDING VERIFICATION'}
+                    {isVerified ? 'VERIFIED CREATOR' : (isRejected ? 'VERIFICATION REJECTED' : 'PENDING VERIFICATION')}
                   </span>
                 </div>
               </div>
 
               {/* Top Right: Non-Shining Verified Badge (Solid Matte Real Card Style, No Glowing Neon) */}
               <div className="flex items-center gap-2">
-                {Boolean(creator.isVerified && creator.verification_status === 'VERIFIED') ? (
+                {isVerified ? (
                   <div
                     className="hidden sm:inline-flex items-center gap-1.5 text-[10px] font-bold text-white px-2.5 py-1 rounded-md bg-white/10 border border-white/20 select-none shadow-sm"
                     title="Officially Verified Creator"
                   >
                     <Check className="w-3 h-3 stroke-[2.5] text-slate-200" />
                     <span className="tracking-wider">VERIFIED</span>
+                  </div>
+                ) : isRejected ? (
+                  <div className="hidden sm:inline-flex items-center gap-1.5 text-[10px] font-semibold text-red-400 px-2 py-0.5 rounded-md bg-red-950/40 border border-red-800/40 select-none">
+                    <span className="tracking-wider">REJECTED</span>
                   </div>
                 ) : (
                   <div className="hidden sm:inline-flex items-center gap-1.5 text-[10px] font-semibold text-slate-400 px-2 py-0.5 rounded-md bg-white/5 border border-white/10 select-none">
@@ -304,7 +337,7 @@ export default function PassportCard({
                     />
                   </div>
                   {/* Official Blue Tick Verified Badge */}
-                  {creator.isVerified && (
+                  {isVerified && (
                     <div
                       className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-[#0088ff] border-2 border-white flex items-center justify-center text-white shadow-md ring-1 ring-black/40"
                       title="Verified Identity"
@@ -460,7 +493,9 @@ export default function PassportCard({
                   </div>
                   <div>
                     <span className="text-slate-500 block text-[8px]">VERIFICATION</span>
-                    <span className="text-emerald-400 font-medium">{creator.isVerified ? 'VERIFIED' : 'PENDING'}</span>
+                    <span className={`font-medium ${isVerified ? 'text-emerald-400' : (isRejected ? 'text-red-400' : 'text-amber-400')}`}>
+                      {isVerified ? 'VERIFIED' : (isRejected ? 'REJECTED' : 'PENDING')}
+                    </span>
                   </div>
                 </div>
               </div>

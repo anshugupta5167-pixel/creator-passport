@@ -61,6 +61,8 @@ const DEMO_CHANNEL_TEMPLATE: CreatorProfile = {
   portfolio: [],
 };
 
+import { subscribeToCreatorSync } from '@/lib/sync';
+
 export default function HeroPassShowcase({ initialCreators = [] }: HeroPassShowcaseProps) {
   const [activeCreator, setActiveCreator] = useState<CreatorProfile>(DEMO_CHANNEL_TEMPLATE);
   const [hasRealCreator, setHasRealCreator] = useState(false);
@@ -74,14 +76,56 @@ export default function HeroPassShowcase({ initialCreators = [] }: HeroPassShowc
         if (parsed && (parsed.displayName || parsed.username)) {
           setActiveCreator(parsed);
           setHasRealCreator(true);
-          return;
+        } else {
+          setActiveCreator(DEMO_CHANNEL_TEMPLATE);
+          setHasRealCreator(false);
         }
+      } else {
+        setActiveCreator(DEMO_CHANNEL_TEMPLATE);
+        setHasRealCreator(false);
       }
-    } catch (e) {}
+    } catch (e) {
+      setActiveCreator(DEMO_CHANNEL_TEMPLATE);
+      setHasRealCreator(false);
+    }
 
-    // 2. For all other visitors and users, show the "Your Channel" Demo Card
-    setActiveCreator(DEMO_CHANNEL_TEMPLATE);
-    setHasRealCreator(false);
+    const unsubscribe = subscribeToCreatorSync((update) => {
+      setActiveCreator((current) => {
+        if (!current || current.id === 'template_demo') return current;
+        const currentSlug = (current.slug || current.username || '').toLowerCase();
+        const currentPass = (current.passportId || '').toUpperCase();
+        const targetSlug = (update.creatorSlug || '').toLowerCase();
+        const targetPass = (update.passportId || '').toUpperCase();
+
+        if (
+          (currentSlug && targetSlug && currentSlug === targetSlug) ||
+          (currentPass && targetPass && currentPass === targetPass)
+        ) {
+          const isV = update.verificationStatus === 'VERIFIED';
+          const isR = update.verificationStatus === 'REJECTED';
+          const vStatus = (update.verificationStatus as any) || (isV ? 'VERIFIED' : 'PENDING');
+          const updated: CreatorProfile = {
+            ...current,
+            isVerified: isV,
+            verification_status: vStatus,
+            tierName: isV
+              ? (current.tierName && current.tierName !== 'Candidate Member' ? current.tierName : 'Founding Member Tier I')
+              : isR
+              ? 'Verification Rejected'
+              : 'Candidate Member'
+          };
+          try {
+            localStorage.setItem('creatorhq_user_card', JSON.stringify(updated));
+          } catch (e) {}
+          return updated;
+        }
+        return current;
+      });
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   return (

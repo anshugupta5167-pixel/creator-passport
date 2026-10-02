@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Menu, X, ArrowRight, User, ShieldCheck, Lock, LogOut } from 'lucide-react';
 import CHQLogo from '@/components/CHQLogo';
+import { subscribeToCreatorSync } from '@/lib/sync';
 
 export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -21,7 +22,8 @@ export default function Navbar() {
             setSavedCreator(parsed);
 
             // Sync latest record for THIS creator from authoritative database
-            fetch(`/api/creators?q=${encodeURIComponent(parsed.passportId || parsed.username || parsed.slug)}`)
+            const q = parsed.passportId || parsed.slug || parsed.username;
+            fetch(`/api/creators?q=${encodeURIComponent(q)}`)
               .then((r) => r.json())
               .then((data) => {
                 if (data.creators && Array.isArray(data.creators) && data.creators.length > 0) {
@@ -32,19 +34,6 @@ export default function Navbar() {
                       (c.slug && parsed.slug && c.slug.toLowerCase() === parsed.slug.toLowerCase())
                   );
                   if (matched) {
-                    try {
-                      const verifiedOverrides = JSON.parse(localStorage.getItem('creatorhq_verified_creators') || '{}');
-                      const s = (matched.slug || matched.username || matched.passportId || '').toLowerCase().replace(/^@/, '');
-                      if (s in verifiedOverrides) {
-                        const isV = Boolean(verifiedOverrides[s]);
-                        matched.isVerified = isV;
-                        matched.verification_status = isV ? 'VERIFIED' : 'PENDING';
-                        matched.tierName = isV 
-                          ? (matched.tierName && matched.tierName !== 'Candidate Member' ? matched.tierName : 'Founding Member Tier I')
-                          : 'Candidate Member';
-                      }
-                    } catch (e) {}
-
                     setSavedCreator(matched);
                     try {
                       localStorage.setItem('creatorhq_user_card', JSON.stringify(matched));
@@ -80,19 +69,60 @@ export default function Navbar() {
 
     syncProfile();
 
+    const unsubscribeSync = subscribeToCreatorSync((update) => {
+      // If our current creator changed, re-sync immediately
+      setSavedCreator((current: any) => {
+        if (!current) return current;
+        const currentSlug = (current.slug || current.username || '').toLowerCase();
+        const currentPass = (current.passportId || '').toUpperCase();
+        const targetSlug = (update.creatorSlug || '').toLowerCase();
+        const targetPass = (update.passportId || '').toUpperCase();
+
+        if (
+          (currentSlug && targetSlug && currentSlug === targetSlug) ||
+          (currentPass && targetPass && currentPass === targetPass)
+        ) {
+          const isV = update.verificationStatus === 'VERIFIED';
+          const isR = update.verificationStatus === 'REJECTED';
+          const updated = {
+            ...current,
+            isVerified: isV,
+            verification_status: update.verificationStatus,
+            verificationStatus: update.verificationStatus,
+            tierName: isV
+              ? (current.tierName && current.tierName !== 'Candidate Member' ? current.tierName : 'Founding Member Tier I')
+              : isR
+              ? 'Verification Rejected'
+              : 'Candidate Member'
+          };
+          try {
+            localStorage.setItem('creatorhq_user_card', JSON.stringify(updated));
+          } catch (e) {}
+          return updated;
+        }
+        return current;
+      });
+    });
+
     if (typeof window !== 'undefined') {
       window.addEventListener('storage', syncProfile);
       window.addEventListener('creatorhq_profile_updated', syncProfile);
       return () => {
         window.removeEventListener('storage', syncProfile);
         window.removeEventListener('creatorhq_profile_updated', syncProfile);
+        unsubscribeSync();
       };
     }
+
+    return () => {
+      unsubscribeSync();
+    };
   }, [pathname]);
 
   // Dedicated professional pages per corporate architecture
   const navLinks = [
     { name: 'About', href: '/about' },
+    { name: 'Founders', href: '/founders' },
     { name: 'Services', href: '/services' },
     { name: 'Our Talents', href: '/talents' },
     { name: 'For Creators', href: '/dashboard' },
@@ -102,6 +132,7 @@ export default function Navbar() {
 
   const routePageNames: Record<string, string> = {
     '/about': 'About',
+    '/founders': 'Founders',
     '/services': 'Services',
     '/talents': 'Talents',
     '/creators': 'Talents',

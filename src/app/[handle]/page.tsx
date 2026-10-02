@@ -26,10 +26,7 @@ export async function generateMetadata({ params }: PageProps) {
         (c.username && c.username.toLowerCase() === cleanHandle.toLowerCase()) ||
         (c.handle && c.handle.toLowerCase().replace(/^@/, '') === cleanHandle.toLowerCase()) ||
         (c.id && c.id.toLowerCase() === cleanHandle.toLowerCase())
-    ) ||
-    getCreatorByUsername(cleanHandle) ||
-    getCreatorByPassportId(cleanHandle) ||
-    all[0];
+    );
 
   if (!creator) {
     return {
@@ -59,6 +56,12 @@ export default async function HandlePage({ params }: PageProps) {
     'terms',
     'privacy',
     'verification',
+    'founders',
+    'services',
+    'talents',
+    'faq',
+    'brand-assets',
+    'compare',
     'favicon.ico',
     'robots.txt',
     'sitemap.xml',
@@ -79,10 +82,7 @@ export default async function HandlePage({ params }: PageProps) {
         (c.username && c.username.toLowerCase() === cleanHandle.toLowerCase()) ||
         (c.handle && c.handle.toLowerCase().replace(/^@/, '') === cleanHandle.toLowerCase()) ||
         (c.id && c.id.toLowerCase() === cleanHandle.toLowerCase())
-    ) ||
-    getCreatorByUsername(cleanHandle) ||
-    getCreatorByPassportId(cleanHandle) ||
-    all[0];
+    );
 
   if (!creator) {
     notFound();

@@ -36,6 +36,7 @@ import {
   UserCheck
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { subscribeToCreatorSync } from '@/lib/sync';
 
 const STORAGE_KEY = 'creatorhq_user_card';
 
@@ -380,6 +381,42 @@ export default function DashboardPage() {
     } catch (err) {
       console.error('Error loading saved pass:', err);
     }
+
+    const unsubscribe = subscribeToCreatorSync((update) => {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          const currentSlug = (parsed.slug || parsed.username || '').toLowerCase();
+          const currentPass = (parsed.passportId || '').toUpperCase();
+          const targetSlug = (update.creatorSlug || '').toLowerCase();
+          const targetPass = (update.passportId || '').toUpperCase();
+
+          if (
+            (currentSlug && targetSlug && currentSlug === targetSlug) ||
+            (currentPass && targetPass && currentPass === targetPass)
+          ) {
+            const isV = update.verificationStatus === 'VERIFIED';
+            const updated = {
+              ...parsed,
+              isVerified: isV,
+              verification_status: update.verificationStatus,
+              verificationStatus: update.verificationStatus,
+              tierName: isV
+                ? (parsed.tierName && parsed.tierName !== 'Candidate Member' ? parsed.tierName : 'Founding Member Tier I')
+                : 'Candidate Member'
+            };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+            setIsVerified(isV);
+            setToastMessage(`✓ Verification status updated to: ${update.verificationStatus}`);
+          }
+        }
+      } catch (e) {}
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   // Compute live CreatorProfile for PassportCard rendering

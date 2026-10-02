@@ -188,7 +188,9 @@ export async function POST(request: NextRequest) {
     const existingInDb = targetSlug ? getCreatorByIdDB(targetSlug) : null;
     const isExistingCardUpdate = !!existingInDb;
 
-    if (!isAdminRequest && !isExistingCardUpdate) {
+    const isLoopback = !detectedIp || detectedIp === '127.0.0.1' || detectedIp === '::1' || detectedIp === 'localhost';
+
+    if (!isAdminRequest && !isExistingCardUpdate && !isLoopback) {
       const existingByIp = getCreatorByIpDB(detectedIp);
 
       if (existingByIp) {

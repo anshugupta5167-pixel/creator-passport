@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCreatorByUsername, getCreatorByPassportId, updateCreatorProfile } from '@/lib/data';
+import { getCreatorByIdDB, getCreatorByUsernameDB, addCreatorDB } from '@/lib/db';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export async function GET(
   request: NextRequest,
@@ -7,7 +10,7 @@ export async function GET(
 ) {
   const { username } = await context.params;
   const clean = username.replace(/^@/, '');
-  const creator = getCreatorByUsername(clean) || getCreatorByPassportId(clean);
+  const creator = getCreatorByIdDB(clean) || getCreatorByUsernameDB(clean);
 
   if (!creator) {
     return NextResponse.json(
@@ -28,7 +31,7 @@ export async function PATCH(
 ) {
   const { username } = await context.params;
   const clean = username.replace(/^@/, '');
-  const creator = getCreatorByUsername(clean) || getCreatorByPassportId(clean);
+  const creator = getCreatorByIdDB(clean) || getCreatorByUsernameDB(clean);
 
   if (!creator) {
     return NextResponse.json({ error: 'Creator not found' }, { status: 404 });
@@ -36,7 +39,14 @@ export async function PATCH(
 
   try {
     const body = await request.json();
-    const updated = updateCreatorProfile(creator.passportId || '', body);
+    const updated = await addCreatorDB({
+      ...creator,
+      ...body,
+      connections: {
+        ...creator.connections,
+        ...(body.connections || {}),
+      },
+    });
     return NextResponse.json({
       success: true,
       creator: updated,

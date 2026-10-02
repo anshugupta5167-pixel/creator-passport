@@ -4,6 +4,7 @@ import os from 'os';
 import { CreatorProfile, VerificationSubmission, ProofDocument, VerificationStatus } from './types';
 import { syncCreatorToFirebase, fetchCreatorsFromFirebase, deleteCreatorFromFirebase } from './firebase';
 import { resolveYouTubeUrl, resolveDiscordUrl } from './urls';
+import { notifySubscribers } from './events';
 
 // Seed directory bundled with project (read-only in Vercel lambdas)
 const SEED_DIR = path.join(process.cwd(), 'data');
@@ -204,10 +205,10 @@ export function isSameIp(ip1?: string | null, ip2?: string | null): boolean {
   const norm1 = normalizeIp(ip1);
   const norm2 = normalizeIp(ip2);
   if (!norm1 || !norm2) return false;
-  if (norm1 === norm2) return true;
   const isLoopback1 = norm1 === '127.0.0.1' || norm1 === '::1' || norm1 === 'localhost';
   const isLoopback2 = norm2 === '127.0.0.1' || norm2 === '::1' || norm2 === 'localhost';
-  if (isLoopback1 && isLoopback2) return true;
+  if (isLoopback1 || isLoopback2) return false;
+  if (norm1 === norm2) return true;
   return false;
 }
 
@@ -330,7 +331,18 @@ export async function addCreatorDB(creator: CreatorProfile): Promise<CreatorProf
     // Non-blocking
   }
 
-  return existingIdx >= 0 ? current[existingIdx] : creator;
+  const savedRecord = existingIdx >= 0 ? current[existingIdx] : creator;
+  try {
+    notifySubscribers({
+      type: existingIdx >= 0 ? 'CREATOR_UPDATED' : 'CREATOR_CREATED',
+      slug: savedRecord.slug,
+      status: savedRecord.verification_status,
+      isVerified: savedRecord.isVerified,
+      creator: savedRecord,
+    });
+  } catch (e) {}
+
+  return savedRecord;
 }
 
 export function clearAllCreatorsDB(): boolean {
@@ -387,6 +399,12 @@ export async function deleteCreatorDB(target: string | string[]): Promise<boolea
   for (const t of targets) {
     try {
       await deleteCreatorFromFirebase(t);
+    } catch (e) {}
+    try {
+      notifySubscribers({
+        type: 'CREATOR_DELETED',
+        slug: t.toLowerCase(),
+      });
     } catch (e) {}
   }
   return true;
@@ -533,16 +551,28 @@ export function syncCreatorToVerificationDB(creator: CreatorProfile): Verificati
 export function getAllVerificationsDB(): VerificationSubmission[] {
   loadVerificationsFromDisk();
 
-  // Auto-sync: Ensure every creator from creators.json is represented in verification reviews
+  // Auto-sync: Ensure every creator from creators.json is represented in verification reviews and kept in sync
   try {
     const creators = getAllCreatorsDB();
+    let hasChanges = false;
     for (const c of creators) {
       const slug = (c.slug || c.username || '').toLowerCase().replace(/^@/, '').trim();
       if (!slug) continue;
-      const exists = memoryVerifications.some((v) => (v.creatorSlug || '').toLowerCase() === slug);
-      if (!exists) {
+      const vIdx = memoryVerifications.findIndex((v) => (v.creatorSlug || '').toLowerCase() === slug);
+      if (vIdx === -1) {
         syncCreatorToVerificationDB(c);
+        hasChanges = true;
+      } else {
+        const v = memoryVerifications[vIdx];
+        const cStatus = c.verification_status || (c.isVerified ? 'VERIFIED' : 'PENDING');
+        if (v.status !== cStatus) {
+          v.status = cStatus;
+          hasChanges = true;
+        }
       }
+    }
+    if (hasChanges) {
+      saveVerificationsToDisk(memoryVerifications);
     }
   } catch (e) {}
 
@@ -594,24 +624,87 @@ export function updateVerificationStatusDB(
   idOrSlug: string,
   status: 'PENDING' | 'UNDER_REVIEW' | 'VERIFIED' | 'REJECTED',
   reviewedBy?: string,
-  rejectionReason?: string
+  rejectionReason?: string,
+  extraCreatorData?: Partial<CreatorProfile>
 ): { verification: VerificationSubmission | null; creator: CreatorProfile | null } {
   loadCreatorsFromDisk();
   loadVerificationsFromDisk();
 
-  const cleanTarget = idOrSlug.trim().toLowerCase();
-  const cleanSlug = cleanTarget.replace(/^vrf_creator_/, '').replace(/^vrf_/, '').replace(/^@/, '');
+  const cleanTarget = (idOrSlug || '').trim().toLowerCase();
+  const rawClean = cleanTarget
+    .replace(/^@/, '')
+    .replace(/^vrf_/, '')
+    .replace(/^creator_/, '');
 
-  // 1. Update the corresponding creator in creators.json
+  // Extract possible slug from timestamped id e.g. vrf_1741234567890_someuser
+  let timestampExtractedSlug = '';
+  const parts = cleanTarget.split('_');
+  if (parts.length >= 3 && parts[0] === 'vrf') {
+    timestampExtractedSlug = parts.slice(2).join('_');
+  }
+
+  const candidateKeys = [
+    cleanTarget,
+    rawClean,
+    timestampExtractedSlug,
+    extraCreatorData?.slug?.toLowerCase(),
+    extraCreatorData?.username?.toLowerCase(),
+    extraCreatorData?.passportId?.toLowerCase(),
+    extraCreatorData?.id?.toLowerCase(),
+    extraCreatorData?.displayName?.toLowerCase(),
+  ].filter(Boolean) as string[];
+
+  // 1. Resolve verification submission
+  const allVerifs = getAllVerificationsDB();
+  let vIdx = allVerifs.findIndex((v) => {
+    const vId = (v.id || '').toLowerCase();
+    const vSlug = (v.creatorSlug || '').toLowerCase();
+    const vHandle = (v.creatorHandle || '').toLowerCase().replace(/^@/, '');
+    const vName = (v.creatorName || '').toLowerCase();
+
+    return candidateKeys.some(
+      (k) =>
+        vId === k ||
+        vSlug === k ||
+        vHandle === k ||
+        vName === k ||
+        vId.endsWith(`_${k}`) ||
+        vId.replace(/^vrf_/, '') === k
+    );
+  });
+
+  let canonicalSlug =
+    (vIdx >= 0 ? allVerifs[vIdx].creatorSlug : null) ||
+    timestampExtractedSlug ||
+    extraCreatorData?.slug ||
+    extraCreatorData?.username ||
+    rawClean ||
+    'creator';
+  canonicalSlug = canonicalSlug.toLowerCase().replace(/^@/, '');
+
+  // 2. Find and update the creator in creators.json
   const allCreators = getAllCreatorsDB();
-  let cIdx = allCreators.findIndex(
-    (c) =>
-      (c.slug && c.slug.toLowerCase().replace(/^@/, '') === cleanSlug) ||
-      (c.username && c.username.toLowerCase().replace(/^@/, '') === cleanSlug) ||
-      (c.passportId && c.passportId.toLowerCase().replace(/^@/, '') === cleanSlug) ||
-      (c.handle && c.handle.toLowerCase().replace(/^@/, '') === cleanSlug) ||
-      (c.id && c.id.toLowerCase() === cleanTarget)
-  );
+  let cIdx = allCreators.findIndex((c) => {
+    const s = (c.slug || '').toLowerCase();
+    const u = (c.username || '').toLowerCase();
+    const p = (c.passportId || '').toLowerCase();
+    const h = (c.handle || '').toLowerCase().replace(/^@/, '');
+    const id = (c.id || '').toLowerCase();
+    const name = (c.displayName || '').toLowerCase();
+
+    return candidateKeys.concat([canonicalSlug]).some(
+      (k) =>
+        s === k ||
+        u === k ||
+        p === k ||
+        h === k ||
+        id === k ||
+        id === `creator_${k}` ||
+        id.replace(/^creator_/, '') === k ||
+        name === k ||
+        name.replace(/[^a-z0-9]/g, '') === k.replace(/[^a-z0-9]/g, '')
+    );
+  });
 
   let updatedCreator: CreatorProfile | null = null;
   const isVerified = status === 'VERIFIED';
@@ -635,30 +728,90 @@ export function updateVerificationStatusDB(
     try {
       syncCreatorToFirebase(updatedCreator);
     } catch (e) {}
+  } else if (extraCreatorData && (extraCreatorData.displayName || extraCreatorData.username || extraCreatorData.slug)) {
+    // If not found in creators array, synthesize/upsert it directly
+    const synthesized: CreatorProfile = {
+      id: extraCreatorData.id || `creator_${canonicalSlug}`,
+      passportId: extraCreatorData.passportId || canonicalSlug,
+      slug: extraCreatorData.slug || canonicalSlug,
+      handle: extraCreatorData.handle || `@${canonicalSlug}`,
+      username: extraCreatorData.username || canonicalSlug,
+      displayName: extraCreatorData.displayName || canonicalSlug,
+      avatarUrl: extraCreatorData.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
+      bio: extraCreatorData.bio || 'Creator on CreatorHQ',
+      category: extraCreatorData.category || 'Creator',
+      country: extraCreatorData.country || 'Global',
+      location: extraCreatorData.location || 'Global',
+      contactEmail: extraCreatorData.contactEmail || `${canonicalSlug}@creatorhq.fun`,
+      issuedAt: extraCreatorData.issuedAt || new Date().toISOString(),
+      lastVerifiedAt: (isVerified ? new Date().toISOString().split('T')[0] : extraCreatorData.lastVerifiedAt) || new Date().toISOString().split('T')[0],
+      digitalSignature: extraCreatorData.digitalSignature || `0x${Date.now().toString(16)}`,
+      isSuspended: extraCreatorData.isSuspended ?? false,
+      isVerified,
+      verification_status: status,
+      tierName: isVerified ? 'Founding Member Tier I' : 'Candidate Member',
+      profileCompletion: extraCreatorData.profileCompletion ?? 100,
+      skills: extraCreatorData.skills || ['Content Creator'],
+      achievements: extraCreatorData.achievements || [],
+      collaborations: extraCreatorData.collaborations || [],
+      portfolio: extraCreatorData.portfolio || [],
+      connections: (extraCreatorData.connections as any) || {},
+      ...extraCreatorData,
+    };
+    allCreators.push(synthesized);
+    saveCreatorsToDisk(allCreators);
+    updatedCreator = synthesized;
+    cIdx = allCreators.length - 1;
+  } else if (vIdx >= 0) {
+    // Reconstruct creator from existing verification record
+    const v = allVerifs[vIdx];
+    const synthesized: CreatorProfile = {
+      id: `creator_${v.creatorSlug || canonicalSlug}`,
+      passportId: v.creatorSlug || canonicalSlug,
+      slug: v.creatorSlug || canonicalSlug,
+      handle: v.creatorHandle || `@${canonicalSlug}`,
+      username: v.creatorSlug || canonicalSlug,
+      displayName: v.creatorName || canonicalSlug,
+      avatarUrl: v.creatorAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
+      bio: 'Creator on CreatorHQ',
+      category: v.category || 'Creator',
+      country: 'Global',
+      location: 'Global',
+      contactEmail: `${canonicalSlug}@creatorhq.fun`,
+      issuedAt: v.submittedAt || new Date().toISOString(),
+      lastVerifiedAt: new Date().toISOString().split('T')[0],
+      digitalSignature: `0x${Date.now().toString(16)}`,
+      isSuspended: false,
+      isVerified,
+      verification_status: status,
+      tierName: isVerified ? 'Founding Member Tier I' : 'Candidate Member',
+      profileCompletion: 100,
+      skills: ['Content Creator'],
+      achievements: [],
+      collaborations: [],
+      portfolio: [],
+      connections: (v.connectedPlatforms as any) || {},
+    };
+    allCreators.push(synthesized);
+    saveCreatorsToDisk(allCreators);
+    updatedCreator = synthesized;
+    cIdx = allCreators.length - 1;
   }
 
-  // 2. Update the corresponding verification in verifications.json
-  const all = getAllVerificationsDB();
-  let idx = all.findIndex(
-    (v) =>
-      v.id.toLowerCase() === cleanTarget ||
-      v.creatorSlug.toLowerCase() === cleanSlug ||
-      (v.creatorHandle && v.creatorHandle.toLowerCase().replace(/^@/, '') === cleanSlug)
-  );
-
+  // 3. Update the corresponding verification in verifications.json
   let updatedSubmission: VerificationSubmission | null = null;
 
-  if (idx >= 0) {
-    all[idx].status = status;
-    all[idx].reviewedAt = new Date().toISOString();
-    all[idx].reviewedBy = reviewedBy || 'Admin';
+  if (vIdx >= 0) {
+    allVerifs[vIdx].status = status;
+    allVerifs[vIdx].reviewedAt = new Date().toISOString();
+    allVerifs[vIdx].reviewedBy = reviewedBy || 'Admin';
     if (status === 'REJECTED') {
-      all[idx].rejectionReason = rejectionReason || 'Proof inconclusive';
+      allVerifs[vIdx].rejectionReason = rejectionReason || 'Proof inconclusive';
     } else {
-      all[idx].rejectionReason = undefined;
+      allVerifs[vIdx].rejectionReason = undefined;
     }
-    saveVerificationsToDisk(all);
-    updatedSubmission = all[idx];
+    saveVerificationsToDisk(allVerifs);
+    updatedSubmission = allVerifs[vIdx];
   } else if (updatedCreator) {
     const newSub = syncCreatorToVerificationDB(updatedCreator);
     if (newSub) {
@@ -672,6 +825,18 @@ export function updateVerificationStatusDB(
       updatedSubmission = newSub;
     }
   }
+
+  // 4. Notify real-time SSE stream across all clients
+  try {
+    notifySubscribers({
+      type: 'VERIFICATION_UPDATED',
+      slug: updatedCreator?.slug || canonicalSlug,
+      status: status,
+      isVerified,
+      creator: updatedCreator,
+      verification: updatedSubmission,
+    });
+  } catch (e) {}
 
   return { verification: updatedSubmission, creator: updatedCreator };
 }

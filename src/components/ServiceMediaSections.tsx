@@ -34,6 +34,8 @@ import { CreatorProfile } from '@/lib/types';
 import { submitPassportApplication } from '@/lib/data';
 import PassportCard from '@/components/PassportCard';
 
+import { subscribeToCreatorSync } from '@/lib/sync';
+
 interface ServiceMediaSectionsProps {
   creators: CreatorProfile[];
   onOpenProofModal?: () => void;
@@ -60,12 +62,43 @@ export default function ServiceMediaSections({
   React.useEffect(() => {
     refreshCreators();
 
+    const unsubscribe = subscribeToCreatorSync((update) => {
+      // Re-fetch all or patch in place immediately
+      refreshCreators();
+      setInspectingCreator((current) => {
+        if (!current) return current;
+        const currentSlug = (current.slug || current.username || '').toLowerCase();
+        const currentPass = (current.passportId || '').toUpperCase();
+        const targetSlug = (update.creatorSlug || '').toLowerCase();
+        const targetPass = (update.passportId || '').toUpperCase();
+
+        if (
+          (currentSlug && targetSlug && currentSlug === targetSlug) ||
+          (currentPass && targetPass && currentPass === targetPass)
+        ) {
+          const isV = update.verificationStatus === 'VERIFIED';
+          const vStatus = (update.verificationStatus as any) || (isV ? 'VERIFIED' : 'PENDING');
+          return {
+            ...current,
+            isVerified: isV,
+            verification_status: vStatus,
+          };
+        }
+        return current;
+      });
+    });
+
     if (typeof window !== 'undefined') {
       window.addEventListener('creatorhq_profile_updated', refreshCreators);
       return () => {
         window.removeEventListener('creatorhq_profile_updated', refreshCreators);
+        unsubscribe();
       };
     }
+
+    return () => {
+      unsubscribe();
+    };
   }, [refreshCreators]);
 
   const [searchQuery, setSearchQuery] = useState('');

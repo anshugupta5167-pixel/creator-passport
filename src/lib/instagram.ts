@@ -116,6 +116,31 @@ const KNOWN_INSTAGRAM: Record<string, { fullName: string; followers: number; ava
   },
 };
 
+function decodeHtmlEntities(str: string): string {
+  return str
+    .replace(/&#064;/g, '@')
+    .replace(/&#x2022;/g, '•')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, code) => {
+      try {
+        return String.fromCodePoint(parseInt(code, 16));
+      } catch (e) {
+        return '';
+      }
+    })
+    .replace(/&#([0-9]+);/g, (_, code) => {
+      try {
+        return String.fromCodePoint(parseInt(code, 10));
+      } catch (e) {
+        return '';
+      }
+    });
+}
+
 export async function fetchInstagramProfile(
   rawInput: string,
   options?: { forceRefresh?: boolean; previousCount?: number }
@@ -144,65 +169,115 @@ export async function fetchInstagramProfile(
       let scrapedName = '';
       let scrapedAvatar = '';
       let scrapedFollowers: number | null = null;
+      let scrapedFollowing: number | null = null;
+      let scrapedPosts: number | null = null;
       let scrapedBio = '';
 
-      // 3. Attempt public OpenGraph scrape
-      try {
-        const res = await fetch(canonicalUrl, {
-          headers: {
-            'User-Agent':
-              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept-Language': 'en-US,en;q=0.9',
-          },
-          signal: AbortSignal.timeout(4000),
-        });
+      // 3. Social crawler user agents that Instagram serves full OpenGraph tags to without login walls
+      const userAgents = [
+        'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.html)',
+        'Twitterbot/1.0',
+        'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+      ];
 
-        if (res.ok) {
-          const html = await res.text();
+      for (const ua of userAgents) {
+        if (scrapedFollowers !== null) break;
 
-          // Title: "MrBeast (@mrbeast) • Instagram photos and videos"
-          const titleMatch = html.match(/<meta property="og:title" content="([^"]+)">/);
-          if (titleMatch) {
-            const rawTitle = titleMatch[1];
-            const nameMatch = rawTitle.match(/^([^(]+)\s*\(@/);
-            if (nameMatch) {
-              scrapedName = nameMatch[1].trim();
-            }
-          }
+        try {
+          const res = await fetch(canonicalUrl, {
+            headers: {
+              'User-Agent': ua,
+              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+              'Accept-Language': 'en-US,en;q=0.9',
+              'Cache-Control': 'no-cache',
+            },
+            signal: AbortSignal.timeout(6000),
+          });
 
-          // Description: "61M Followers, 423 Following, 381 Posts - See Instagram photos and videos from MrBeast (@mrbeast)"
-          const descMatch = html.match(/<meta property="og:description" content="([^"]+)">/);
-          if (descMatch) {
-            const rawDesc = descMatch[1];
-            const followersMatch = rawDesc.match(/([0-9.,]+[KM]?)\s+Followers/i);
-            if (followersMatch) {
-              const fStr = followersMatch[1].replace(/,/g, '');
-              if (/M$/i.test(fStr)) {
-                scrapedFollowers = Math.round(parseFloat(fStr) * 1_000_000);
-              } else if (/K$/i.test(fStr)) {
-                scrapedFollowers = Math.round(parseFloat(fStr) * 1_000);
-              } else {
-                scrapedFollowers = parseInt(fStr, 10);
+          if (res.ok) {
+            const html = await res.text();
+
+            // Extract Description: e.g. "679M Followers, 649 Following, 4,138 Posts - See Instagram photos and videos from Cristiano Ronaldo (@cristiano)"
+            const descMatch =
+              html.match(/<meta[^>]+(?:property|name)=["'](?:og:description|description)["'][^>]+content=["']([^"']+)["']/i) ||
+              html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["'](?:og:description|description)["']/i);
+
+            if (descMatch) {
+              const rawDesc = decodeHtmlEntities(descMatch[1]);
+
+              // Followers match
+              const followersMatch = rawDesc.match(/([0-9.,]+)\s*([KMBkmb])?\s+Followers/i);
+              if (followersMatch) {
+                const num = parseFloat(followersMatch[1].replace(/,/g, ''));
+                const mult = (followersMatch[2] || '').toUpperCase();
+                if (mult === 'B') {
+                  scrapedFollowers = Math.round(num * 1_000_000_000);
+                } else if (mult === 'M') {
+                  scrapedFollowers = Math.round(num * 1_000_000);
+                } else if (mult === 'K') {
+                  scrapedFollowers = Math.round(num * 1_000);
+                } else {
+                  scrapedFollowers = Math.round(num);
+                }
+              }
+
+              // Following match
+              const followingMatch = rawDesc.match(/([0-9.,]+)\s*([KMBkmb])?\s+Following/i);
+              if (followingMatch) {
+                const num = parseFloat(followingMatch[1].replace(/,/g, ''));
+                const mult = (followingMatch[2] || '').toUpperCase();
+                if (mult === 'B') scrapedFollowing = Math.round(num * 1_000_000_000);
+                else if (mult === 'M') scrapedFollowing = Math.round(num * 1_000_000);
+                else if (mult === 'K') scrapedFollowing = Math.round(num * 1_000);
+                else scrapedFollowing = Math.round(num);
+              }
+
+              // Posts match
+              const postsMatch = rawDesc.match(/([0-9.,]+)\s*([KMBkmb])?\s+Posts/i);
+              if (postsMatch) {
+                scrapedPosts = parseInt(postsMatch[1].replace(/,/g, ''), 10) || 0;
               }
             }
-          }
 
-          // Image
-          const imgMatch = html.match(/<meta property="og:image" content="([^"]+)">/);
-          if (imgMatch) {
-            scrapedAvatar = imgMatch[1].replace(/\\u0026/g, '&').replace(/\\/g, '');
+            // Extract Title: e.g. "Cristiano Ronaldo (@cristiano) • Instagram photos and videos"
+            const titleMatch =
+              html.match(/<meta[^>]+(?:property|name)=["']og:title["'][^>]+content=["']([^"']+)["']/i) ||
+              html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']og:title["']/i);
+
+            if (titleMatch) {
+              const rawTitle = decodeHtmlEntities(titleMatch[1]);
+              const nameMatch = rawTitle.match(/^([^(]+)\s*\(@/);
+              if (nameMatch && nameMatch[1].trim()) {
+                scrapedName = nameMatch[1].trim();
+              }
+            }
+
+            // Extract Image
+            const imgMatch =
+              html.match(/<meta[^>]+(?:property|name)=["']og:image["'][^>]+content=["']([^"']+)["']/i) ||
+              html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']og:image["']/i);
+
+            if (imgMatch) {
+              scrapedAvatar = imgMatch[1].replace(/\\u0026/g, '&').replace(/\\/g, '');
+            }
           }
+        } catch (e) {
+          // Continue to next crawler fallback
         }
-      } catch (e) {
-        // Scraper fallback
       }
 
-      // Check known profiles
+      // Check known profiles or previous count
       const known = KNOWN_INSTAGRAM[cacheKey];
-      let followers =
-        scrapedFollowers !== null
-          ? scrapedFollowers
-          : options?.previousCount || (known ? known.followers : 28500);
+      let followers: number;
+      if (scrapedFollowers !== null && !isNaN(scrapedFollowers)) {
+        followers = scrapedFollowers;
+      } else if (typeof options?.previousCount === 'number' && options.previousCount > 0) {
+        followers = options.previousCount;
+      } else if (known) {
+        followers = known.followers;
+      } else {
+        followers = 0;
+      }
 
       let fullName = scrapedName || (known ? known.fullName : cleanHandle);
       let avatar =

@@ -44,6 +44,7 @@ import {
   RotateCcw
 } from 'lucide-react';
 import CHQLogo from '@/components/CHQLogo';
+import { subscribeToCreatorSync, broadcastLocalChange } from '@/lib/sync';
 
 // =============================================
 // PROOF INSPECTOR MODAL COMPONENT
@@ -483,58 +484,14 @@ export default function AdminPage() {
   const loadLiveData = React.useCallback(async () => {
     try {
       const [creatorsRes, verificationsRes] = await Promise.all([
-        fetch('/api/creators'),
-        fetch('/api/verification/submit'),
+        fetch('/api/creators', { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } }),
+        fetch('/api/verification/submit', { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } }),
       ]);
 
       if (creatorsRes.ok) {
         const data = await creatorsRes.json();
         if (data.creators) {
-          let list = [...data.creators];
-          try {
-            // Overlay any local verification overrides so serverless restarts or read-only cold boots never revert
-            const verifiedOverrides = JSON.parse(localStorage.getItem('creatorhq_verified_creators') || '{}');
-            list = list.map((c: CreatorProfile) => {
-              const s = (c.slug || c.username || c.passportId || '').toLowerCase().replace(/^@/, '');
-              if (s in verifiedOverrides) {
-                const isV = Boolean(verifiedOverrides[s]);
-                return {
-                  ...c,
-                  isVerified: isV,
-                  verification_status: isV ? 'VERIFIED' : 'PENDING',
-                  tierName: isV 
-                    ? (c.tierName && c.tierName !== 'Candidate Member' ? c.tierName : 'Founding Member Tier I')
-                    : 'Candidate Member',
-                };
-              }
-              return c;
-            });
-
-            const saved = localStorage.getItem('creatorhq_user_card');
-            if (saved) {
-              const parsed: CreatorProfile = JSON.parse(saved);
-              const slug = (parsed.slug || parsed.username || parsed.passportId || '').toLowerCase().replace(/^@/, '');
-              const existingIdx = list.findIndex(
-                (c: CreatorProfile) =>
-                  (c.slug || c.username || c.passportId || '').toLowerCase().replace(/^@/, '') === slug
-              );
-              if (existingIdx >= 0) {
-                // If local override exists, keep it
-                if (slug in verifiedOverrides) {
-                  const isV = Boolean(verifiedOverrides[slug]);
-                  list[existingIdx].isVerified = isV;
-                  list[existingIdx].verification_status = isV ? 'VERIFIED' : 'PENDING';
-                  list[existingIdx].tierName = isV 
-                    ? (list[existingIdx].tierName && list[existingIdx].tierName !== 'Candidate Member' ? list[existingIdx].tierName : 'Founding Member Tier I')
-                    : 'Candidate Member';
-                }
-                localStorage.setItem('creatorhq_user_card', JSON.stringify(list[existingIdx]));
-              } else {
-                list.unshift(parsed);
-              }
-            }
-          } catch (e) {}
-          setCreators(list);
+          setCreators(data.creators);
         }
       }
 
@@ -551,6 +508,21 @@ export default function AdminPage() {
 
   React.useEffect(() => {
     loadLiveData();
+
+    const unsubscribe = subscribeToCreatorSync(() => {
+      loadLiveData();
+    });
+
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        loadLiveData();
+      }
+    }, 5000);
+
+    return () => {
+      unsubscribe();
+      clearInterval(interval);
+    };
   }, [loadLiveData]);
 
   const handleLogin = (e: React.FormEvent) => {
@@ -605,7 +577,13 @@ export default function AdminPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          verificationId: (creator as any).verificationId,
           creatorSlug: targetSlug,
+          slug: creator.slug,
+          username: creator.username,
+          passportId: creator.passportId,
+          id: creator.id,
+          creator: creator,
           action: nextVerified ? 'APPROVE' : 'REVOKE',
           reviewedBy: 'Admin',
         }),
@@ -621,13 +599,6 @@ export default function AdminPage() {
           lastVerifiedAt: new Date().toISOString().split('T')[0],
         };
 
-        // Persist verified state in localStorage so Vercel restarts/caches never flip it back
-        try {
-          const verifiedOverrides = JSON.parse(localStorage.getItem('creatorhq_verified_creators') || '{}');
-          verifiedOverrides[targetSlug] = nextVerified;
-          localStorage.setItem('creatorhq_verified_creators', JSON.stringify(verifiedOverrides));
-        } catch (e) {}
-
         setCreators((prev) =>
           prev.map((c) =>
             (c.slug || c.username || c.passportId || '').toLowerCase() === targetSlug
@@ -636,24 +607,28 @@ export default function AdminPage() {
           )
         );
 
-        try {
-          const saved = localStorage.getItem('creatorhq_user_card');
-          if (saved) {
-            const parsed: CreatorProfile = JSON.parse(saved);
-            if (
-              (parsed.slug || parsed.username || parsed.passportId || '').toLowerCase() === targetSlug
-            ) {
-              localStorage.setItem('creatorhq_user_card', JSON.stringify(updated));
-            }
-          }
-        } catch (e) {}
+        if (data.verification) {
+          setVerifications((prev) =>
+            prev.map((v) =>
+              (v.creatorSlug || '').toLowerCase() === targetSlug ? data.verification : v
+            )
+          );
+        }
+
+        broadcastLocalChange({
+          type: 'VERIFICATION_UPDATED',
+          slug: targetSlug,
+          status: nextVerified ? 'VERIFIED' : 'PENDING',
+          isVerified: nextVerified,
+          creator: updated,
+          verification: data.verification,
+        });
 
         if (nextVerified) {
           setActionFeedback(`Staff Approved! Verified badge granted to ${creator.displayName} (@${targetSlug}).`);
         } else {
           setActionFeedback(`Verification revoked for ${creator.displayName}. Reverted to Pending.`);
         }
-        await loadLiveData();
         setTimeout(() => setActionFeedback(''), 4000);
       } else {
         const err = await res.json().catch(() => ({}));
@@ -732,7 +707,7 @@ export default function AdminPage() {
       platforms: ['YOUTUBE', 'DISCORD'],
       connectedPlatforms: c.connections || {},
       proofDocuments: proofs,
-      status: c.isVerified ? 'VERIFIED' : (c.verification_status === 'REJECTED' ? 'REJECTED' : 'PENDING'),
+      status: (c.isVerified || c.verification_status === 'VERIFIED') ? 'VERIFIED' : (c.verification_status === 'REJECTED' ? 'REJECTED' : 'PENDING'),
       submittedAt: c.issuedAt || new Date().toISOString(),
       rejectionReason: c.rejectionReason,
     };
@@ -742,11 +717,38 @@ export default function AdminPage() {
 
   // Verification review actions
   const handleVerificationApprove = async (id: string) => {
+    const matchedVerif = verifications.find(
+      (v) =>
+        (v.id && v.id.toLowerCase() === id.toLowerCase()) ||
+        (v.creatorSlug && (v.creatorSlug.toLowerCase() === id.toLowerCase() || `vrf_${v.creatorSlug.toLowerCase()}` === id.toLowerCase()))
+    );
+    const matchedCreator = creators.find(
+      (c) =>
+        (c.slug && (c.slug.toLowerCase() === id.toLowerCase() || `vrf_${c.slug.toLowerCase()}` === id.toLowerCase() || (matchedVerif && c.slug.toLowerCase() === (matchedVerif.creatorSlug || '').toLowerCase()))) ||
+        (c.username && (c.username.toLowerCase() === id.toLowerCase() || `vrf_${c.username.toLowerCase()}` === id.toLowerCase())) ||
+        (c.passportId && (c.passportId.toLowerCase() === id.toLowerCase() || `vrf_${c.passportId.toLowerCase()}` === id.toLowerCase())) ||
+        (c.id && c.id.toLowerCase() === id.toLowerCase())
+    );
+
+    const targetSlug =
+      matchedVerif?.creatorSlug ||
+      matchedCreator?.slug ||
+      matchedCreator?.username ||
+      id.replace(/^vrf_/, '');
+
     try {
       const res = await fetch('/api/verification/review', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ verificationId: id, action: 'APPROVE', reviewedBy: 'Admin' }),
+        body: JSON.stringify({
+          verificationId: id,
+          creatorSlug: targetSlug,
+          slug: targetSlug,
+          creator: matchedCreator,
+          submission: matchedVerif,
+          action: 'APPROVE',
+          reviewedBy: 'Admin',
+        }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -754,34 +756,35 @@ export default function AdminPage() {
         setInspectingSubmission(null);
 
         if (data.creator) {
-          const targetSlug = (data.creator.slug || data.creator.username || data.creator.passportId || '').toLowerCase();
-          try {
-            const verifiedOverrides = JSON.parse(localStorage.getItem('creatorhq_verified_creators') || '{}');
-            verifiedOverrides[targetSlug] = true;
-            localStorage.setItem('creatorhq_verified_creators', JSON.stringify(verifiedOverrides));
-          } catch (e) {}
-
+          const updatedSlug = (data.creator.slug || data.creator.username || data.creator.passportId || '').toLowerCase();
           setCreators((prev) =>
             prev.map((c) =>
-              (c.slug || c.username || c.passportId || '').toLowerCase() === targetSlug
+              (c.slug || c.username || c.passportId || '').toLowerCase() === updatedSlug
                 ? data.creator
                 : c
             )
           );
-          try {
-            const saved = localStorage.getItem('creatorhq_user_card');
-            if (saved) {
-              const parsed: CreatorProfile = JSON.parse(saved);
-              if (
-                (parsed.slug || parsed.username || parsed.passportId || '').toLowerCase() === targetSlug
-              ) {
-                localStorage.setItem('creatorhq_user_card', JSON.stringify(data.creator));
-              }
-            }
-          } catch (e) {}
         }
 
-        await loadLiveData();
+        if (data.verification) {
+          setVerifications((prev) =>
+            prev.map((v) =>
+              v.id === id || (data.verification.creatorSlug && v.creatorSlug.toLowerCase() === data.verification.creatorSlug.toLowerCase())
+                ? data.verification
+                : v
+            )
+          );
+        }
+
+        broadcastLocalChange({
+          type: 'VERIFICATION_UPDATED',
+          slug: data.creator?.slug || (data.verification?.creatorSlug),
+          status: 'VERIFIED',
+          isVerified: true,
+          creator: data.creator,
+          verification: data.verification,
+        });
+
         setTimeout(() => setActionFeedback(''), 4000);
       } else {
         const err = await res.json().catch(() => ({}));
@@ -793,25 +796,75 @@ export default function AdminPage() {
   };
 
   const handleVerificationReject = async (id: string, reason: string) => {
+    const matchedVerif = verifications.find(
+      (v) =>
+        (v.id && v.id.toLowerCase() === id.toLowerCase()) ||
+        (v.creatorSlug && (v.creatorSlug.toLowerCase() === id.toLowerCase() || `vrf_${v.creatorSlug.toLowerCase()}` === id.toLowerCase()))
+    );
+    const matchedCreator = creators.find(
+      (c) =>
+        (c.slug && (c.slug.toLowerCase() === id.toLowerCase() || `vrf_${c.slug.toLowerCase()}` === id.toLowerCase() || (matchedVerif && c.slug.toLowerCase() === (matchedVerif.creatorSlug || '').toLowerCase()))) ||
+        (c.username && (c.username.toLowerCase() === id.toLowerCase() || `vrf_${c.username.toLowerCase()}` === id.toLowerCase())) ||
+        (c.passportId && (c.passportId.toLowerCase() === id.toLowerCase() || `vrf_${c.passportId.toLowerCase()}` === id.toLowerCase())) ||
+        (c.id && c.id.toLowerCase() === id.toLowerCase())
+    );
+
+    const targetSlug =
+      matchedVerif?.creatorSlug ||
+      matchedCreator?.slug ||
+      matchedCreator?.username ||
+      id.replace(/^vrf_/, '');
+
     try {
       const res = await fetch('/api/verification/review', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ verificationId: id, action: 'REJECT', rejectionReason: reason, reviewedBy: 'Admin' }),
+        body: JSON.stringify({
+          verificationId: id,
+          creatorSlug: targetSlug,
+          slug: targetSlug,
+          creator: matchedCreator,
+          submission: matchedVerif,
+          action: 'REJECT',
+          rejectionReason: reason,
+          reviewedBy: 'Admin',
+        }),
       });
       if (res.ok) {
         const data = await res.json().catch(() => ({}));
-        if (data.creator) {
-          const targetSlug = (data.creator.slug || data.creator.username || data.creator.passportId || '').toLowerCase();
-          try {
-            const verifiedOverrides = JSON.parse(localStorage.getItem('creatorhq_verified_creators') || '{}');
-            verifiedOverrides[targetSlug] = false;
-            localStorage.setItem('creatorhq_verified_creators', JSON.stringify(verifiedOverrides));
-          } catch (e) {}
-        }
         setActionFeedback(`Verification rejected. Reason: ${reason}`);
         setInspectingSubmission(null);
-        await loadLiveData();
+
+        if (data.creator) {
+          const updatedSlug = (data.creator.slug || data.creator.username || data.creator.passportId || '').toLowerCase();
+          setCreators((prev) =>
+            prev.map((c) =>
+              (c.slug || c.username || c.passportId || '').toLowerCase() === updatedSlug
+                ? data.creator
+                : c
+            )
+          );
+        }
+
+        if (data.verification) {
+          setVerifications((prev) =>
+            prev.map((v) =>
+              v.id === id || (data.verification.creatorSlug && v.creatorSlug.toLowerCase() === data.verification.creatorSlug.toLowerCase())
+                ? data.verification
+                : v
+            )
+          );
+        }
+
+        broadcastLocalChange({
+          type: 'VERIFICATION_UPDATED',
+          slug: data.creator?.slug || (data.verification?.creatorSlug),
+          status: 'REJECTED',
+          isVerified: false,
+          creator: data.creator,
+          verification: data.verification,
+        });
+
         setTimeout(() => setActionFeedback(''), 4000);
       } else {
         const err = await res.json().catch(() => ({}));
@@ -996,13 +1049,19 @@ export default function AdminPage() {
 
           <div className="flex items-center gap-3">
             <div className="px-4 py-2 rounded-xl bg-[#11141a] border border-white/10 text-center">
+              <span className="text-xs text-slate-400 block">Verified Creators</span>
+              <span className="text-lg font-bold text-emerald-400 font-mono">
+                {creators.filter(c => c.isVerified || c.verification_status === 'VERIFIED').length}
+              </span>
+            </div>
+            <div className="px-4 py-2 rounded-xl bg-[#11141a] border border-white/10 text-center">
               <span className="text-xs text-slate-400 block">Pending Reviews</span>
               <span className="text-lg font-bold text-amber-400 font-mono">
                 {pendingVerifications.length}
               </span>
             </div>
             <div className="px-4 py-2 rounded-xl bg-[#11141a] border border-white/10 text-center">
-              <span className="text-xs text-slate-400 block">Active Passes</span>
+              <span className="text-xs text-slate-400 block">Total Passes</span>
               <span className="text-lg font-bold text-sky-400 font-mono">
                 {creators.length}
               </span>

@@ -51,6 +51,11 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
+                <Link href="/founders" className="hover:text-white transition-colors">
+                  Founders & Leadership
+                </Link>
+              </li>
+              <li>
                 <Link href="/services" className="hover:text-white transition-colors">
                   Creator Services
                 </Link>
@@ -120,7 +125,7 @@ export default function Footer() {
             </a>
           </div>
           <p className="text-[12px] text-slate-300 font-medium">
-            Founded September 2026 by Anshu Gupta • Empowering creators and brands worldwide
+            Founded September 2026 by Anshu Gupta & Co-Founder Pranav Sharma • Empowering creators and brands worldwide
           </p>
           <p className="font-mono text-[10px] text-slate-500">
             PRIVATE CREATOR PLATFORM • NOT A GOVERNMENT ISSUED ID

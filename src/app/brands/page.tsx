@@ -4,7 +4,8 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
-import { getAllCreators } from '@/lib/data';
+import { CreatorProfile } from '@/lib/types';
+import { subscribeToCreatorSync } from '@/lib/sync';
 import {
   Search,
   Filter,
@@ -21,12 +22,37 @@ import {
 } from 'lucide-react';
 
 export default function BrandsPage() {
-  const creators = getAllCreators();
+  const [creators, setCreators] = useState<CreatorProfile[]>([]);
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [selectedAudience, setSelectedAudience] = useState('ALL');
   const [selectedPlatform, setSelectedPlatform] = useState('ALL');
   const [inquiryModalOpen, setInquiryModalOpen] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+
+  React.useEffect(() => {
+    let isMounted = true;
+    async function load() {
+      try {
+        const res = await fetch('/api/creators', { cache: 'no-store' });
+        if (res.ok) {
+          const d = await res.json();
+          if (d.creators && isMounted) {
+            setCreators(d.creators);
+          }
+        }
+      } catch (e) {}
+    }
+    load();
+
+    const unsubscribe = subscribeToCreatorSync(() => {
+      load();
+    });
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, []);
 
   const [companyName, setCompanyName] = useState('');
   const [workEmail, setWorkEmail] = useState('');

@@ -8,9 +8,33 @@ export const revalidate = 0;
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { verificationId, creatorSlug, slug, action, rejectionReason, reviewedBy } = body;
+    const {
+      verificationId,
+      creatorSlug,
+      slug,
+      username,
+      passportId,
+      id,
+      action,
+      rejectionReason,
+      reviewedBy,
+      creator,
+      submission,
+    } = body;
 
-    const target = verificationId || creatorSlug || slug;
+    const target =
+      verificationId ||
+      creatorSlug ||
+      slug ||
+      username ||
+      passportId ||
+      id ||
+      creator?.slug ||
+      creator?.username ||
+      creator?.passportId ||
+      creator?.id ||
+      submission?.creatorSlug ||
+      submission?.id;
 
     if (!target || !action) {
       return NextResponse.json(
@@ -39,11 +63,21 @@ export async function POST(request: NextRequest) {
       newStatus = 'UNDER_REVIEW';
     }
 
+    const extraCreator = creator || (submission ? {
+      slug: submission.creatorSlug,
+      username: submission.creatorSlug,
+      displayName: submission.creatorName,
+      avatarUrl: submission.creatorAvatar,
+      category: submission.category,
+      connections: submission.connectedPlatforms || {},
+    } : undefined);
+
     const result = updateVerificationStatusDB(
       target,
       newStatus,
       reviewedBy || 'Admin',
-      newStatus === 'REJECTED' ? (rejectionReason || 'Proof inconclusive') : undefined
+      newStatus === 'REJECTED' ? (rejectionReason || 'Proof inconclusive') : undefined,
+      extraCreator
     );
 
     if (!result.verification && !result.creator) {
@@ -52,6 +86,17 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       );
     }
+
+    try {
+      const { revalidatePath } = await import('next/cache');
+      revalidatePath('/', 'layout');
+      revalidatePath('/creators');
+      revalidatePath('/talents');
+      if (result.creator?.slug) {
+        revalidatePath(`/${result.creator.slug}`);
+        revalidatePath(`/creator/${result.creator.slug}`);
+      }
+    } catch (e) {}
 
     return NextResponse.json({
       success: true,

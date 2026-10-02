@@ -1,1 +1,173 @@
-[]
+[
+  {
+    "id": "vrf_1790944926276_brand_new_creator",
+    "creatorSlug": "brand_new_creator",
+    "creatorName": "Brand New Creator",
+    "creatorHandle": "@brand_new_creator",
+    "creatorAvatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80",
+    "category": "Gaming",
+    "platforms": [
+      "YOUTUBE",
+      "DISCORD"
+    ],
+    "connectedPlatforms": {},
+    "proofDocuments": [],
+    "status": "VERIFIED",
+    "submittedAt": "2026-10-02T12:42:06.271Z",
+    "reviewedAt": "2026-10-02T12:42:06.278Z",
+    "reviewedBy": "Admin"
+  },
+  {
+    "id": "vrf_1790944214964_uniqueplayz",
+    "creatorSlug": "uniqueplayz",
+    "creatorName": "UniquePlayz",
+    "creatorHandle": "@uniqueplayz",
+    "creatorAvatar": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=300&q=80",
+    "category": "Gaming & Tech",
+    "platforms": [
+      "YOUTUBE",
+      "DISCORD"
+    ],
+    "connectedPlatforms": {
+      "youtube": {
+        "platform": "YOUTUBE",
+        "connected": true,
+        "username": "UniquePlayzOfficial",
+        "metricLabel": "subscribers",
+        "metricValue": "1.4M Subscribers",
+        "verified": true,
+        "profileUrl": "https://youtube.com/@uniqueplayz"
+      },
+      "discord": {
+        "platform": "DISCORD",
+        "connected": true,
+        "username": "UniqueSquad",
+        "metricLabel": "members",
+        "metricValue": "85K Members",
+        "verified": true,
+        "profileUrl": "https://discord.gg/uniquesquad"
+      }
+    },
+    "proofDocuments": [],
+    "status": "VERIFIED",
+    "submittedAt": "2026-10-02T12:30:14.964Z",
+    "reviewedAt": "2026-10-02T12:42:06.266Z",
+    "reviewedBy": "Admin"
+  },
+  {
+    "id": "vrf_1790944214958_senpainova",
+    "creatorSlug": "senpainova",
+    "creatorName": "SenpaiNova",
+    "creatorHandle": "@senpainova",
+    "creatorAvatar": "https://images.unsplash.com/photo-1566492031773-4f4e44671857?auto=format&fit=crop&w=300&q=80",
+    "category": "Gaming",
+    "platforms": [
+      "YOUTUBE",
+      "DISCORD"
+    ],
+    "connectedPlatforms": {
+      "youtube": {
+        "platform": "YOUTUBE",
+        "connected": true,
+        "username": "SenpaiNova",
+        "metricLabel": "subscribers",
+        "metricValue": "850K Subscribers",
+        "verified": true,
+        "profileUrl": "https://youtube.com/@senpainova"
+      },
+      "discord": {
+        "platform": "DISCORD",
+        "connected": true,
+        "username": "NovaSanctuary",
+        "metricLabel": "members",
+        "metricValue": "42K Members",
+        "verified": true,
+        "profileUrl": "https://discord.gg/novasanctuary"
+      }
+    },
+    "proofDocuments": [],
+    "status": "VERIFIED",
+    "submittedAt": "2026-10-02T12:30:14.958Z",
+    "reviewedAt": "2026-10-02T12:42:06.259Z",
+    "reviewedBy": "Admin"
+  },
+  {
+    "id": "vrf_1790944157141_gamma",
+    "creatorSlug": "gamma",
+    "creatorName": "Gamma Lifestyle",
+    "creatorHandle": "@gamma",
+    "category": "Lifestyle",
+    "platforms": [
+      "YOUTUBE",
+      "DISCORD"
+    ],
+    "connectedPlatforms": {},
+    "proofDocuments": [],
+    "status": "PENDING",
+    "submittedAt": "2026-10-02T12:29:17.141Z"
+  },
+  {
+    "id": "vrf_1790944157139_beta",
+    "creatorSlug": "beta",
+    "creatorName": "Beta Tech",
+    "creatorHandle": "@beta",
+    "category": "Tech",
+    "platforms": [
+      "YOUTUBE",
+      "DISCORD"
+    ],
+    "connectedPlatforms": {
+      "youtube": {
+        "platform": "YOUTUBE",
+        "connected": true,
+        "username": "BetaTechReviews",
+        "metricLabel": "subscribers",
+        "metricValue": "1.2M Subscribers",
+        "verified": true,
+        "profileUrl": "https://youtube.com/@betatech"
+      }
+    },
+    "proofDocuments": [],
+    "status": "REJECTED",
+    "submittedAt": "2026-10-02T12:29:17.139Z",
+    "reviewedAt": "2026-10-02T12:29:17.152Z",
+    "reviewedBy": "Insufficient subscriber proof",
+    "rejectionReason": "Proof inconclusive"
+  },
+  {
+    "id": "vrf_1790944157136_alpha",
+    "creatorSlug": "alpha",
+    "creatorName": "Alpha Creator",
+    "creatorHandle": "@alpha",
+    "category": "Gaming",
+    "platforms": [
+      "YOUTUBE",
+      "DISCORD"
+    ],
+    "connectedPlatforms": {
+      "youtube": {
+        "platform": "YOUTUBE",
+        "connected": true,
+        "username": "AlphaGaming",
+        "metricLabel": "subscribers",
+        "metricValue": "450K Subscribers",
+        "verified": true,
+        "profileUrl": "https://youtube.com/@alphagaming"
+      },
+      "discord": {
+        "platform": "DISCORD",
+        "connected": true,
+        "username": "AlphaArmy",
+        "metricLabel": "members",
+        "metricValue": "35K Members",
+        "verified": true,
+        "profileUrl": "https://discord.gg/alphaarmy"
+      }
+    },
+    "proofDocuments": [],
+    "status": "VERIFIED",
+    "submittedAt": "2026-10-02T12:29:17.136Z",
+    "reviewedAt": "2026-10-02T12:29:17.146Z",
+    "reviewedBy": "Admin"
+  }
+]
