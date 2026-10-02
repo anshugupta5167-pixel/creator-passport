@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { CreatorProfile, VerificationSubmission, ProofDocument } from './types';
+import { CreatorProfile, VerificationSubmission, ProofDocument, VerificationStatus } from './types';
 import { syncCreatorToFirebase, fetchCreatorsFromFirebase, deleteCreatorFromFirebase } from './firebase';
 import { resolveYouTubeUrl, resolveDiscordUrl } from './urls';
 
@@ -42,7 +42,20 @@ export function loadCreatorsFromDisk(): CreatorProfile[] {
     ensureDataFile();
     if (fs.existsSync(DB_FILE)) {
       const content = fs.readFileSync(DB_FILE, 'utf8');
-      memoryCreators = JSON.parse(content || '[]');
+      const parsed: CreatorProfile[] = JSON.parse(content || '[]');
+      memoryCreators = parsed.map((c) => {
+        const slug = (c.slug || c.passportId || c.username || 'creator')
+          .toLowerCase()
+          .replace(/^@/, '')
+          .trim();
+        return {
+          ...c,
+          slug,
+          handle: c.handle || `@${slug}`,
+          passportId: c.passportId || slug,
+          verification_status: c.verification_status || (c.isVerified ? 'VERIFIED' : 'PENDING'),
+        };
+      });
       isLoaded = true;
       return memoryCreators;
     }
@@ -73,8 +86,13 @@ export function getCreatorBySlugDB(slug: string): CreatorProfile | null {
   const all = getAllCreatorsDB();
   const clean = slug.replace(/^@/, '').toLowerCase().trim();
   return (
-    all.find((c) => (c.slug && c.slug.toLowerCase() === clean) || c.username.toLowerCase() === clean) ||
-    null
+    all.find((c) => 
+      (c.slug && c.slug.toLowerCase() === clean) || 
+      (c.username && c.username.toLowerCase() === clean) ||
+      (c.passportId && c.passportId.toLowerCase() === clean) ||
+      (c.handle && c.handle.toLowerCase().replace(/^@/, '') === clean) ||
+      (c.id && c.id.toLowerCase() === clean)
+    ) || null
   );
 }
 
@@ -88,12 +106,14 @@ export function getCreatorByIdDB(target: string): CreatorProfile | null {
       const cSlug = (c.slug || '').toLowerCase();
       const cHandle = (c.handle || '').toLowerCase().replace(/^@/, '');
       const cUser = (c.username || '').toLowerCase();
+      const cPass = (c.passportId || '').toLowerCase();
       const cId = (c.id || '').toLowerCase();
 
       return (
         cSlug === clean ||
         cHandle === clean ||
         cUser === clean ||
+        cPass === clean ||
         cId === raw
       );
     }) || null
@@ -354,8 +374,24 @@ export function syncCreatorToVerificationDB(creator: CreatorProfile): Verificati
       }
     }
 
-    const idx = all.findIndex((v) => (v.creatorSlug || '').toLowerCase() === slug);
+    const idx = all.findIndex(
+      (v) =>
+        (v.creatorSlug || '').toLowerCase() === slug ||
+        (v.id || '').toLowerCase() === `vrf_${slug}` ||
+        (v.creatorHandle || '').toLowerCase().replace(/^@/, '') === slug
+    );
     const existing = idx >= 0 ? all[idx] : null;
+
+    let currentStatus: VerificationStatus = 'PENDING';
+    if (creator.isVerified || existing?.status === 'VERIFIED' || creator.verification_status === 'VERIFIED') {
+      currentStatus = 'VERIFIED';
+    } else if (creator.verification_status === 'REJECTED' || existing?.status === 'REJECTED') {
+      currentStatus = 'REJECTED';
+    } else if (creator.verification_status === 'UNDER_REVIEW' || existing?.status === 'UNDER_REVIEW') {
+      currentStatus = 'UNDER_REVIEW';
+    } else if (existing?.status) {
+      currentStatus = existing.status;
+    }
 
     const submission: VerificationSubmission = {
       id: existing?.id || `vrf_${Date.now()}_${slug}`,
@@ -367,7 +403,7 @@ export function syncCreatorToVerificationDB(creator: CreatorProfile): Verificati
       platforms: ['YOUTUBE', 'DISCORD'],
       connectedPlatforms: creator.connections || {},
       proofDocuments: proofs.length > 0 ? proofs : (existing?.proofDocuments || []),
-      status: creator.isVerified ? 'VERIFIED' : (creator.verification_status === 'REJECTED' ? 'REJECTED' : (existing?.status || 'PENDING')),
+      status: currentStatus,
       submittedAt: existing?.submittedAt || creator.issuedAt || new Date().toISOString(),
       rejectionReason: creator.rejectionReason || existing?.rejectionReason,
       reviewedAt: existing?.reviewedAt,
@@ -449,49 +485,89 @@ export function submitVerificationDB(submission: Omit<VerificationSubmission, 'i
 }
 
 export function updateVerificationStatusDB(
-  id: string,
+  idOrSlug: string,
   status: 'PENDING' | 'UNDER_REVIEW' | 'VERIFIED' | 'REJECTED',
   reviewedBy?: string,
   rejectionReason?: string
-): VerificationSubmission | null {
+): { verification: VerificationSubmission | null; creator: CreatorProfile | null } {
+  loadCreatorsFromDisk();
+  loadVerificationsFromDisk();
+
+  const cleanTarget = idOrSlug.trim().toLowerCase();
+  const cleanSlug = cleanTarget.replace(/^vrf_creator_/, '').replace(/^vrf_/, '').replace(/^@/, '');
+
+  // 1. Update the corresponding creator in creators.json
+  const allCreators = getAllCreatorsDB();
+  let cIdx = allCreators.findIndex(
+    (c) =>
+      (c.slug && c.slug.toLowerCase().replace(/^@/, '') === cleanSlug) ||
+      (c.username && c.username.toLowerCase().replace(/^@/, '') === cleanSlug) ||
+      (c.passportId && c.passportId.toLowerCase().replace(/^@/, '') === cleanSlug) ||
+      (c.handle && c.handle.toLowerCase().replace(/^@/, '') === cleanSlug) ||
+      (c.id && c.id.toLowerCase() === cleanTarget)
+  );
+
+  let updatedCreator: CreatorProfile | null = null;
+  const isVerified = status === 'VERIFIED';
+
+  if (cIdx >= 0) {
+    allCreators[cIdx] = {
+      ...allCreators[cIdx],
+      isVerified,
+      verification_status: status,
+      tierName: isVerified
+        ? (allCreators[cIdx].tierName && allCreators[cIdx].tierName !== 'Candidate Member'
+            ? allCreators[cIdx].tierName
+            : 'Founding Member Tier I')
+        : 'Candidate Member',
+      lastVerifiedAt: isVerified ? new Date().toISOString().split('T')[0] : allCreators[cIdx].lastVerifiedAt,
+      rejectionReason: status === 'REJECTED' ? (rejectionReason || 'Proof inconclusive') : undefined,
+    };
+    updatedCreator = allCreators[cIdx];
+    saveCreatorsToDisk(allCreators);
+
+    try {
+      syncCreatorToFirebase(updatedCreator);
+    } catch (e) {}
+  }
+
+  // 2. Update the corresponding verification in verifications.json
   const all = getAllVerificationsDB();
-  const cleanId = id.trim().toLowerCase();
-  const cleanSlug = cleanId.replace(/^vrf_creator_/, '').replace(/^vrf_/, '');
-  let idx = all.findIndex((v) => v.id.toLowerCase() === cleanId || v.creatorSlug.toLowerCase() === cleanSlug);
-  if (idx < 0) return null;
+  let idx = all.findIndex(
+    (v) =>
+      v.id.toLowerCase() === cleanTarget ||
+      v.creatorSlug.toLowerCase() === cleanSlug ||
+      (v.creatorHandle && v.creatorHandle.toLowerCase().replace(/^@/, '') === cleanSlug)
+  );
 
-  all[idx].status = status;
-  all[idx].reviewedAt = new Date().toISOString();
-  all[idx].reviewedBy = reviewedBy || 'Admin';
-  if (rejectionReason) {
-    all[idx].rejectionReason = rejectionReason;
-  }
+  let updatedSubmission: VerificationSubmission | null = null;
 
-  saveVerificationsToDisk(all);
-
-  // Update the corresponding creator's verification status and isVerified flag
-  const creator = getCreatorBySlugDB(all[idx].creatorSlug);
-  if (creator) {
-    creator.verification_status = status;
-    creator.isVerified = status === 'VERIFIED';
+  if (idx >= 0) {
+    all[idx].status = status;
+    all[idx].reviewedAt = new Date().toISOString();
+    all[idx].reviewedBy = reviewedBy || 'Admin';
     if (status === 'REJECTED') {
-      creator.rejectionReason = rejectionReason || 'Proof inconclusive';
+      all[idx].rejectionReason = rejectionReason || 'Proof inconclusive';
     } else {
-      creator.rejectionReason = undefined;
+      all[idx].rejectionReason = undefined;
     }
-    if (status === 'VERIFIED') {
-      creator.lastVerifiedAt = new Date().toISOString().split('T')[0];
-    }
-
-    const allCreators = getAllCreatorsDB();
-    const cIdx = allCreators.findIndex((c) => c.slug === creator.slug);
-    if (cIdx >= 0) {
-      allCreators[cIdx] = creator;
-      saveCreatorsToDisk(allCreators);
+    saveVerificationsToDisk(all);
+    updatedSubmission = all[idx];
+  } else if (updatedCreator) {
+    const newSub = syncCreatorToVerificationDB(updatedCreator);
+    if (newSub) {
+      newSub.status = status;
+      newSub.reviewedAt = new Date().toISOString();
+      newSub.reviewedBy = reviewedBy || 'Admin';
+      if (status === 'REJECTED') {
+        newSub.rejectionReason = rejectionReason || 'Proof inconclusive';
+      }
+      saveVerificationsToDisk(memoryVerifications);
+      updatedSubmission = newSub;
     }
   }
 
-  return all[idx];
+  return { verification: updatedSubmission, creator: updatedCreator };
 }
 
 // ==========================================

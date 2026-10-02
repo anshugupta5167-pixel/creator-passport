@@ -2,6 +2,8 @@
   {
     "id": "user_my_pass",
     "passportId": "unrulek",
+    "slug": "unrulek",
+    "handle": "@unrulek",
     "username": "unrulek",
     "displayName": "Unrulek",
     "avatarUrl": "/api/avatar-proxy?url=https%3A%2F%2Fyt3.googleusercontent.com%2FfsTkU4pgO2Xyjf7IfshXvFE5wf7aQ1PJjrfwmON3vgPfKgZmb0DXGqGDypWjcDRmVWjvlGZQwA%3Ds800-c-k-c0x00ffffff-no-rj",
@@ -15,7 +17,7 @@
     "profileCompletion": 95,
     "contactEmail": "aewew@gmail.com",
     "issuedAt": "2026-09-30",
-    "lastVerifiedAt": "2026-09-30",
+    "lastVerifiedAt": "2026-10-02",
     "digitalSignature": "0x8f9b2a71d4e6c0b938501e7492cfa7812be4091a",
     "isSuspended": false,
     "connections": {
@@ -92,8 +94,6 @@
     "portfolio": [],
     "registeredIp": "49.36.192.210",
     "clientIp": "49.36.192.210",
-    "slug": "unrulek",
-    "handle": "@unrulek",
     "niche": "Gaming Creator",
     "verification_status": "PENDING",
     "proofDocuments": []

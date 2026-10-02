@@ -495,9 +495,22 @@ export default function AdminPage() {
             const saved = localStorage.getItem('creatorhq_user_card');
             if (saved) {
               const parsed: CreatorProfile = JSON.parse(saved);
-              const slug = (parsed.slug || parsed.username || '').toLowerCase();
-              const exists = list.some((c: CreatorProfile) => (c.slug || c.username || '').toLowerCase() === slug);
-              if (!exists) list.unshift(parsed);
+              const slug = (parsed.slug || parsed.username || parsed.passportId || '').toLowerCase();
+              const existingIdx = list.findIndex(
+                (c: CreatorProfile) =>
+                  (c.slug || c.username || c.passportId || '').toLowerCase() === slug
+              );
+              if (existingIdx >= 0) {
+                // Sync updated server verification status to localStorage
+                if (
+                  list[existingIdx].isVerified !== parsed.isVerified ||
+                  list[existingIdx].verification_status !== parsed.verification_status
+                ) {
+                  localStorage.setItem('creatorhq_user_card', JSON.stringify(list[existingIdx]));
+                }
+              } else {
+                list.unshift(parsed);
+              }
             }
           } catch (e) {}
           setCreators(list);
@@ -563,43 +576,61 @@ export default function AdminPage() {
   };
 
   const handleStaffVerifyCreator = async (creator: CreatorProfile) => {
-    const nextVerified = !creator.isVerified;
-    const updated: CreatorProfile = {
-      ...creator,
-      isVerified: nextVerified,
-      verification_status: nextVerified ? 'VERIFIED' : 'PENDING',
-      tierName: nextVerified ? 'Founding Member Tier I' : 'Candidate Member',
-      lastVerifiedAt: new Date().toISOString().split('T')[0],
-    };
+    const nextVerified = !(creator.isVerified || creator.verification_status === 'VERIFIED');
+    const targetSlug = (creator.slug || creator.username || creator.passportId || 'creator').toLowerCase();
 
     try {
-      await fetch('/api/creators', {
+      const res = await fetch('/api/verification/review', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updated),
+        body: JSON.stringify({
+          creatorSlug: targetSlug,
+          action: nextVerified ? 'APPROVE' : 'REVOKE',
+          reviewedBy: 'Admin',
+        }),
       });
 
-      setCreators((prev) =>
-        prev.map((c) => ((c.slug || c.username) === (creator.slug || creator.username) ? updated : c))
-      );
+      if (res.ok) {
+        const data = await res.json();
+        const updated: CreatorProfile = data.creator || {
+          ...creator,
+          isVerified: nextVerified,
+          verification_status: nextVerified ? 'VERIFIED' : 'PENDING',
+          tierName: nextVerified ? 'Founding Member Tier I' : 'Candidate Member',
+          lastVerifiedAt: new Date().toISOString().split('T')[0],
+        };
 
-      try {
-        const saved = localStorage.getItem('creatorhq_user_card');
-        if (saved) {
-          const parsed: CreatorProfile = JSON.parse(saved);
-          if ((parsed.slug || parsed.username || '').toLowerCase() === (creator.slug || creator.username || '').toLowerCase()) {
-            localStorage.setItem('creatorhq_user_card', JSON.stringify(updated));
+        setCreators((prev) =>
+          prev.map((c) =>
+            (c.slug || c.username || c.passportId || '').toLowerCase() === targetSlug
+              ? updated
+              : c
+          )
+        );
+
+        try {
+          const saved = localStorage.getItem('creatorhq_user_card');
+          if (saved) {
+            const parsed: CreatorProfile = JSON.parse(saved);
+            if (
+              (parsed.slug || parsed.username || parsed.passportId || '').toLowerCase() === targetSlug
+            ) {
+              localStorage.setItem('creatorhq_user_card', JSON.stringify(updated));
+            }
           }
-        }
-      } catch (e) {}
+        } catch (e) {}
 
-      if (nextVerified) {
-        setActionFeedback(`Staff Approved! Verified badge granted to ${creator.displayName} (@${creator.slug || creator.username}).`);
+        if (nextVerified) {
+          setActionFeedback(`Staff Approved! Verified badge granted to ${creator.displayName} (@${targetSlug}).`);
+        } else {
+          setActionFeedback(`Verification revoked for ${creator.displayName}. Reverted to Pending.`);
+        }
+        await loadLiveData();
+        setTimeout(() => setActionFeedback(''), 4000);
       } else {
-        setActionFeedback(`Verification revoked for ${creator.displayName}. Reverted to Pending.`);
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || 'Failed to update verification status.');
       }
-      loadLiveData();
-      setTimeout(() => setActionFeedback(''), 4000);
     } catch (e) {
       alert('Failed to update verification status.');
     }
@@ -690,10 +721,37 @@ export default function AdminPage() {
         body: JSON.stringify({ verificationId: id, action: 'APPROVE', reviewedBy: 'Admin' }),
       });
       if (res.ok) {
+        const data = await res.json();
         setActionFeedback('Verification approved! Creator is now VERIFIED.');
         setInspectingSubmission(null);
-        loadLiveData();
+
+        if (data.creator) {
+          const targetSlug = (data.creator.slug || data.creator.username || data.creator.passportId || '').toLowerCase();
+          setCreators((prev) =>
+            prev.map((c) =>
+              (c.slug || c.username || c.passportId || '').toLowerCase() === targetSlug
+                ? data.creator
+                : c
+            )
+          );
+          try {
+            const saved = localStorage.getItem('creatorhq_user_card');
+            if (saved) {
+              const parsed: CreatorProfile = JSON.parse(saved);
+              if (
+                (parsed.slug || parsed.username || parsed.passportId || '').toLowerCase() === targetSlug
+              ) {
+                localStorage.setItem('creatorhq_user_card', JSON.stringify(data.creator));
+              }
+            }
+          } catch (e) {}
+        }
+
+        await loadLiveData();
         setTimeout(() => setActionFeedback(''), 4000);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || 'Failed to approve verification.');
       }
     } catch (e) {
       alert('Failed to approve verification.');
@@ -710,23 +768,39 @@ export default function AdminPage() {
       if (res.ok) {
         setActionFeedback(`Verification rejected. Reason: ${reason}`);
         setInspectingSubmission(null);
-        loadLiveData();
+        await loadLiveData();
         setTimeout(() => setActionFeedback(''), 4000);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || 'Failed to reject verification.');
       }
     } catch (e) {
       alert('Failed to reject verification.');
     }
   };
 
-  const handleApprove = (id: string) => {
+  const handleApprove = async (id: string) => {
     const res = approvePassportApplication(id);
     if (res) {
       setApplications([...getPassportApplications()]);
-      loadLiveData();
       setLogs([...getAuditLogs()]);
       setStats(getAdminStats());
       setActionFeedback(`Approved! Pass minted for ${res.newCreator.displayName} (@${res.newCreator.slug}).`);
       setInspectingApp(null);
+
+      // Persist the newly minted creator to server database
+      try {
+        await fetch('/api/creators', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-admin-request': 'true',
+          },
+          body: JSON.stringify(res.newCreator),
+        });
+      } catch (e) {}
+
+      await loadLiveData();
       setTimeout(() => setActionFeedback(''), 4000);
     }
   };
@@ -1144,7 +1218,7 @@ export default function AdminPage() {
                                 <span className="font-mono text-xs text-sky-400 font-semibold">
                                   @{creatorSlug}
                                 </span>
-                                {c.isVerified && c.verification_status === 'VERIFIED' ? (
+                                {(c.isVerified || c.verification_status === 'VERIFIED') ? (
                                   <span className="px-2 py-0.5 rounded-full bg-emerald-500 text-white text-[10px] font-semibold flex items-center gap-1">
                                     <Check className="w-3 h-3 stroke-[3]" />
                                     <span>Verified</span>
@@ -1176,13 +1250,13 @@ export default function AdminPage() {
                             <button
                               onClick={() => handleStaffVerifyCreator(c)}
                               className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm ${
-                                c.isVerified && c.verification_status === 'VERIFIED'
+                                (c.isVerified || c.verification_status === 'VERIFIED')
                                   ? 'bg-[#161922] hover:bg-amber-950/40 text-amber-300 border border-white/10 hover:border-amber-700/50'
                                   : 'bg-emerald-600 hover:bg-emerald-500 text-white'
                               }`}
                             >
                               <Check className="w-3.5 h-3.5" />
-                              <span>{c.isVerified && c.verification_status === 'VERIFIED' ? 'Revoke' : 'Verify'}</span>
+                              <span>{(c.isVerified || c.verification_status === 'VERIFIED') ? 'Revoke' : 'Verify'}</span>
                             </button>
 
                             <Link

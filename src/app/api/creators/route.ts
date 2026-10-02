@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAllCreatorsDB, addCreatorDB, deleteCreatorDB, getCreatorByIpDB, normalizeIp, isSameIp } from '@/lib/db';
+import { getAllCreatorsDB, addCreatorDB, deleteCreatorDB, getCreatorByIpDB, getCreatorByIdDB, normalizeIp, isSameIp } from '@/lib/db';
 import { CreatorProfile } from '@/lib/types';
 
 export async function GET(request: NextRequest) {
@@ -69,44 +69,56 @@ export async function POST(request: NextRequest) {
       detectedIp = '127.0.0.1';
     }
 
-    // 2. Enforce ONE PERSON, ONE CARD PER IP POLICY
-    const existingByIp = getCreatorByIpDB(detectedIp);
+    // 2. Check if this is an admin request or an update to an already existing card
+    const isAdminRequest = request.headers.get('x-admin-request') === 'true' || (body as any).isAdmin === true;
+    const targetSlug = (body.slug || body.username || body.passportId || '').toLowerCase().replace(/^@/, '');
+    const existingInDb = targetSlug ? getCreatorByIdDB(targetSlug) : null;
+    const isExistingCardUpdate = !!existingInDb;
 
-    if (existingByIp) {
-      // Check if this is an update to their OWN existing card
-      const targetSlug = (body.slug || body.username || '').toLowerCase().replace(/^@/, '');
-      const existingSlug = (existingByIp.slug || existingByIp.username || '').toLowerCase().replace(/^@/, '');
-      const isSameCreator =
-        (body.id && body.id === existingByIp.id) ||
-        (targetSlug && targetSlug === existingSlug) ||
-        (body.passportId && body.passportId.toLowerCase() === (existingByIp.passportId || '').toLowerCase());
+    // Enforce ONE PERSON, ONE CARD PER IP POLICY (only for new registrations from non-admin)
+    if (!isAdminRequest && !isExistingCardUpdate) {
+      const existingByIp = getCreatorByIpDB(detectedIp);
 
-      if (!isSameCreator) {
-        // Block creation of duplicate card on the same IP
-        return NextResponse.json(
-          {
-            error: 'ONE_CARD_PER_IP',
-            message: `One Person, One Card Policy: A Creator Pass is already registered to your IP address (${detectedIp}) for @${existingByIp.username} (${existingByIp.displayName}). Only one card per IP is allowed.`,
-            clientIp: detectedIp,
-            existingCard: {
-              id: existingByIp.id,
-              displayName: existingByIp.displayName,
-              username: existingByIp.username,
-              slug: existingByIp.slug,
-              passportId: existingByIp.passportId,
-              avatarUrl: existingByIp.avatarUrl,
+      if (existingByIp) {
+        // Check if this is an update to their OWN existing card
+        const existingSlug = (existingByIp.slug || existingByIp.username || existingByIp.passportId || '').toLowerCase().replace(/^@/, '');
+        const isSameCreator =
+          (body.id && body.id === existingByIp.id) ||
+          (targetSlug && targetSlug === existingSlug) ||
+          (body.passportId && body.passportId.toLowerCase() === (existingByIp.passportId || '').toLowerCase());
+
+        if (!isSameCreator) {
+          // Block creation of duplicate card on the same IP
+          return NextResponse.json(
+            {
+              error: 'ONE_CARD_PER_IP',
+              message: `One Person, One Card Policy: A Creator Pass is already registered to your IP address (${detectedIp}) for @${existingByIp.username} (${existingByIp.displayName}). Only one card per IP is allowed.`,
+              clientIp: detectedIp,
+              existingCard: {
+                id: existingByIp.id,
+                displayName: existingByIp.displayName,
+                username: existingByIp.username,
+                slug: existingByIp.slug,
+                passportId: existingByIp.passportId,
+                avatarUrl: existingByIp.avatarUrl,
+              },
             },
-          },
-          { status: 409 }
-        );
+            { status: 409 }
+          );
+        }
       }
     }
 
-    // Bind IP to the card
-    if (!body.registeredIp) {
-      body.registeredIp = existingByIp?.registeredIp || detectedIp;
+    // Bind IP to the card, preserving original IP if updating an existing card
+    if (existingInDb) {
+      body.registeredIp = existingInDb.registeredIp || body.registeredIp || detectedIp;
+      body.clientIp = existingInDb.clientIp || body.clientIp || detectedIp;
+    } else {
+      if (!body.registeredIp) {
+        body.registeredIp = detectedIp;
+      }
+      body.clientIp = detectedIp;
     }
-    body.clientIp = detectedIp;
 
     const saved = await addCreatorDB(body);
     return NextResponse.json({ success: true, creator: saved, clientIp: detectedIp });

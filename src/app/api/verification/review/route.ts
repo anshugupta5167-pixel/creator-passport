@@ -1,69 +1,60 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { updateVerificationStatusDB, getVerificationByIdDB } from '@/lib/db';
+import { updateVerificationStatusDB } from '@/lib/db';
 
-// POST: Admin approves or rejects a verification submission
+// POST: Admin approves, revokes, or rejects a verification submission or creator
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { verificationId, action, rejectionReason, reviewedBy } = body;
+    const { verificationId, creatorSlug, slug, action, rejectionReason, reviewedBy } = body;
 
-    if (!verificationId || !action) {
+    const target = verificationId || creatorSlug || slug;
+
+    if (!target || !action) {
       return NextResponse.json(
-        { error: 'verificationId and action are required' },
+        { error: 'verificationId (or creatorSlug) and action are required' },
         { status: 400 }
       );
     }
 
-    // Validate the action
-    const validActions = ['APPROVE', 'REJECT', 'UNDER_REVIEW'];
-    if (!validActions.includes(action.toUpperCase())) {
+    const actionUpper = String(action).toUpperCase();
+    const validActions = ['APPROVE', 'VERIFY', 'REJECT', 'REVOKE', 'UNDER_REVIEW'];
+    if (!validActions.includes(actionUpper)) {
       return NextResponse.json(
         { error: `Invalid action. Must be one of: ${validActions.join(', ')}` },
         { status: 400 }
       );
     }
 
-    // Check that the verification exists
-    const existing = getVerificationByIdDB(verificationId);
-    if (!existing) {
-      return NextResponse.json(
-        { error: 'Verification submission not found' },
-        { status: 404 }
-      );
+    let newStatus: 'VERIFIED' | 'REJECTED' | 'UNDER_REVIEW' | 'PENDING';
+    if (actionUpper === 'APPROVE' || actionUpper === 'VERIFY') {
+      newStatus = 'VERIFIED';
+    } else if (actionUpper === 'REJECT') {
+      newStatus = 'REJECTED';
+    } else if (actionUpper === 'REVOKE') {
+      newStatus = 'PENDING';
+    } else {
+      newStatus = 'UNDER_REVIEW';
     }
 
-    let newStatus: 'VERIFIED' | 'REJECTED' | 'UNDER_REVIEW';
-    switch (action.toUpperCase()) {
-      case 'APPROVE':
-        newStatus = 'VERIFIED';
-        break;
-      case 'REJECT':
-        newStatus = 'REJECTED';
-        break;
-      case 'UNDER_REVIEW':
-        newStatus = 'UNDER_REVIEW';
-        break;
-      default:
-        newStatus = 'UNDER_REVIEW';
-    }
-
-    const updated = updateVerificationStatusDB(
-      verificationId,
+    const result = updateVerificationStatusDB(
+      target,
       newStatus,
       reviewedBy || 'Admin',
       newStatus === 'REJECTED' ? (rejectionReason || 'Proof inconclusive') : undefined
     );
 
-    if (!updated) {
+    if (!result.verification && !result.creator) {
       return NextResponse.json(
-        { error: 'Failed to update verification status' },
-        { status: 500 }
+        { error: 'Verification submission or Creator record not found' },
+        { status: 404 }
       );
     }
 
     return NextResponse.json({
       success: true,
-      verification: updated,
+      status: newStatus,
+      verification: result.verification,
+      creator: result.creator,
     });
   } catch (err: any) {
     return NextResponse.json(
