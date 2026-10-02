@@ -79,6 +79,9 @@ export const metadata: Metadata = {
   alternates: {
     canonical: 'https://creatorhq.fun',
   },
+  verification: {
+    google: 'googleb0101f307ca8d45d',
+  },
 };
 
 const jsonLdData = {
