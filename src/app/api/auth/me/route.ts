@@ -19,12 +19,10 @@ export async function GET(request: NextRequest) {
       user: sanitizeUser(auth.user),
       creator: auth.creator || null,
     });
-  } catch (err: any) {
+  } catch {
     return NextResponse.json({
-      authenticated: false,
-      user: null,
-      creator: null,
-      error: err.message,
-    });
+      error: 'AUTH_LOOKUP_FAILED',
+      message: 'Unable to check the current session.',
+    }, { status: 500 });
   }
 }

@@ -261,13 +261,13 @@ export function updateUserDB(id: string, updates: Partial<User>): User | null {
   return updatedUser;
 }
 
-export function deleteUserDB(id: string): boolean {
+export async function deleteUserDB(id: string): Promise<boolean> {
   const users = getUsersDB();
   const filtered = users.filter((u) => u.id !== id);
   if (filtered.length !== users.length) {
     saveUsersDB(filtered);
     deleteUserSessionsDB(id);
-    deleteCreatorByUserIdDB(id);
+    await deleteCreatorByUserIdDB(id);
     return true;
   }
   return false;
@@ -492,8 +492,12 @@ export async function getAllCreatorsDBAsync(): Promise<CreatorProfile[]> {
   getAllCreatorsDB();
   try {
     const cloud = await fetchFromCloudStore();
-    if (cloud.creators && cloud.creators.length > 0) {
-      mergeIncomingCreators(cloud.creators);
+    if (cloud.hasCreatorSnapshot) {
+      if (cloud.creators.length > 0) {
+        mergeIncomingCreators(cloud.creators);
+      } else {
+        memoryCreators = [];
+      }
     }
     mergeIncomingVerifications(cloud.verifications || []);
     applyReviewedVerificationStatuses();
@@ -640,7 +644,7 @@ export async function addCreatorDB(creator: CreatorProfile): Promise<CreatorProf
 }
 
 export async function deleteCreatorDB(targets: string[]): Promise<boolean> {
-  const current = getAllCreatorsDB();
+  const current = await getAllCreatorsDBAsync();
   const cleanTargets = targets.map((t) => t.trim().toLowerCase().replace(/^@/, ''));
 
   const remaining = current.filter((c) => {
@@ -666,12 +670,16 @@ export async function deleteCreatorDB(targets: string[]): Promise<boolean> {
   const changed = remaining.length !== current.length;
   if (changed) {
     saveCreatorsToDisk(remaining);
+    const cloudSaved = await pushCreatorsToCloudStore(remaining);
+    if (process.env.VERCEL && !cloudSaved && current.length > 0) {
+      throw new Error('Creator was removed locally, but cloud storage could not save the deletion. Configure GITHUB_DATA_TOKEN or Firebase sync to keep it deleted.');
+    }
 
     // Also clean up related verifications and proofs
     for (const t of cleanTargets) {
-      deleteVerificationByCreatorSlugDB(t);
+      await deleteVerificationByCreatorSlugDB(t);
       try {
-        deleteCreatorFromFirebase(t);
+        await deleteCreatorFromFirebase(t);
       } catch (e) {}
     }
   }
@@ -781,12 +789,16 @@ export function getVerificationByIdDB(target: string): VerificationSubmission | 
   );
 }
 
-export function deleteVerificationByCreatorSlugDB(slug: string): boolean {
+export async function deleteVerificationByCreatorSlugDB(slug: string): Promise<boolean> {
   const clean = slug.toLowerCase().replace(/^@/, '').trim();
-  const all = getAllVerificationsDB();
+  const all = await getAllVerificationsDBAsync();
   const filtered = all.filter((v) => v.creatorSlug.toLowerCase() !== clean);
   if (filtered.length !== all.length) {
     saveVerificationsToDisk(filtered);
+    const cloudSaved = await pushVerificationsToCloudStore(filtered);
+    if (process.env.VERCEL && !cloudSaved && all.length > 0) {
+      throw new Error('Verification data was removed locally, but cloud storage could not save the deletion. Configure GITHUB_DATA_TOKEN or Firebase sync to keep it deleted.');
+    }
     return true;
   }
   return false;

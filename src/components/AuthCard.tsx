@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { 
   Lock, 
   Mail, 
@@ -30,6 +31,7 @@ export default function AuthCard({
   defaultEmail = '',
   defaultUsername = '',
 }: AuthCardProps) {
+  const router = useRouter();
   const [mode, setMode] = useState<'signin' | 'signup' | 'forgot' | 'verify'>(initialMode);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -46,6 +48,12 @@ export default function AuthCard({
   const resetMessages = () => {
     setErrorMsg(null);
     setSuccessMsg(null);
+  };
+
+  const getPostAuthPath = () => {
+    if (typeof window === 'undefined') return '/';
+    const requestedPath = new URLSearchParams(window.location.search).get('next');
+    return requestedPath?.startsWith('/') && !requestedPath.startsWith('//') ? requestedPath : '/';
   };
 
   const handleSignIn = async (e: React.FormEvent) => {
@@ -76,7 +84,7 @@ export default function AuthCard({
       cacheAuthHint(data.user, data.creator);
       setSuccessMsg('Welcome back!');
       if (onSuccess) onSuccess(data.user, data.creator);
-      else if (typeof window !== 'undefined') window.location.replace('/');
+      else if (typeof window !== 'undefined') router.replace(getPostAuthPath());
     } catch (err: any) {
       setErrorMsg(err.message || 'Authentication failed. Please try again.');
     } finally {
@@ -126,7 +134,7 @@ export default function AuthCard({
       cacheAuthHint(data.user, data.creator);
       setSuccessMsg('Account created successfully!');
       if (onSuccess) onSuccess(data.user, data.creator);
-      else if (typeof window !== 'undefined') window.location.replace('/');
+      else if (typeof window !== 'undefined') router.replace(getPostAuthPath());
     } catch (err: any) {
       setErrorMsg(err.message || 'Registration failed. Please try again.');
     } finally {

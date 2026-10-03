@@ -490,6 +490,12 @@ export default function AdminPage() {
         fetch('/api/admin/audit-logs', { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } }),
       ]);
 
+      if ([creatorsRes, verificationsRes, logsRes].some((response) => response.status === 401 || response.status === 403)) {
+        setIsAuthenticated(false);
+        setLoginError('Your admin session expired. Please sign in again.');
+        return;
+      }
+
       if (creatorsRes.ok) {
         const data = await creatorsRes.json();
         if (Array.isArray(data.creators)) {
@@ -519,10 +525,10 @@ export default function AdminPage() {
 
   // Check existing authenticated session on mount
   React.useEffect(() => {
-    fetch('/api/auth/me')
+    fetch('/api/auth/me', { cache: 'no-store', credentials: 'same-origin' })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (data?.user && data.user.role === 'ADMIN') {
+        if (data?.authenticated && data.user?.role === 'ADMIN') {
           setIsAuthenticated(true);
           loadLiveData();
         }
@@ -602,9 +608,13 @@ export default function AdminPage() {
     }
 
     try {
-      await fetch(`/api/creators?slug=${encodeURIComponent(slug)}`, {
+      const res = await fetch(`/api/creators?slug=${encodeURIComponent(slug)}`, {
         method: 'DELETE',
       });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.message || data.error || 'Could not permanently remove this creator from cloud storage.');
+      }
 
       setCreators((prev) => prev.filter((c) => (c.slug || c.username || '').toLowerCase() !== slug.toLowerCase()));
 
@@ -621,7 +631,8 @@ export default function AdminPage() {
       setActionFeedback(`Creator Pass @${slug} permanently deleted.`);
       setTimeout(() => setActionFeedback(''), 4000);
     } catch (err) {
-      alert('Failed to delete creator pass. Check network/server connection.');
+      await loadLiveData();
+      alert(err instanceof Error ? err.message : 'Failed to delete creator pass. Check network/server connection.');
     }
   };
 

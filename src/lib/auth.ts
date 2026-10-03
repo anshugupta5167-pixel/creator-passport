@@ -52,11 +52,63 @@ export function generateVerificationCode(): string {
 /**
  * Set HTTP-only, secure session cookie on NextResponse
  */
-export function attachSessionCookie(response: NextResponse, token: string): void {
+function getSessionSigningSecret(): string | null {
+  return process.env.SESSION_SIGNING_SECRET || process.env.GITHUB_DATA_TOKEN || null;
+}
+
+function createStatelessAdminToken(user: User): string | null {
+  const secret = getSessionSigningSecret();
+  if (!secret || user.role !== 'ADMIN') return null;
+
+  const now = Date.now();
+  const payload = Buffer.from(JSON.stringify({
+    userId: user.id,
+    issuedAt: now,
+    expiresAt: now + SESSION_DURATION_MS,
+  })).toString('base64url');
+  const signature = crypto.createHmac('sha256', secret).update(payload).digest('base64url');
+  return `chq1.${payload}.${signature}`;
+}
+
+function getStatelessAdminSession(token: string): Session | null {
+  const secret = getSessionSigningSecret();
+  if (!secret || !token.startsWith('chq1.')) return null;
+
+  const [, payload, signature] = token.split('.');
+  if (!payload || !signature) return null;
+  const expected = crypto.createHmac('sha256', secret).update(payload).digest();
+  let actual: Buffer;
+  try {
+    actual = Buffer.from(signature, 'base64url');
+  } catch {
+    return null;
+  }
+  if (actual.length !== expected.length || !crypto.timingSafeEqual(actual, expected)) return null;
+
+  try {
+    const claims = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as {
+      userId?: string;
+      issuedAt?: number;
+      expiresAt?: number;
+    };
+    if (!claims.userId || !claims.expiresAt || claims.expiresAt <= Date.now()) return null;
+    return {
+      id: `stateless_${claims.userId}`,
+      userId: claims.userId,
+      token,
+      createdAt: new Date(claims.issuedAt || Date.now()).toISOString(),
+      expiresAt: new Date(claims.expiresAt).toISOString(),
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function attachSessionCookie(response: NextResponse, token: string, user?: User): void {
   const isProd = process.env.NODE_ENV === 'production';
   response.cookies.set({
     name: SESSION_COOKIE_NAME,
-    value: token,
+    value: (user && createStatelessAdminToken(user)) || token,
     httpOnly: true,
     secure: isProd,
     sameSite: 'lax',
@@ -103,7 +155,7 @@ export async function getAuthenticatedUser(request: NextRequest): Promise<{
 
   if (!token) return null;
 
-  const session = getSessionByTokenDB(token);
+  const session = getSessionByTokenDB(token) || getStatelessAdminSession(token);
   if (!session) return null;
 
   // Check session expiration

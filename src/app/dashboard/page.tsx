@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import PassportCard, { CardTheme } from '@/components/PassportCard';
@@ -9,7 +10,7 @@ import ImageUploader from '@/components/ImageUploader';
 import MoreChannelsCard from '@/components/MoreChannelsCard';
 import { CreatorProfile, ChannelItem } from '@/lib/types';
 import { resolveYouTubeUrl, resolveDiscordUrl, resolveInstagramUrl, getSafeAvatarUrl } from '@/lib/urls';
-import { cacheAuthHint } from '@/lib/clientAuth';
+import { cacheAuthHint, readCachedAuthHint } from '@/lib/clientAuth';
 import {
   Check,
   Copy,
@@ -45,6 +46,14 @@ export interface YouTubePublicData {
   channelId: string;
 }
 
+interface AuthMeResponse {
+  authenticated?: boolean;
+  user?: { id: string; username: string };
+  creator?: CreatorProfile | null;
+  error?: string;
+  message?: string;
+}
+
 const CATEGORIES = [
   'Gaming & Esports',
   'Tech & AI Engineering',
@@ -55,12 +64,14 @@ const CATEGORIES = [
 ];
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [isMounted, setIsMounted] = useState(false);
   const [hasCreatedCard, setHasCreatedCard] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'identity' | 'channels' | 'verification' | 'theme'>('identity');
   const [isSaving, setIsSaving] = useState(false);
+  const [authNotice, setAuthNotice] = useState<string | null>(null);
 
   // Identity Form State
   const [displayName, setDisplayName] = useState('');
@@ -197,35 +208,57 @@ export default function DashboardPage() {
       })
       .catch(() => {});
 
-    // Require signup first before entering studio
+    // Confirm the server session before entering Studio. A transient API error
+    // should never bounce a signed-in creator to account creation.
     const checkAuthAndStorage = async () => {
-      try {
-        const authRes = await fetch('/api/auth/me');
-        if (authRes.ok) {
-          const authData = await authRes.json();
-          if (authData.authenticated && authData.user) {
-            if (authData.creator) {
-              applyCreatorToState(authData.creator);
-            } else {
-              const saved = localStorage.getItem(STORAGE_KEY);
-              if (saved) {
-                const parsed = JSON.parse(saved);
-                if (parsed && (parsed.displayName || parsed.username)) {
-                  applyCreatorToState(parsed);
-                }
-              }
+      let authData: AuthMeResponse | null = null;
+      let lastError: unknown = null;
+
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        try {
+          const authRes = await fetch('/api/auth/me', { cache: 'no-store', credentials: 'same-origin' });
+          const data = await authRes.json() as AuthMeResponse;
+          authData = data;
+          if (authRes.ok && !data.error) break;
+          lastError = new Error(data.message || 'Session lookup failed');
+        } catch (error) {
+          lastError = error;
+        }
+
+        if (attempt === 0) await new Promise((resolve) => setTimeout(resolve, 350));
+      }
+
+      if (authData?.authenticated && authData.user) {
+        if (authData.creator) {
+          applyCreatorToState(authData.creator);
+        } else {
+          const saved = localStorage.getItem(STORAGE_KEY);
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            if (parsed && (parsed.displayName || parsed.username)) {
+              applyCreatorToState(parsed);
             }
-            return;
           }
         }
-        // If not authenticated, redirect to /signup first
-        if (typeof window !== 'undefined') {
-          window.location.href = '/signup';
+        return;
+      }
+
+      const cachedHint = readCachedAuthHint();
+      if (lastError || authData?.error || !authData) {
+        if (cachedHint) {
+          setAuthNotice('Your Studio is ready, but we could not confirm your sign-in. Refresh the page or sign in again to save changes.');
+          if (cachedHint.creator) applyCreatorToState(cachedHint.creator as CreatorProfile);
+        } else {
+          setAuthNotice('We could not check your sign-in right now. Refresh the page and try again.');
         }
-      } catch (e) {
-        if (typeof window !== 'undefined') {
-          window.location.href = '/signup';
-        }
+        return;
+      }
+
+      // This is a confirmed signed-out response. Return to Studio after sign-in.
+      if (!cachedHint && typeof window !== 'undefined') {
+        router.replace('/signin?next=%2Fdashboard');
+      } else {
+        setAuthNotice('Your saved sign-in could not be confirmed. Please sign in again to continue.');
       }
     };
 
@@ -521,6 +554,17 @@ export default function DashboardPage() {
       <main className="flex-1 py-8 sm:py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
           
+          {/* Toast Notification */}
+          {authNotice && (
+            <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-400/30 text-slate-100 text-sm flex flex-wrap items-center justify-between gap-3">
+              <span>{authNotice}</span>
+              <div className="flex items-center gap-3">
+                <button onClick={() => window.location.reload()} className="font-semibold text-sky-300 hover:text-white">Refresh</button>
+                <Link href="/signin?next=%2Fdashboard" className="font-semibold text-sky-300 hover:text-white">Sign in</Link>
+              </div>
+            </div>
+          )}
+
           {/* Toast Notification */}
           {toastMessage && (
             <div className="p-4 rounded-2xl bg-sky-500/10 border border-sky-400/30 text-white font-semibold text-xs sm:text-sm flex items-center justify-between shadow-2xl backdrop-blur-md animate-fadeIn">

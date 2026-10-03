@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
       creator: creator || null,
     });
 
-    attachSessionCookie(response, sessionToken);
+    attachSessionCookie(response, sessionToken, user);
     return response;
   } catch (err: any) {
     return NextResponse.json(

@@ -4,8 +4,8 @@ import {
   getAllCreatorsDBAsync, 
   addCreatorDB, 
   deleteCreatorDB, 
-  getCreatorByIdDB,
   getCreatorByUserIdDB,
+  deleteUserDB,
   addAuditLogDB 
 } from '@/lib/db';
 import { getAuthenticatedUser, requireAuth } from '@/lib/auth';
@@ -209,7 +209,12 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'BAD_REQUEST', message: 'Target creator slug or ID required.' }, { status: 400 });
     }
 
-    const targetCreator = getCreatorByIdDB(targetSlug);
+    const currentCreators = await getAllCreatorsDBAsync();
+    const cleanTarget = targetSlug.toLowerCase().replace(/^@/, '');
+    const targetCreator = currentCreators.find((creator) =>
+      [creator.id, creator.slug, creator.username, creator.userId, creator.passportId]
+        .some((value) => (value || '').toLowerCase().replace(/^@/, '') === cleanTarget)
+    ) || null;
     if (!targetCreator) {
       return NextResponse.json({ error: 'NOT_FOUND', message: 'Creator not found.' }, { status: 404 });
     }
@@ -221,6 +226,10 @@ export async function DELETE(request: NextRequest) {
       targetCreator.userId || '',
       targetCreator.passportId || '',
     ]);
+
+    if (targetCreator.userId && targetCreator.userId !== user.id) {
+      await deleteUserDB(targetCreator.userId);
+    }
 
     addAuditLogDB({
       userId: user.id,

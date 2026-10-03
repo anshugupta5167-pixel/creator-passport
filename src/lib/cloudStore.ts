@@ -28,12 +28,14 @@ const CACHE_TTL_MS = 3000; // 3 seconds TTL for ultra-fast response with real-ti
 export async function fetchFromCloudStore(): Promise<{
   creators: CreatorProfile[];
   verifications: VerificationSubmission[];
+  hasCreatorSnapshot: boolean;
 }> {
   const now = Date.now();
   if (cache.creators && cache.verifications && now - cache.lastFetched < CACHE_TTL_MS) {
     return {
       creators: cache.creators,
       verifications: cache.verifications,
+      hasCreatorSnapshot: cache.creators !== null,
     };
   }
 
@@ -56,7 +58,7 @@ export async function fetchFromCloudStore(): Promise<{
       if (creatorsFile) {
         try {
           const parsed = JSON.parse(creatorsFile);
-          if (Array.isArray(parsed) && parsed.length > 0) {
+          if (Array.isArray(parsed)) {
             cache.creators = parsed;
           }
         } catch (e) {}
@@ -80,6 +82,7 @@ export async function fetchFromCloudStore(): Promise<{
   return {
     creators: cache.creators || [],
     verifications: cache.verifications || [],
+    hasCreatorSnapshot: cache.creators !== null,
   };
 }
 
@@ -88,8 +91,6 @@ export async function fetchFromCloudStore(): Promise<{
  */
 export async function pushCreatorsToCloudStore(creators: CreatorProfile[]): Promise<boolean> {
   if (!process.env.GITHUB_DATA_TOKEN) return false;
-  cache.creators = creators;
-  cache.lastFetched = Date.now();
 
   try {
     const payload = JSON.stringify({
@@ -112,7 +113,12 @@ export async function pushCreatorsToCloudStore(creators: CreatorProfile[]): Prom
       signal: AbortSignal.timeout(5000),
     });
 
-    return res.ok;
+    if (res.ok) {
+      cache.creators = creators;
+      cache.lastFetched = Date.now();
+      return true;
+    }
+    return false;
   } catch (err) {
     console.warn('[CloudStore] Notice updating cloud creators:', err);
     return false;
