@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Plus_Jakarta_Sans } from 'next/font/google';
 import './globals.css';
+import 'lenis/dist/lenis.css';
 
 const fontSans = Plus_Jakarta_Sans({
   variable: '--font-sans',
@@ -179,8 +180,9 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-screen bg-[#0b0d11] text-[#f1f5f9] flex flex-col font-sans overflow-x-hidden selection:bg-sky-500/30 selection:text-white">
-        <SmoothScrollProvider />
-        <PageTransition>{children}</PageTransition>
+        <SmoothScrollProvider>
+          <PageTransition>{children}</PageTransition>
+        </SmoothScrollProvider>
       </body>
     </html>
   );

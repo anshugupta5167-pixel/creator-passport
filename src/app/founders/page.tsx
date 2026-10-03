@@ -142,7 +142,7 @@ export default function FoundersPage() {
     <div className="min-h-screen bg-[#07090e] text-slate-100 flex flex-col font-sans selection:bg-sky-500/30 selection:text-white pt-20">
       <Navbar />
 
-      <main className="flex-1 relative">
+      <main className="flex-1 relative isolate">
         {/* Full-Page Ambient Tech Geometric Banner */}
         <div className="fixed inset-0 pointer-events-none z-0">
           <CamouflageBannerBg bannerOpacity="opacity-55" gridOpacity="opacity-35" />
@@ -188,7 +188,7 @@ export default function FoundersPage() {
         </section>
 
         {/* ================= DETAILED FOUNDERS SHOWCASE ================= */}
-        <section className="py-20 sm:py-28 bg-[#0e1117] border-b border-white/5 relative">
+        <section className="relative z-10 py-20 sm:py-28 bg-[#0e1117] border-b border-white/5">
           <div className="container mx-auto px-4 md:px-6 max-w-6xl space-y-20">
             
             <div className="text-center max-w-2xl mx-auto space-y-3">
@@ -198,7 +198,7 @@ export default function FoundersPage() {
               <h2 className="text-3xl sm:text-4xl font-bold text-white tracking-tight">
                 Architects of the Sovereign Creator Pass
               </h2>
-              <p className="text-sm sm:text-base text-slate-400 leading-relaxed">
+              <p className="text-base sm:text-lg text-slate-200 leading-relaxed">
                 Meet the founders leading the charge to redefine authenticity, verification, and brand monetization for modern digital talent.
               </p>
             </div>
@@ -300,7 +300,7 @@ export default function FoundersPage() {
 
         {/* ================= CORE PILLARS & FOUNDER PHILOSOPHY ================= */}
         {/* ================= CORE PHILOSOPHY & PILLARS ================= */}
-        <section className="py-20 bg-transparent">
+        <section className="relative z-10 py-20 bg-transparent">
           <div className="container mx-auto px-4 md:px-6 max-w-7xl space-y-16">
             <div className="text-center max-w-3xl mx-auto space-y-4">
               <div className="inline-flex items-center gap-2 rounded-full border border-sky-500/25 bg-sky-950/40 px-4 py-1.5 shadow-sm">
@@ -312,7 +312,7 @@ export default function FoundersPage() {
               <h2 className="text-4xl sm:text-5xl font-extrabold text-white tracking-tight">
                 What We <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-cyan-200 to-blue-400">Stand For</span>
               </h2>
-              <p className="text-base sm:text-lg text-slate-300 leading-relaxed font-normal">
+              <p className="text-base sm:text-lg text-slate-100 leading-relaxed font-normal">
                 The founding principles established by Anshu Gupta and Pranav Sharma guide every algorithm, verification audit, and feature built on CreatorHQ.
               </p>
             </div>
@@ -330,7 +330,7 @@ export default function FoundersPage() {
                       <h3 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight font-sans group-hover:text-sky-300 transition-colors">
                         {pillar.title}
                       </h3>
-                      <p className="text-sm sm:text-base text-slate-300 leading-relaxed font-normal">
+                      <p className="text-base sm:text-lg text-slate-100 leading-relaxed font-normal">
                         {pillar.desc}
                       </p>
                     </div>
@@ -342,7 +342,7 @@ export default function FoundersPage() {
         </section>
 
         {/* ================= FOUNDING JOURNEY & MILESTONES ================= */}
-        <section className="py-20 bg-transparent">
+        <section className="relative z-10 py-20 bg-transparent">
           <div className="container mx-auto px-4 md:px-6 max-w-4xl space-y-12">
             <div className="text-center space-y-3">
               <span className="text-xs font-mono uppercase tracking-widest text-sky-400 font-semibold block">
@@ -375,7 +375,7 @@ export default function FoundersPage() {
         </section>
 
         {/* High-Impact Tech Showcase Banner */}
-        <div className="container mx-auto px-4 md:px-6 max-w-6xl my-10">
+        <div className="relative z-10 container mx-auto px-4 md:px-6 max-w-6xl my-10">
           <TechShowcaseBanner
             badge="EXECUTIVE PROTOCOL"
             title="The Sovereign Identity Standard for Creators"
@@ -388,14 +388,14 @@ export default function FoundersPage() {
         </div>
 
         {/* ================= FINAL CALL TO ACTION ================= */}
-        <section className="py-24 bg-transparent text-center relative overflow-hidden">
+        <section className="relative z-10 py-24 bg-transparent text-center overflow-hidden">
           <CamouflageBannerBg bannerOpacity="opacity-20" gridOpacity="opacity-15" />
 
           <div className="container relative z-10 mx-auto px-4 md:px-6 max-w-3xl space-y-6">
             <h2 className="text-3xl sm:text-4xl font-bold text-white tracking-tight">
               Ready to Join the CreatorHQ Network?
             </h2>
-            <p className="text-sm sm:text-base text-slate-400 leading-relaxed">
+            <p className="text-base sm:text-lg text-slate-200 leading-relaxed">
               Mint your official 3D Creator Pass today, submit your verified credentials, and become part of our elite, audit-verified roster.
             </p>
             <div className="pt-2 flex flex-wrap justify-center gap-4">

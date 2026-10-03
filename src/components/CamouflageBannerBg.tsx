@@ -14,13 +14,15 @@ export default function CamouflageBannerBg({
   bannerOpacity = 'opacity-60',
 }: CamouflageBannerBgProps) {
   return (
-    <div className={`absolute inset-0 pointer-events-none overflow-hidden select-none z-0 ${className}`}>
+    <div aria-hidden="true" className={`absolute inset-0 pointer-events-none overflow-hidden select-none z-0 ${className}`}>
       {/* Camouflaged Luxury Dark Geometric Tech Banner */}
       <img
         src="/chq-hero-banner.jpg"
         alt=""
-        className={`w-full h-full object-cover object-center ${bannerOpacity}`}
+        className={`chq-camouflage-image w-full h-full object-cover object-center ${bannerOpacity}`}
       />
+
+      <div className="chq-camouflage-flow" />
 
       {/* Toadster Ambient Radial Glow Atmosphere (Deep Obsidian & Indigo) */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,_rgba(56,189,248,0.12)_0%,_transparent_60%)]" />

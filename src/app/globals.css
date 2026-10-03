@@ -30,6 +30,7 @@ html {
   background-color: #060911;
   color: #ffffff;
   scroll-behavior: smooth;
+  scroll-padding-top: 5rem;
 }
 
 /* Fade-in utility animation */
@@ -54,6 +55,52 @@ body {
   font-family: var(--font-sans);
   overflow-x: hidden;
   letter-spacing: -0.011em;
+}
+
+/* Keep secondary copy and labels readable across the dark CreatorHQ palette. */
+body .text-slate-400 {
+  color: #cbd5e1;
+}
+
+body .text-slate-500 {
+  color: #a8b4c5;
+}
+
+/* Slow, layered motion gives the shared camouflage backdrop a subtle 3D flow. */
+@keyframes chqCamouflageDrift {
+  from { transform: scale(1.03) translate3d(-0.5%, -0.4%, 0); }
+  to { transform: scale(1.1) translate3d(0.5%, 0.4%, 0); }
+}
+
+@keyframes chqAmbientFlow {
+  0%, 100% { transform: translate3d(-2%, -1%, 0) scale(1); }
+  50% { transform: translate3d(2%, 1.5%, 0) scale(1.08); }
+}
+
+.chq-camouflage-image {
+  animation: chqCamouflageDrift 34s ease-in-out infinite alternate;
+  transform-origin: center;
+  will-change: transform;
+}
+
+.chq-camouflage-flow {
+  position: absolute;
+  inset: -22%;
+  opacity: 0.38;
+  filter: blur(44px);
+  background:
+    radial-gradient(ellipse at 22% 32%, rgba(56, 189, 248, 0.25), transparent 38%),
+    radial-gradient(ellipse at 78% 66%, rgba(99, 102, 241, 0.22), transparent 40%);
+  animation: chqAmbientFlow 22s ease-in-out infinite;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chq-camouflage-image,
+  .chq-camouflage-flow {
+    animation: none;
+    will-change: auto;
+  }
 }
 
 /* CreatorHQ Clean Technical Grid (24px Geometric Grid) */

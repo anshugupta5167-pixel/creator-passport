@@ -7,7 +7,6 @@ import ServiceMediaBento from '@/components/ServiceMediaBento';
 import ServiceMediaSections from '@/components/ServiceMediaSections';
 import CreatorComparisons from '@/components/CreatorComparisons';
 import CamouflageBannerBg from '@/components/CamouflageBannerBg';
-import HomeCamouflageBanner from '@/components/HomeCamouflageBanner';
 
 import ScrollReveal from '@/components/ScrollReveal';
 import HeroAnimatedHeading from '@/components/HeroAnimatedHeading';
@@ -76,11 +75,6 @@ export default async function LandingPage() {
             </div>
           </div>
         </section>
-
-        {/* ================= CAMOUFLAGE BANNER (BIG & BOLD) ================= */}
-        <ScrollReveal direction="up" distance={40} duration={800}>
-          <HomeCamouflageBanner />
-        </ScrollReveal>
 
         {/* ================= MARQUEE TICKER & IMPACT STATS ================= */}
         <ScrollReveal direction="up" distance={40} duration={800}>

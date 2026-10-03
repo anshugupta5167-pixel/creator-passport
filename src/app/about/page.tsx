@@ -80,14 +80,14 @@ export default function AboutPage() {
     <div className="min-h-screen bg-[#07090e] text-slate-100 flex flex-col font-sans selection:bg-sky-500/30 selection:text-white pt-20">
       <Navbar />
 
-      <main className="flex-1 relative">
+      <main className="flex-1 relative isolate">
         {/* Full-Page Ambient Tech Geometric Banner */}
         <div className="fixed inset-0 pointer-events-none z-0">
           <CamouflageBannerBg bannerOpacity="opacity-55" gridOpacity="opacity-35" />
         </div>
         
         {/* ================= ABOUT HERO ================= */}
-        <section className="relative pt-24 sm:pt-32 pb-16 z-10">
+        <section className="relative z-10 pt-24 sm:pt-32 pb-16">
           <div className="container relative z-10 mx-auto px-4 sm:px-6 lg:px-8 max-w-5xl text-center space-y-6">
             <div className="inline-flex items-center gap-2 rounded-full border border-sky-500/25 bg-sky-500/10 px-4 py-1.5 shadow-sm">
               <span className="w-2 h-2 rounded-full bg-sky-400 shadow-[0_0_8px_#38bdf8]" />
@@ -129,7 +129,7 @@ export default function AboutPage() {
         </section>
 
         {/* ================= ORIGIN STORY: THE PROBLEM & OUR SOLUTION ================= */}
-        <section className="py-20 bg-transparent">
+        <section className="relative z-10 py-20 bg-transparent">
           <div className="container mx-auto px-4 md:px-6 max-w-6xl">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
               
@@ -137,10 +137,10 @@ export default function AboutPage() {
                 <span className="text-xs font-mono uppercase tracking-widest text-sky-400 font-semibold block">
                   ORIGIN STORY
                 </span>
-                <h2 className="text-3xl sm:text-4xl font-bold text-white font-sans tracking-tight">
+                <h2 className="text-4xl sm:text-5xl font-bold text-white font-sans tracking-tight">
                   Why We Built CreatorHQ
                 </h2>
-                <div className="space-y-4 text-sm sm:text-base text-slate-300 leading-relaxed">
+                <div className="space-y-4 text-base sm:text-lg text-slate-100 leading-relaxed">
                   <p>
                     For over a decade, creator sponsorship negotiations have been trapped in chaotic email chains, out-of-date PDF media kits, and inflated follower counts. Real creators with deeply engaged audiences struggled to separate themselves from bad actors buying views.
                   </p>
@@ -161,7 +161,7 @@ export default function AboutPage() {
                     <span className="text-sky-400 font-semibold text-xs uppercase tracking-wider font-mono">Audited Data Proof</span>
                   </div>
                   <h3 className="text-xl font-bold text-white font-sans">No Passwords or Tokens</h3>
-                  <p className="text-base text-slate-300 leading-relaxed font-sans font-normal">
+                  <p className="text-base sm:text-lg text-slate-200 leading-relaxed font-sans font-normal">
                     Creators never share sensitive credentials or OAuth tokens. Verification relies on staff review of official studio dashboards and public network validation.
                   </p>
                 </TiltCard>
@@ -172,7 +172,7 @@ export default function AboutPage() {
                     <span className="text-sky-400 font-semibold text-xs uppercase tracking-wider font-mono">Canonical Creator Domain</span>
                   </div>
                   <h3 className="text-xl font-bold text-white font-sans">Universal creatorhq.fun Passkey</h3>
-                  <p className="text-base text-slate-300 leading-relaxed font-sans font-normal">
+                  <p className="text-base sm:text-lg text-slate-200 leading-relaxed font-sans font-normal">
                     Every creator receives a permanent, public verification link and high-resolution QR passkey for sponsor decks, video descriptions, and rate cards.
                   </p>
                 </TiltCard>
@@ -183,7 +183,7 @@ export default function AboutPage() {
                     <span className="text-sky-400 font-semibold text-xs uppercase tracking-wider font-mono">Cryptographic Pass Freeze</span>
                   </div>
                   <h3 className="text-xl font-bold text-white font-sans">Full Creator Sovereignty</h3>
-                  <p className="text-base text-slate-300 leading-relaxed font-sans font-normal">
+                  <p className="text-base sm:text-lg text-slate-200 leading-relaxed font-sans font-normal">
                     Instantly freeze your credentials with zero downtime. Maintain total privacy whenever taking breaks or reviewing exclusive contractual windows.
                   </p>
                 </TiltCard>
@@ -194,16 +194,16 @@ export default function AboutPage() {
         </section>
 
         {/* ================= 4 CORE PILLARS ================= */}
-        <section className="py-24 bg-[#0b0d11] border-b border-white/5">
+        <section className="relative z-10 py-24 bg-[#0b0d11] border-b border-white/5">
           <div className="container mx-auto px-4 md:px-6 max-w-7xl">
             <div className="text-center max-w-3xl mx-auto mb-16 space-y-3">
               <span className="text-xs font-mono uppercase tracking-widest text-sky-400 font-semibold block">
                 OUR OPERATING PHILOSOPHY
               </span>
-              <h2 className="text-3xl sm:text-4xl font-bold text-white font-sans">
+              <h2 className="text-4xl sm:text-5xl font-bold text-white font-sans">
                 The Four Pillars of Creator Sovereignty
               </h2>
-              <p className="text-base sm:text-lg text-slate-400 leading-relaxed">
+              <p className="text-lg sm:text-xl text-slate-300 leading-relaxed">
                 The core architectural standards guiding how CreatorHQ designs credentials and handles network verification.
               </p>
             </div>
@@ -222,10 +222,10 @@ export default function AboutPage() {
                       <div className="w-12 h-12 rounded-xl bg-sky-500/15 border border-sky-500/30 flex items-center justify-center text-sky-400 group-hover:scale-110 group-hover:border-sky-400/50 group-hover:bg-sky-500/20 transition-all duration-300">
                         <Icon className="w-6 h-6" />
                       </div>
-                      <h3 className="text-xl font-bold text-white font-sans group-hover:text-sky-300 transition-colors">
+                      <h3 className="text-2xl font-bold text-white font-sans group-hover:text-sky-300 transition-colors">
                         {pillar.title}
                       </h3>
-                      <p className="text-sm sm:text-base text-slate-200 leading-relaxed font-sans font-normal">
+                      <p className="text-base sm:text-lg text-slate-100 leading-relaxed font-sans font-normal">
                         {pillar.desc}
                       </p>
                     </div>
@@ -237,40 +237,40 @@ export default function AboutPage() {
         </section>
 
         {/* ================= NETWORK SCALE & METRICS ================= */}
-        <section className="py-20 bg-[#0e1117] border-b border-white/5">
+        <section className="relative z-10 py-20 bg-[#0e1117] border-b border-white/5">
           <div className="container mx-auto px-4 md:px-6 max-w-6xl">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
               <div className="space-y-1">
                 <span className="text-3xl sm:text-5xl font-extrabold text-white font-mono">100+</span>
-                <span className="text-xs text-slate-400 block font-sans">Audited Creators</span>
+                <span className="text-sm sm:text-base text-slate-300 block font-sans">Audited Creators</span>
               </div>
               <div className="space-y-1">
                 <span className="text-3xl sm:text-5xl font-extrabold text-sky-400 font-mono">$4.2M+</span>
-                <span className="text-xs text-slate-400 block font-sans">Verified Sponsorships</span>
+                <span className="text-sm sm:text-base text-slate-300 block font-sans">Verified Sponsorships</span>
               </div>
               <div className="space-y-1">
                 <span className="text-3xl sm:text-5xl font-extrabold text-white font-mono">18.5M+</span>
-                <span className="text-xs text-slate-400 block font-sans">Combined Reach</span>
+                <span className="text-sm sm:text-base text-slate-300 block font-sans">Combined Reach</span>
               </div>
               <div className="space-y-1">
                 <span className="text-3xl sm:text-5xl font-extrabold text-emerald-400 font-mono">0%</span>
-                <span className="text-xs text-slate-400 block font-sans">Agency Commission</span>
+                <span className="text-sm sm:text-base text-slate-300 block font-sans">Agency Commission</span>
               </div>
             </div>
           </div>
         </section>
 
         {/* ================= LEADERSHIP & TRUST TEAM ================= */}
-        <section className="py-24 bg-[#0b0d11]">
+        <section className="relative z-10 py-24 bg-[#0b0d11]">
           <div className="container mx-auto px-4 md:px-6 max-w-6xl">
             <div className="text-center max-w-3xl mx-auto mb-16 space-y-3">
               <span className="text-xs font-mono uppercase tracking-widest text-sky-400 font-semibold block">
                 TEAM & LEADERSHIP
               </span>
-              <h2 className="text-3xl sm:text-4xl font-bold text-white font-sans">
+              <h2 className="text-4xl sm:text-5xl font-bold text-white font-sans">
                 Built by Creators for Creators
               </h2>
-              <p className="text-sm sm:text-base text-slate-400 leading-relaxed">
+              <p className="text-lg text-slate-300 leading-relaxed">
                 Our leadership team brings deep background across gaming production, identity systems, and high-stakes brand negotiation.
               </p>
             </div>
@@ -296,7 +296,7 @@ export default function AboutPage() {
                       <h3 className="text-xl font-bold text-white font-sans group-hover:text-sky-300 transition-colors">{member.name}</h3>
                       <span className="text-xs text-sky-400 font-semibold">{member.role}</span>
                     </div>
-                    <p className="text-sm sm:text-base text-slate-200 leading-relaxed font-sans font-normal">
+                    <p className="text-base sm:text-lg text-slate-100 leading-relaxed font-sans font-normal">
                       {member.bio}
                     </p>
                   </div>
@@ -317,7 +317,7 @@ export default function AboutPage() {
         </section>
 
         {/* ================= HIGH-IMPACT SHOWCASE BANNER ================= */}
-        <section className="py-8 bg-transparent">
+        <section className="relative z-10 py-8 bg-transparent">
           <div className="container mx-auto px-4 md:px-6 max-w-6xl">
             <TechShowcaseBanner
               badge="INDEPENDENT CREATOR SOVEREIGNTY"
@@ -332,12 +332,12 @@ export default function AboutPage() {
         </section>
 
         {/* ================= FINAL ABOUT CTA ================= */}
-        <section className="py-20 bg-transparent text-center">
+        <section className="relative z-10 py-20 bg-transparent text-center">
           <div className="container mx-auto px-4 md:px-6 max-w-3xl space-y-6">
             <h2 className="text-3xl sm:text-4xl font-bold text-white font-sans">
               Experience the Future of Creator Identity
             </h2>
-            <p className="text-sm sm:text-base text-slate-300 leading-relaxed">
+            <p className="text-base sm:text-lg text-slate-200 leading-relaxed">
               Mint your official pass today or explore our directory of top YouTube and Discord talents.
             </p>
             <div className="pt-2 flex flex-wrap justify-center gap-4">
