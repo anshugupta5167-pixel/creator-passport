@@ -5,7 +5,7 @@ import {
   addCreatorDB, 
   deleteCreatorDB, 
   getCreatorByUserIdDB,
-  deleteUserDB,
+  deleteUserPersistentDB,
   addAuditLogDB 
 } from '@/lib/db';
 import { getAuthenticatedUser, requireAuth } from '@/lib/auth';
@@ -171,9 +171,9 @@ export async function POST(request: NextRequest) {
       creator: saved,
       message: 'Creator Card successfully saved.',
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     return NextResponse.json(
-      { error: 'SERVER_ERROR', message: err.message || 'Failed to save creator' },
+      { error: 'SERVER_ERROR', message: err instanceof Error ? err.message : 'Failed to save creator' },
       { status: 500 }
     );
   }
@@ -228,7 +228,7 @@ export async function DELETE(request: NextRequest) {
     ]);
 
     if (targetCreator.userId && targetCreator.userId !== user.id) {
-      await deleteUserDB(targetCreator.userId);
+      await deleteUserPersistentDB(targetCreator.userId);
     }
 
     addAuditLogDB({
@@ -247,9 +247,9 @@ export async function DELETE(request: NextRequest) {
       message: `Creator @${targetCreator.slug} permanently deleted by admin.`,
       deletedSlug: targetCreator.slug,
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     return NextResponse.json(
-      { error: 'SERVER_ERROR', message: err.message || 'Failed to delete creator' },
+      { error: 'SERVER_ERROR', message: err instanceof Error ? err.message : 'Failed to delete creator' },
       { status: 500 }
     );
   }

@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateSalt, hashPassword } from '@/lib/auth';
-import { getUsersDB, updateUserDB, deleteUserSessionsDB, addAuditLogDB } from '@/lib/db';
+import {
+  getUserByResetTokenPersistentDB,
+  updateUserPersistentDB,
+  deleteUserSessionsDB,
+  addAuditLogDB,
+} from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,16 +29,9 @@ export async function POST(request: NextRequest) {
     }
 
     const cleanToken = token.trim();
-    const allUsers = getUsersDB();
-    const user = allUsers.find(
-      (u) =>
-        u.resetToken &&
-        u.resetToken === cleanToken &&
-        u.resetExpires &&
-        new Date(u.resetExpires).getTime() > Date.now()
-    );
+    const user = await getUserByResetTokenPersistentDB(cleanToken);
 
-    if (!user) {
+    if (!user || !user.resetExpires || new Date(user.resetExpires).getTime() <= Date.now()) {
       return NextResponse.json(
         { error: 'INVALID_TOKEN', message: 'This password reset link is invalid or has expired.' },
         { status: 400 }
@@ -43,7 +41,7 @@ export async function POST(request: NextRequest) {
     const salt = generateSalt();
     const passwordHash = hashPassword(newPassword, salt);
 
-    updateUserDB(user.id, {
+    await updateUserPersistentDB(user.id, {
       passwordHash,
       passwordSalt: salt,
       resetToken: null,
@@ -63,9 +61,9 @@ export async function POST(request: NextRequest) {
       success: true,
       message: 'Password has been successfully reset. Please sign in with your new password.',
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     return NextResponse.json(
-      { error: 'SERVER_ERROR', message: err.message || 'Failed to reset password' },
+      { error: 'SERVER_ERROR', message: err instanceof Error ? err.message : 'Failed to reset password' },
       { status: 500 }
     );
   }

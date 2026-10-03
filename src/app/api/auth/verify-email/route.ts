@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUser, generateVerificationCode, sanitizeUser } from '@/lib/auth';
-import { updateUserDB, getUserByEmailDB, addAuditLogDB } from '@/lib/db';
+import { updateUserPersistentDB, getUserByEmailPersistentDB, addAuditLogDB } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}));
     const { code, email, action } = body;
 
-    let targetUser = auth?.user || (email ? getUserByEmailDB(String(email).trim().toLowerCase()) : null);
+    const targetUser = auth?.user || (email ? await getUserByEmailPersistentDB(String(email).trim().toLowerCase()) : null);
 
     if (!targetUser) {
       return NextResponse.json(
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     if (action === 'resend') {
       const newCode = generateVerificationCode();
       const expires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-      updateUserDB(targetUser.id, {
+      await updateUserPersistentDB(targetUser.id, {
         verificationToken: newCode,
         verificationExpires: expires,
       });
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const updated = updateUserDB(targetUser.id, {
+    const updated = await updateUserPersistentDB(targetUser.id, {
       emailVerified: true,
       verificationToken: null,
       verificationExpires: null,
@@ -75,9 +75,9 @@ export async function POST(request: NextRequest) {
       message: 'Email successfully verified!',
       user: updated ? sanitizeUser(updated) : null,
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     return NextResponse.json(
-      { error: 'SERVER_ERROR', message: err.message || 'Failed to verify email' },
+      { error: 'SERVER_ERROR', message: err instanceof Error ? err.message : 'Failed to verify email' },
       { status: 500 }
     );
   }

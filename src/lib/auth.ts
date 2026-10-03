@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
-import { getSessionByTokenDB, getUserByIdDB, getCreatorByUserIdDB } from './db';
+import { getSessionByTokenDB, getUserByIdPersistentDB, getCreatorByUserIdDB, getAllCreatorsDBAsync } from './db';
 import { User, Session, CreatorProfile } from './types';
 
 export const SESSION_COOKIE_NAME = 'chq_session';
@@ -56,13 +56,13 @@ function getSessionSigningSecret(): string | null {
   return process.env.SESSION_SIGNING_SECRET || process.env.SESSION_SECRET || process.env.GITHUB_DATA_TOKEN || null;
 }
 
-export function hasAdminSessionSigningSecret(): boolean {
+export function hasSessionSigningSecret(): boolean {
   return Boolean(getSessionSigningSecret());
 }
 
-function createStatelessAdminToken(user: User): string | null {
+function createStatelessSessionToken(user: User): string | null {
   const secret = getSessionSigningSecret();
-  if (!secret || user.role !== 'ADMIN') return null;
+  if (!secret) return null;
 
   const now = Date.now();
   const payload = Buffer.from(JSON.stringify({
@@ -74,7 +74,7 @@ function createStatelessAdminToken(user: User): string | null {
   return `chq1.${payload}.${signature}`;
 }
 
-function getStatelessAdminSession(token: string): Session | null {
+function getStatelessSession(token: string): Session | null {
   const secret = getSessionSigningSecret();
   if (!secret || !token.startsWith('chq1.')) return null;
 
@@ -112,7 +112,7 @@ export function attachSessionCookie(response: NextResponse, token: string, user?
   const isProd = process.env.NODE_ENV === 'production';
   response.cookies.set({
     name: SESSION_COOKIE_NAME,
-    value: (user && createStatelessAdminToken(user)) || token,
+    value: (user && createStatelessSessionToken(user)) || token,
     httpOnly: true,
     secure: isProd,
     sameSite: 'lax',
@@ -159,7 +159,7 @@ export async function getAuthenticatedUser(request: NextRequest): Promise<{
 
   if (!token) return null;
 
-  const session = getSessionByTokenDB(token) || getStatelessAdminSession(token);
+  const session = getSessionByTokenDB(token) || getStatelessSession(token);
   if (!session) return null;
 
   // Check session expiration
@@ -167,9 +167,12 @@ export async function getAuthenticatedUser(request: NextRequest): Promise<{
     return null;
   }
 
-  const user = getUserByIdDB(session.userId);
+  const user = await getUserByIdPersistentDB(session.userId);
   if (!user) return null;
 
+  // Serverless instances do not share the local cache. Refresh durable creator
+  // records before resolving the profile associated with this account.
+  await getAllCreatorsDBAsync();
   const creator = getCreatorByUserIdDB(user.id);
 
   return {

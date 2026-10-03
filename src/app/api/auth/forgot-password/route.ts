@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateSecureToken, checkRateLimit } from '@/lib/auth';
-import { getUserByEmailDB, updateUserDB, addAuditLogDB } from '@/lib/db';
+import { getUserByEmailPersistentDB, updateUserPersistentDB, addAuditLogDB } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     }
 
     const cleanEmail = email.toLowerCase().trim();
-    const user = getUserByEmailDB(cleanEmail);
+    const user = await getUserByEmailPersistentDB(cleanEmail);
 
     // Always respond with success to prevent email enumeration attacks
     if (!user) {
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     const resetToken = generateSecureToken(32);
     const resetExpires = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour
 
-    updateUserDB(user.id, {
+    await updateUserPersistentDB(user.id, {
       resetToken,
       resetExpires,
     });
@@ -56,9 +56,9 @@ export async function POST(request: NextRequest) {
       resetToken,
       resetUrl: `/dashboard?resetToken=${resetToken}`,
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     return NextResponse.json(
-      { error: 'SERVER_ERROR', message: err.message || 'Failed to process request' },
+      { error: 'SERVER_ERROR', message: err instanceof Error ? err.message : 'Failed to process request' },
       { status: 500 }
     );
   }

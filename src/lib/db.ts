@@ -14,12 +14,22 @@ import {
   syncCreatorToFirebase, 
   deleteCreatorFromFirebase,
   syncVerificationToFirebase,
+  fetchCreatorsFromFirebase,
+  isFirebaseConfigured,
 } from './firebase';
 import { 
   fetchFromCloudStore, 
   pushCreatorsToCloudStore, 
   pushVerificationsToCloudStore 
 } from './cloudStore';
+import {
+  deleteFirestoreDocument,
+  findFirestoreDocument,
+  isFirebaseAdminStoreConfigured,
+  listFirestoreDocuments,
+  readFirestoreDocument,
+  writeFirestoreDocument,
+} from './firebaseAdminStore';
 import { resolveYouTubeUrl, resolveDiscordUrl, resolveInstagramUrl } from './urls';
 import { notifySubscribers } from './events';
 
@@ -225,6 +235,74 @@ export function getUserByUsernameDB(username: string): User | null {
   const clean = username.toLowerCase().replace(/^@/, '').trim();
   const users = getUsersDB();
   return users.find((u) => u.username.toLowerCase() === clean) || null;
+}
+
+export async function getUserByIdPersistentDB(id: string): Promise<User | null> {
+  const localUser = getUserByIdDB(id);
+  if (!isFirebaseAdminStoreConfigured()) return process.env.VERCEL && localUser?.role !== 'ADMIN' ? null : localUser;
+
+  const remoteUser = await readFirestoreDocument<User>('users', id);
+  if (remoteUser) return remoteUser;
+  return process.env.VERCEL && localUser?.role !== 'ADMIN' ? null : localUser;
+}
+
+export async function getUserByEmailPersistentDB(email: string): Promise<User | null> {
+  const cleanEmail = email.toLowerCase().trim();
+  if (isFirebaseAdminStoreConfigured()) {
+    const remoteUser = await findFirestoreDocument<User>('users', 'email', cleanEmail);
+    if (remoteUser) return remoteUser;
+  }
+  const localUser = getUserByEmailDB(cleanEmail);
+  return process.env.VERCEL && localUser?.role !== 'ADMIN' ? null : localUser;
+}
+
+export async function getUserByUsernamePersistentDB(username: string): Promise<User | null> {
+  const cleanUsername = username.toLowerCase().replace(/^@/, '').trim();
+  if (isFirebaseAdminStoreConfigured()) {
+    const remoteUser = await findFirestoreDocument<User>('users', 'username', cleanUsername);
+    if (remoteUser) return remoteUser;
+  }
+  const localUser = getUserByUsernameDB(cleanUsername);
+  return process.env.VERCEL && localUser?.role !== 'ADMIN' ? null : localUser;
+}
+
+export async function getUserByResetTokenPersistentDB(token: string): Promise<User | null> {
+  if (isFirebaseAdminStoreConfigured()) {
+    return findFirestoreDocument<User>('users', 'resetToken', token);
+  }
+  return getUsersDB().find((user) => user.resetToken === token) || null;
+}
+
+export async function createUserPersistentDB(user: User): Promise<User> {
+  if (process.env.VERCEL && !isFirebaseAdminStoreConfigured()) {
+    throw new Error('Creator account storage is not configured. Add Firebase Admin service-account credentials in Vercel before signing up.');
+  }
+  createUserDB(user);
+  if (isFirebaseAdminStoreConfigured()) {
+    await writeFirestoreDocument('users', user.id, user as unknown as Record<string, unknown>);
+  }
+  return user;
+}
+
+export async function updateUserPersistentDB(id: string, updates: Partial<User>): Promise<User | null> {
+  const user = await getUserByIdPersistentDB(id);
+  if (!user) return null;
+  const updated: User = { ...user, ...updates, updatedAt: new Date().toISOString() };
+  if (isFirebaseAdminStoreConfigured()) {
+    await writeFirestoreDocument('users', id, updated as unknown as Record<string, unknown>);
+  } else if (process.env.VERCEL && updated.role !== 'ADMIN') {
+    throw new Error('Creator account storage is not configured.');
+  }
+  updateUserDB(id, updates);
+  return updated;
+}
+
+export async function deleteUserPersistentDB(id: string): Promise<boolean> {
+  if (isFirebaseAdminStoreConfigured()) await deleteFirestoreDocument('users', id);
+  else if (process.env.VERCEL && getUserByIdDB(id)?.role !== 'ADMIN') {
+    throw new Error('Creator account storage is not configured.');
+  }
+  return deleteUserDB(id);
 }
 
 export function createUserDB(user: User): User {
@@ -502,6 +580,25 @@ export async function getAllCreatorsDBAsync(): Promise<CreatorProfile[]> {
     mergeIncomingVerifications(cloud.verifications || []);
     applyReviewedVerificationStatuses();
   } catch (e) {}
+
+  if (isFirebaseConfigured()) {
+    try {
+      const firebaseCreators = await fetchCreatorsFromFirebase();
+      mergeIncomingCreators(firebaseCreators);
+    } catch (e) {
+      console.warn('[DB] Firebase creator refresh notice:', e);
+    }
+  }
+
+  if (isFirebaseAdminStoreConfigured()) {
+    try {
+      const firebaseCreators = await listFirestoreDocuments<CreatorProfile>('creators');
+      mergeIncomingCreators(firebaseCreators);
+    } catch (e) {
+      console.warn('[DB] Firebase server creator refresh notice:', e);
+    }
+  }
+
   return memoryCreators.map((c) => ({ ...c, connections: c.connections || {} }));
 }
 
@@ -635,10 +732,19 @@ export async function addCreatorDB(creator: CreatorProfile): Promise<CreatorProf
     syncCreatorToVerificationDB(existingIdx >= 0 ? current[existingIdx] : creator);
   } catch (e) {}
 
-  // Sync to Firebase in background
-  try {
-    syncCreatorToFirebase(existingIdx >= 0 ? current[existingIdx] : creator);
-  } catch (e) {}
+  const savedCreator = existingIdx >= 0 ? current[existingIdx] : creator;
+  let savedToFirebase = false;
+  if (isFirebaseAdminStoreConfigured()) {
+    const docId = (savedCreator.passportId || savedCreator.slug || savedCreator.username || savedCreator.id).toLowerCase().replace(/^@/, '');
+    await writeFirestoreDocument('creators', docId, savedCreator as unknown as Record<string, unknown>);
+    savedToFirebase = true;
+  } else if (isFirebaseConfigured()) {
+    savedToFirebase = await syncCreatorToFirebase(savedCreator);
+  }
+  const savedToCloud = await pushCreatorsToCloudStore(memoryCreators);
+  if (process.env.VERCEL && !savedToFirebase && !savedToCloud) {
+    throw new Error('Creator card storage is not configured. Enable Firebase sync or configure GITHUB_DATA_TOKEN in Vercel before saving creator cards.');
+  }
 
   return existingIdx >= 0 ? memoryCreators[existingIdx] : memoryCreators[0];
 }
@@ -671,16 +777,21 @@ export async function deleteCreatorDB(targets: string[]): Promise<boolean> {
   if (changed) {
     saveCreatorsToDisk(remaining);
     const cloudSaved = await pushCreatorsToCloudStore(remaining);
-    if (process.env.VERCEL && !cloudSaved && current.length > 0) {
-      throw new Error('Creator was removed locally, but cloud storage could not save the deletion. Configure GITHUB_DATA_TOKEN or Firebase sync to keep it deleted.');
-    }
+    let savedToFirebase = false;
 
     // Also clean up related verifications and proofs
     for (const t of cleanTargets) {
       await deleteVerificationByCreatorSlugDB(t);
       try {
-        await deleteCreatorFromFirebase(t);
+        if (isFirebaseAdminStoreConfigured()) {
+          savedToFirebase = (await deleteFirestoreDocument('creators', t)) || savedToFirebase;
+        } else if (isFirebaseConfigured()) {
+          savedToFirebase = (await deleteCreatorFromFirebase(t)) || savedToFirebase;
+        }
       } catch (e) {}
+    }
+    if (process.env.VERCEL && !cloudSaved && !savedToFirebase && current.length > 0) {
+      throw new Error('Creator was removed locally, but cloud storage could not save the deletion. Configure Firebase Admin storage or GITHUB_DATA_TOKEN in Vercel.');
     }
   }
 

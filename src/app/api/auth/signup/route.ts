@@ -6,15 +6,17 @@ import {
   generateVerificationCode, 
   attachSessionCookie, 
   sanitizeUser,
-  checkRateLimit 
+  checkRateLimit,
+  hasSessionSigningSecret,
 } from '@/lib/auth';
 import { 
-  createUserDB, 
-  getUserByEmailDB, 
-  getUserByUsernameDB, 
+  createUserPersistentDB,
+  getUserByEmailPersistentDB,
+  getUserByUsernamePersistentDB,
   createSessionDB, 
   addAuditLogDB 
 } from '@/lib/db';
+import { isFirebaseAdminStoreConfigured } from '@/lib/firebaseAdminStore';
 import { User, Session } from '@/lib/types';
 import { SESSION_DURATION_MS } from '@/lib/auth';
 
@@ -66,15 +68,35 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
+    if (process.env.VERCEL && !hasSessionSigningSecret()) {
+      return NextResponse.json(
+        {
+          error: 'SESSION_CONFIGURATION',
+          message: 'Sign-in is not configured on this deployment. The site administrator must add SESSION_SECRET in Vercel and redeploy.',
+        },
+        { status: 503 }
+      );
+    }
+
+    if (process.env.VERCEL && !isFirebaseAdminStoreConfigured()) {
+      return NextResponse.json(
+        {
+          error: 'ACCOUNT_STORAGE_CONFIGURATION',
+          message: 'Creator account storage is not configured. The site administrator must add Firebase Admin credentials in Vercel.',
+        },
+        { status: 503 }
+      );
+    }
+
     // 2. Uniqueness checks
-    if (getUserByEmailDB(cleanEmail)) {
+    if (await getUserByEmailPersistentDB(cleanEmail)) {
       return NextResponse.json({
         error: 'EMAIL_IN_USE',
         message: 'An account with this email address already exists. Please sign in instead.',
       }, { status: 409 });
     }
 
-    if (getUserByUsernameDB(cleanUsername)) {
+    if (await getUserByUsernamePersistentDB(cleanUsername)) {
       return NextResponse.json({
         error: 'USERNAME_IN_USE',
         message: `The username "@${cleanUsername}" is already claimed. Please choose a different username.`,
@@ -102,7 +124,7 @@ export async function POST(request: NextRequest) {
       updatedAt: new Date().toISOString(),
     };
 
-    createUserDB(newUser);
+    await createUserPersistentDB(newUser);
 
     // 4. Create persistent Session
     const sessionToken = generateSecureToken(32);
@@ -133,11 +155,11 @@ export async function POST(request: NextRequest) {
       demoVerificationCode: verificationCode,
     });
 
-    attachSessionCookie(response, sessionToken);
+    attachSessionCookie(response, sessionToken, newUser);
     return response;
-  } catch (err: any) {
+  } catch (err: unknown) {
     return NextResponse.json(
-      { error: 'SERVER_ERROR', message: err.message || 'Failed to register account' },
+      { error: 'SERVER_ERROR', message: err instanceof Error ? err.message : 'Failed to register account' },
       { status: 500 }
     );
   }

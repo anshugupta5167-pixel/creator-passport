@@ -6,15 +6,16 @@ import {
   sanitizeUser,
   checkRateLimit, 
   SESSION_DURATION_MS,
-  hasAdminSessionSigningSecret,
+  hasSessionSigningSecret,
 } from '@/lib/auth';
 import { 
-  getUserByEmailDB, 
-  getUserByUsernameDB, 
+  getUserByEmailPersistentDB,
+  getUserByUsernamePersistentDB,
   createSessionDB, 
   getCreatorByUserIdDB, 
   addAuditLogDB 
 } from '@/lib/db';
+import { isFirebaseAdminStoreConfigured } from '@/lib/firebaseAdminStore';
 import { Session } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -43,9 +44,18 @@ export async function POST(request: NextRequest) {
     const cleanIdentifier = identifier.trim().toLowerCase().replace(/^@/, '');
 
     // Look up by email or username
-    const user = getUserByEmailDB(cleanIdentifier) || getUserByUsernameDB(cleanIdentifier);
+    const user = await getUserByEmailPersistentDB(cleanIdentifier) || await getUserByUsernamePersistentDB(cleanIdentifier);
 
     if (!user) {
+      if (process.env.VERCEL && !isFirebaseAdminStoreConfigured()) {
+        return NextResponse.json(
+          {
+            error: 'ACCOUNT_STORAGE_CONFIGURATION',
+            message: 'Creator accounts are not connected to persistent storage. Configure Firebase Admin credentials in Vercel.',
+          },
+          { status: 503 }
+        );
+      }
       return NextResponse.json(
         { error: 'INVALID_CREDENTIALS', message: 'Incorrect email/username or password.' },
         { status: 401 }
@@ -60,12 +70,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (user.role === 'ADMIN' && process.env.VERCEL && !hasAdminSessionSigningSecret()) {
-      console.error('[Auth] Admin sign-in is disabled because no shared session signing secret is configured.');
+    if (process.env.VERCEL && !hasSessionSigningSecret()) {
+      console.error('[Auth] Sign-in is disabled because no shared session signing secret is configured.');
       return NextResponse.json(
         {
-          error: 'ADMIN_SESSION_CONFIGURATION',
-          message: 'Staff sign-in is not configured on this deployment. Please contact the site administrator.',
+          error: 'SESSION_CONFIGURATION',
+          message: 'Sign-in is not configured on this deployment. The site administrator must add SESSION_SECRET in Vercel and redeploy.',
         },
         { status: 503 }
       );
