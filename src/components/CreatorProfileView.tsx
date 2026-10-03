@@ -29,7 +29,8 @@ import {
   Share2,
   Clock,
   AlertTriangle,
-  XCircle
+  XCircle,
+  ArrowRight
 } from 'lucide-react';
 
 interface CreatorProfileViewProps {
@@ -224,12 +225,15 @@ export default function CreatorProfileView({ creator, targetId }: CreatorProfile
               </p>
             </div>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
-              <Link
-                href="/dashboard"
-                className="w-full sm:w-auto px-6 py-2.5 rounded-xl btn-chq-primary text-xs font-semibold text-white shadow-sm"
-              >
-                <span>Create Pass in Studio</span>
-              </Link>
+              <div className="p-1 rounded-full border border-sky-400/20 bg-sky-950/20 backdrop-blur-sm shadow-[0_0_24px_rgba(56,189,248,0.2)]">
+                <Link
+                  href="/signup"
+                  className="btn-chq-primary px-8 py-2.5 text-xs font-extrabold flex items-center justify-center gap-2"
+                >
+                  <span>Start Creating</span>
+                  <ArrowRight className="w-4 h-4 stroke-[2.5]" />
+                </Link>
+              </div>
               <Link
                 href="/creators"
                 className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-[#161922] hover:bg-white/10 border border-white/10 text-xs font-semibold text-slate-300 hover:text-white transition-colors"

@@ -87,7 +87,7 @@ export default async function ComparisonDetailPage({ params }: PageProps) {
   };
 
   return (
-    <div className="min-h-screen bg-[#0b0d11] text-slate-100 flex flex-col font-sans selection:bg-sky-500/30 selection:text-white pt-20 relative">
+    <div className="min-h-screen bg-[#07090e] text-slate-100 flex flex-col font-sans selection:bg-sky-500/30 selection:text-white pt-20 relative">
       <Navbar />
 
       {/* Structured Data */}
@@ -96,9 +96,9 @@ export default async function ComparisonDetailPage({ params }: PageProps) {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
       />
 
-      {/* Camouflage Tech Banner in Background */}
-      <div className="absolute top-0 inset-x-0 h-[480px] pointer-events-none overflow-hidden">
-        <CamouflageBannerBg />
+      {/* Seamless Camouflage Tech Banner in Background Across Entire Page */}
+      <div className="fixed inset-0 pointer-events-none z-0">
+        <CamouflageBannerBg bannerOpacity="opacity-55" gridOpacity="opacity-35" />
       </div>
 
       <main className="flex-1 py-12 sm:py-20 relative z-10">
@@ -242,13 +242,15 @@ export default async function ComparisonDetailPage({ params }: PageProps) {
             </div>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
-              <Link
-                href="/dashboard"
-                className="w-full sm:w-auto px-7 py-3 rounded-xl btn-chq-primary text-xs font-bold text-white shadow-lg shadow-sky-500/25 flex items-center justify-center gap-2 hover:scale-[1.02] transition-transform"
-              >
-                <span>Mint Your Free Pass in Studio</span>
-                <ArrowRight className="w-4 h-4" />
-              </Link>
+              <div className="p-1 rounded-full border border-sky-400/20 bg-sky-950/20 backdrop-blur-sm shadow-[0_0_24px_rgba(56,189,248,0.2)]">
+                <Link
+                  href="/signup"
+                  className="btn-chq-primary px-8 py-3 text-xs sm:text-sm font-extrabold flex items-center justify-center gap-2"
+                >
+                  <span>Start Creating Free Pass</span>
+                  <ArrowRight className="w-4 h-4 stroke-[2.5]" />
+                </Link>
+              </div>
               <Link
                 href="/creators"
                 className="w-full sm:w-auto px-6 py-3 rounded-xl bg-[#161922] hover:bg-white/10 border border-white/10 text-xs font-semibold text-slate-200 transition-colors"

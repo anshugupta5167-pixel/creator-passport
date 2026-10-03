@@ -1,6 +1,6 @@
 // Creator Passport System Types
 
-export type VerificationStatus = 'UNVERIFIED' | 'PENDING' | 'UNDER_REVIEW' | 'VERIFIED' | 'REJECTED';
+export type VerificationStatus = 'UNVERIFIED' | 'PENDING' | 'UNDER_REVIEW' | 'VERIFIED' | 'REJECTED' | string;
 export type UserRole = 'CREATOR' | 'ADMIN';
 
 export interface User {
@@ -141,7 +141,7 @@ export interface CreatorProfile {
   location?: string;
   bio: string;
   isVerified: boolean;
-  verification_status: VerificationStatus;
+  verification_status?: VerificationStatus;
   rejectionReason?: string;
   proofDocuments?: ProofDocument[];
   isFounding?: boolean;
@@ -177,6 +177,9 @@ export interface CreatorProfile {
 
   // Internal backwards-compat field
   passportId?: string;
+  creatorSecret?: string;
+  registeredIp?: string;
+  clientIp?: string;
 }
 
 export interface VerificationSubmission {

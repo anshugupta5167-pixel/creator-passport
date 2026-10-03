@@ -10,8 +10,8 @@ interface CamouflageBannerBgProps {
 
 export default function CamouflageBannerBg({
   className = '',
-  gridOpacity = 'opacity-35',
-  bannerOpacity = 'opacity-85',
+  gridOpacity = 'opacity-30',
+  bannerOpacity = 'opacity-60',
 }: CamouflageBannerBgProps) {
   return (
     <div className={`absolute inset-0 pointer-events-none overflow-hidden select-none z-0 ${className}`}>
@@ -22,13 +22,17 @@ export default function CamouflageBannerBg({
         className={`w-full h-full object-cover object-center ${bannerOpacity}`}
       />
 
-      {/* Subtle Dark Scrim: gives text high contrast readability without washing out the banner */}
-      <div className="absolute inset-0 bg-[#0b0d11]/45" />
+      {/* Toadster Ambient Radial Glow Atmosphere (Deep Obsidian & Indigo) */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,_rgba(56,189,248,0.12)_0%,_transparent_60%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_100%,_rgba(30,27,75,0.4)_0%,_transparent_70%)]" />
 
-      {/* Soft Vignette at very top and bottom edges so it dissolves smoothly into page sections */}
-      <div className="absolute inset-0 bg-gradient-to-b from-[#0b0d11]/80 via-transparent to-[#0b0d11]" />
+      {/* Seamless Dark Scrim */}
+      <div className="absolute inset-0 bg-[#060911]/60" />
 
-      {/* Technical Precision Grid on top of the banner */}
+      {/* Soft Vignette dissolving smoothly at edges with no hard line cutoffs */}
+      <div className="absolute inset-0 bg-gradient-to-b from-[#060911]/90 via-transparent to-[#060911]" />
+
+      {/* Technical Precision Grid */}
       <div className={`absolute inset-0 bg-grid-chq ${gridOpacity}`} />
     </div>
   );

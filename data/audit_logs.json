@@ -1,5 +1,27 @@
 [
   {
+    "id": "audit_1791013456390_r6d7",
+    "userId": "usr_admin_system_001",
+    "action": "USER_SIGNED_IN",
+    "actor": "admin@creatorhq.fun",
+    "details": {
+      "username": "admin",
+      "role": "ADMIN"
+    },
+    "timestamp": "2026-10-03T07:44:16.390Z"
+  },
+  {
+    "id": "audit_1791013381828_4x2a",
+    "userId": "usr_admin_system_001",
+    "action": "USER_SIGNED_IN",
+    "actor": "admin@creatorhq.fun",
+    "details": {
+      "username": "admin",
+      "role": "ADMIN"
+    },
+    "timestamp": "2026-10-03T07:43:01.828Z"
+  },
+  {
     "id": "audit_1791010326942_n4kt",
     "userId": "usr_admin_system_001",
     "action": "TEST_ADMIN_ACTION",

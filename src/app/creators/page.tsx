@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import CamouflageBannerBg from '@/components/CamouflageBannerBg';
+import TechShowcaseBanner from '@/components/TechShowcaseBanner';
 import { CreatorProfile } from '@/lib/types';
 import { subscribeToCreatorSync } from '@/lib/sync';
 import {
@@ -164,32 +165,32 @@ export default function CreatorsDirectoryPage() {
   }, [creatorsList, searchQuery, selectedCategory, selectedPlatform, selectedTier]);
 
   return (
-    <div className="min-h-screen bg-[#0b0d11] text-slate-100 flex flex-col relative overflow-hidden pt-20">
+    <div className="min-h-screen bg-[#07090e] text-slate-100 flex flex-col relative overflow-hidden pt-20">
       <Navbar />
 
-      {/* Camouflaged Luxury Tech Banner Background & Grid */}
-      <div className="absolute top-0 inset-x-0 h-[650px] pointer-events-none overflow-hidden">
-        <CamouflageBannerBg />
+      {/* Full-Page Ambient Tech Geometric Banner */}
+      <div className="fixed inset-0 pointer-events-none z-0">
+        <CamouflageBannerBg bannerOpacity="opacity-55" gridOpacity="opacity-35" />
       </div>
 
       <main className="flex-1 py-12 sm:py-20 relative z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           
           {/* Header */}
-          <div className="max-w-3xl mb-12 space-y-4">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/10 bg-[#11141a] shadow-sm">
+          <div className="max-w-4xl mb-12 space-y-5">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-sky-500/25 bg-sky-500/10 shadow-sm">
               <Compass className="w-4 h-4 text-sky-400" />
-              <span className="text-xs sm:text-sm font-semibold text-slate-200">
+              <span className="text-xs sm:text-sm font-bold text-sky-400 font-mono tracking-wider">
                 OFFICIAL DIRECTORY
               </span>
             </div>
-            <h1 className="text-3xl sm:text-5xl font-bold tracking-tight text-white leading-tight font-sans">
+            <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-white leading-tight font-sans">
               Creator Directory.<br />
-              <span className="text-sky-400">
+              <span className="bg-gradient-to-r from-sky-400 via-cyan-300 to-sky-500 bg-clip-text text-transparent">
                 Verified Credentials.
               </span>
             </h1>
-            <p className="text-base sm:text-lg text-slate-200 leading-relaxed font-sans font-normal">
+            <p className="text-base sm:text-xl text-slate-200 leading-relaxed font-sans font-normal max-w-3xl">
               Explore authentic online creators holding verified Creator IDs across Gaming, Tech, Music, 3D, and Systems.
             </p>
           </div>
@@ -293,11 +294,11 @@ export default function CreatorsDirectoryPage() {
               </div>
               <div className="pt-2">
                 <Link
-                  href="/dashboard"
-                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl btn-chq-primary text-sm font-semibold shadow-lg shadow-sky-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                  href="/signup"
+                  className="btn-chq-primary px-8 py-3 text-sm font-extrabold inline-flex items-center gap-2"
                 >
-                  <span>Mint Your Creator Pass</span>
-                  <ArrowRight className="w-4 h-4" />
+                  <span>Start Creating</span>
+                  <ArrowRight className="w-4 h-4 stroke-[2.5]" />
                 </Link>
               </div>
             </div>
@@ -452,6 +453,19 @@ export default function CreatorsDirectoryPage() {
               ))}
             </div>
           )}
+
+          {/* High-Impact Tech Showcase Banner */}
+          <div className="mt-16">
+            <TechShowcaseBanner
+              badge="VERIFIED TALENT DISCOVERY"
+              title="Want Your Channel Featured on This Roster?"
+              subtitle="Mint your sovereign 3D Creator Pass, submit your YouTube or Discord analytics for audit, and connect with global brand sponsors."
+              ctaText="Start Creating"
+              ctaHref="/signup"
+              secondaryCtaText="Explore Services"
+              secondaryCtaHref="/services"
+            />
+          </div>
 
         </div>
       </main>

@@ -13,92 +13,100 @@ import {
   CheckCircle2,
   Snowflake
 } from 'lucide-react';
+import {
+  MultiPlatformSvg,
+  PrivacyShieldSvg,
+  GlobalTalentSvg,
+  CryptoPassSvg
+} from '@/components/RichSvgIcons';
 
 export default function ServiceMediaBento() {
   return (
-    <div className="w-full relative bg-[#0b0d11]">
+    <div className="w-full relative bg-transparent">
       {/* ================= HIGH-IMPACT STATS COUNTERS ================= */}
-      <section className="relative py-16 md:py-20 bg-[#0b0d11]">
+      <section className="relative py-16 md:py-24 bg-transparent">
         <div className="container px-4 md:px-6 mx-auto">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-5 max-w-6xl mx-auto">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-7xl mx-auto">
             
             {/* Stat 1 */}
-            <TiltCard maxTilt={8} className="flex flex-col items-center text-center gap-2 p-6 rounded-2xl border border-white/10 bg-[#11141a] hover:border-sky-500/50 transition-colors">
-              <UsersRound className="w-6 h-6 text-sky-400 mb-1" />
-              <div className="text-3xl md:text-4xl font-extrabold text-white font-sans">
+            <TiltCard maxTilt={8} className="flex flex-col items-center text-center gap-3 p-8 sm:p-10 rounded-3xl border border-sky-500/30 bg-[#090d16]/90 backdrop-blur-md hover:border-sky-400/70 transition-all duration-300 shadow-[0_8px_40px_-12px_rgba(56,189,248,0.2)] hover:shadow-[0_12px_50px_-8px_rgba(56,189,248,0.35)] hover:-translate-y-1">
+              <div className="w-14 h-14 rounded-2xl bg-sky-500/10 border border-sky-500/25 flex items-center justify-center mb-1">
+                <UsersRound className="w-7 h-7 text-sky-400" />
+              </div>
+              <div className="text-5xl sm:text-6xl md:text-7xl font-extrabold text-transparent bg-clip-text bg-gradient-to-b from-white via-white to-sky-200 font-sans tracking-tight">
                 500+
               </div>
-              <p className="text-xs text-slate-400 font-medium">Founding Creators</p>
+              <p className="text-sm sm:text-base text-slate-300 font-semibold tracking-wide">Founding Creators</p>
             </TiltCard>
 
             {/* Stat 2 */}
-            <TiltCard maxTilt={8} className="flex flex-col items-center text-center gap-2 p-6 rounded-2xl border border-white/10 bg-[#11141a] hover:border-sky-500/50 transition-colors">
-              <TrendingUp className="w-6 h-6 text-sky-400 mb-1" />
-              <div className="text-3xl md:text-4xl font-extrabold text-white font-sans">
+            <TiltCard maxTilt={8} className="flex flex-col items-center text-center gap-3 p-8 sm:p-10 rounded-3xl border border-sky-500/30 bg-[#090d16]/90 backdrop-blur-md hover:border-sky-400/70 transition-all duration-300 shadow-[0_8px_40px_-12px_rgba(56,189,248,0.2)] hover:shadow-[0_12px_50px_-8px_rgba(56,189,248,0.35)] hover:-translate-y-1">
+              <div className="w-14 h-14 rounded-2xl bg-sky-500/10 border border-sky-500/25 flex items-center justify-center mb-1">
+                <TrendingUp className="w-7 h-7 text-sky-400" />
+              </div>
+              <div className="text-5xl sm:text-6xl md:text-7xl font-extrabold text-transparent bg-clip-text bg-gradient-to-b from-white via-white to-sky-200 font-sans tracking-tight">
                 24M+
               </div>
-              <p className="text-xs text-slate-400 font-medium">Verified Reach</p>
+              <p className="text-sm sm:text-base text-slate-300 font-semibold tracking-wide">Verified Reach</p>
             </TiltCard>
 
             {/* Stat 3 */}
-            <TiltCard maxTilt={8} className="flex flex-col items-center text-center gap-2 p-6 rounded-2xl border border-white/10 bg-[#11141a] hover:border-sky-500/50 transition-colors">
-              <ShieldCheck className="w-6 h-6 text-sky-400 mb-1" />
-              <div className="text-3xl md:text-4xl font-extrabold text-white font-sans">
+            <TiltCard maxTilt={8} className="flex flex-col items-center text-center gap-3 p-8 sm:p-10 rounded-3xl border border-sky-500/30 bg-[#090d16]/90 backdrop-blur-md hover:border-sky-400/70 transition-all duration-300 shadow-[0_8px_40px_-12px_rgba(56,189,248,0.2)] hover:shadow-[0_12px_50px_-8px_rgba(56,189,248,0.35)] hover:-translate-y-1">
+              <div className="w-14 h-14 rounded-2xl bg-sky-500/10 border border-sky-500/25 flex items-center justify-center mb-1">
+                <ShieldCheck className="w-7 h-7 text-sky-400" />
+              </div>
+              <div className="text-5xl sm:text-6xl md:text-7xl font-extrabold text-transparent bg-clip-text bg-gradient-to-b from-white via-white to-sky-200 font-sans tracking-tight">
                 100%
               </div>
-              <p className="text-xs text-slate-400 font-medium">Zero Bot Risk</p>
+              <p className="text-sm sm:text-base text-slate-300 font-semibold tracking-wide">Audit Accuracy</p>
             </TiltCard>
 
             {/* Stat 4 */}
-            <TiltCard maxTilt={8} className="flex flex-col items-center text-center gap-2 p-6 rounded-2xl border border-white/10 bg-[#11141a] hover:border-sky-500/50 transition-colors">
-              <Lock className="w-6 h-6 text-sky-400 mb-1" />
-              <div className="text-3xl md:text-4xl font-extrabold text-white font-sans">
-                0
+            <TiltCard maxTilt={8} className="flex flex-col items-center text-center gap-3 p-8 sm:p-10 rounded-3xl border border-sky-500/30 bg-[#090d16]/90 backdrop-blur-md hover:border-sky-400/70 transition-all duration-300 shadow-[0_8px_40px_-12px_rgba(56,189,248,0.2)] hover:shadow-[0_12px_50px_-8px_rgba(56,189,248,0.35)] hover:-translate-y-1">
+              <div className="w-14 h-14 rounded-2xl bg-sky-500/10 border border-sky-500/25 flex items-center justify-center mb-1">
+                <Award className="w-7 h-7 text-sky-400" />
               </div>
-              <p className="text-xs text-slate-400 font-medium">Passwords Stored</p>
+              <div className="text-5xl sm:text-6xl md:text-7xl font-extrabold text-transparent bg-clip-text bg-gradient-to-b from-white via-white to-sky-200 font-sans tracking-tight">
+                0%
+              </div>
+              <p className="text-sm sm:text-base text-slate-300 font-semibold tracking-wide">Commission Cut</p>
             </TiltCard>
 
           </div>
         </div>
       </section>
 
-      {/* Section Divider */}
-      <div className="w-full h-px bg-white/10" />
-
-      {/* ================= BENTO GRID ================= */}
-      <section className="w-full py-20 md:py-28 bg-[#0b0d11]">
-        <div className="container px-4 md:px-6 mx-auto">
+      {/* ================= BENTO GRID: WHY SOVEREIGN PASSPORTS ================= */}
+      <section className="relative py-16 md:py-24 bg-transparent">
+        <div className="container px-4 md:px-6 mx-auto max-w-7xl">
           
           <div className="text-center space-y-3 mb-16">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-[#11141a] px-4 py-1.5 shadow-sm">
-              <span className="w-2 h-2 rounded-full bg-sky-400" />
-              <span className="text-xs sm:text-sm font-semibold text-slate-200">
+            <div className="inline-flex items-center gap-2 rounded-full border border-sky-500/25 bg-sky-950/40 px-4 py-1.5 shadow-sm">
+              <span className="w-2 h-2 rounded-full bg-sky-400 shadow-[0_0_8px_#38bdf8]" />
+              <span className="text-xs sm:text-sm font-semibold text-sky-300">
                 The CreatorHQ Standard
               </span>
             </div>
 
-            <h2 className="text-3xl md:text-5xl font-bold tracking-tight text-white leading-tight font-sans">
+            <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight text-white leading-tight font-sans">
               Built for Serious Creator Authority
             </h2>
 
-            <p className="text-sm sm:text-base text-slate-400 max-w-2xl mx-auto leading-relaxed">
+            <p className="text-sm sm:text-base text-slate-300 max-w-2xl mx-auto leading-relaxed">
               A private platform membership system engineered to give online creators undisputed proof of identity across web, Discord, and brand partnerships.
             </p>
           </div>
 
-          {/* Bento Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-5 max-w-7xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             
             {/* Bento Card 1 (Large 2x2 Prominent Card) */}
-            <TiltCard maxTilt={6} className="md:col-span-2 md:row-span-2 rounded-2xl border border-white/15 bg-[#12151c] p-8 sm:p-9 hover:border-sky-400/60 shadow-lg transition-all flex flex-col justify-between">
+            <TiltCard maxTilt={6} className="md:col-span-2 md:row-span-2 rounded-3xl border border-white/15 bg-[#090d16]/90 backdrop-blur-md p-8 sm:p-10 hover:border-sky-400/60 shadow-xl transition-all flex flex-col justify-between">
               <div className="space-y-5">
-                <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-sky-500/15 border border-sky-500/30 text-sky-400">
-                  <ShieldCheck className="w-6 h-6" />
-                </div>
+                <CryptoPassSvg className="w-14 h-14" size={56} />
                 <h3 className="text-2xl sm:text-3xl font-extrabold text-white font-sans tracking-tight">
                   Verified Creator Identity & Media Kit
                 </h3>
-                <p className="text-base sm:text-lg text-slate-200 leading-relaxed font-normal">
+                <p className="text-base sm:text-lg text-slate-300 leading-relaxed font-normal">
                   Your consolidated, authoritative digital creator card. Display confirmed subscriber counts, server members, and verified platform handles without unverified screenshots or outdated PDF media kits.
                 </p>
 
@@ -116,55 +124,54 @@ export default function ServiceMediaBento() {
               </div>
 
               <div className="pt-8">
-                <Link
-                  href="/dashboard"
-                  className="inline-flex items-center gap-2 text-sm font-semibold btn-chq-primary px-6 py-3 rounded-lg"
-                >
-                  <span>Create Your Pass</span>
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
+                <div className="p-1 rounded-full border border-sky-400/20 bg-sky-950/20 backdrop-blur-sm shadow-[0_0_24px_rgba(56,189,248,0.2)] inline-block">
+                  <Link
+                    href="/signup"
+                    className="btn-chq-primary px-8 py-3 text-sm font-extrabold flex items-center gap-2"
+                  >
+                    <span>Start Creating</span>
+                    <ArrowRight className="w-4 h-4 stroke-[2.5]" />
+                  </Link>
+                </div>
               </div>
             </TiltCard>
 
-            {/* Bento Card 2: Multi-Platform Audience */}
-            <TiltCard maxTilt={8} className="rounded-2xl border border-white/15 bg-[#12151c] p-7 hover:border-sky-400/60 shadow-md transition-all space-y-3.5">
-              <div className="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-sky-500/15 border border-sky-500/30 text-sky-400">
-                <CheckCircle2 className="w-5 h-5" />
-              </div>
-              <h3 className="text-xl font-bold text-white font-sans">Multi-Platform Reach</h3>
-              <p className="text-sm sm:text-base text-slate-200 leading-relaxed font-normal">
-                Connect your official YouTube and Discord to showcase your verified audience across video and community channels.
+            {/* Bento Card 2: Multi-Platform Reach */}
+            <TiltCard maxTilt={8} className="md:col-span-2 rounded-3xl border border-white/15 bg-[#090d16]/90 backdrop-blur-md p-8 hover:border-sky-400/60 shadow-lg transition-all space-y-4">
+              <MultiPlatformSvg className="w-12 h-12" size={48} />
+              <h3 className="text-xl font-bold text-white font-sans">Multi-Platform Cross-Verification</h3>
+              <p className="text-sm sm:text-base text-slate-300 leading-relaxed font-normal">
+                Connect and audit your official YouTube and Discord servers. Showcase your combined audience reach across streaming, video, and community chats.
               </p>
             </TiltCard>
 
             {/* Bento Card 3: Privacy & Status Controls */}
-            <TiltCard maxTilt={8} className="rounded-2xl border border-white/15 bg-[#12151c] p-7 hover:border-sky-400/60 shadow-md transition-all space-y-3.5">
-              <div className="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-sky-500/15 border border-sky-500/30 text-sky-400">
-                <Snowflake className="w-5 h-5" />
-              </div>
-              <h3 className="text-xl font-bold text-white font-sans">Status & Freeze Controls</h3>
-              <p className="text-sm sm:text-base text-slate-200 leading-relaxed font-normal">
-                Taking a break or fully booked on collabs? Freeze your public card with one tap to pause incoming sponsor inquiries.
+            <TiltCard maxTilt={8} className="md:col-span-2 rounded-3xl border border-white/15 bg-[#090d16]/90 backdrop-blur-md p-8 hover:border-sky-400/60 shadow-lg transition-all space-y-4">
+              <PrivacyShieldSvg className="w-12 h-12" size={48} />
+              <h3 className="text-xl font-bold text-white font-sans">Sovereign Privacy & Freeze Controls</h3>
+              <p className="text-sm sm:text-base text-slate-300 leading-relaxed font-normal">
+                Taking a break or fully booked on collaborations? Freeze your public card with one tap to pause incoming sponsorship inquiries without losing your verified standing.
               </p>
             </TiltCard>
 
             {/* Bento Card 4: Founding Creator Pass */}
-            <TiltCard maxTilt={6} className="md:col-span-2 rounded-2xl border border-white/15 bg-[#12151c] p-7 hover:border-sky-400/60 shadow-md transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-5">
-              <div className="space-y-2.5">
-                <div className="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-sky-500/15 border border-sky-500/30 text-sky-400">
-                  <Award className="w-5 h-5" />
-                </div>
-                <h3 className="text-xl font-bold text-white font-sans">Featured Creator Network</h3>
-                <p className="text-sm sm:text-base text-slate-200 max-w-lg leading-relaxed font-normal">
-                  Join verified creators in our talent directory and get discovered by top gaming, tech, and lifestyle brands.
+            <TiltCard maxTilt={6} className="md:col-span-4 rounded-3xl border border-white/15 bg-[#090d16]/90 backdrop-blur-md p-8 sm:p-10 hover:border-sky-400/60 shadow-xl transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+              <div className="space-y-3">
+                <GlobalTalentSvg className="w-12 h-12" size={48} />
+                <h3 className="text-xl sm:text-2xl font-bold text-white font-sans">Featured Creator Talent Directory</h3>
+                <p className="text-sm sm:text-base text-slate-300 max-w-2xl leading-relaxed font-normal">
+                  Join verified creators in our talent directory and get discovered directly by top gaming, tech, and entertainment brands worldwide.
                 </p>
               </div>
-              <Link
-                href="/dashboard"
-                className="px-5 py-2.5 rounded-lg btn-chq-primary text-xs font-semibold whitespace-nowrap self-start sm:self-auto shadow-sm"
-              >
-                Create Pass
-              </Link>
+              <div className="p-1 rounded-full border border-sky-400/20 bg-sky-950/20 backdrop-blur-sm shadow-[0_0_24px_rgba(56,189,248,0.2)] shrink-0 self-start sm:self-auto">
+                <Link
+                  href="/signup"
+                  className="btn-chq-primary px-7 py-3 text-xs sm:text-sm font-extrabold flex items-center gap-2"
+                >
+                  <span>Start Creating</span>
+                  <ArrowRight className="w-4 h-4 stroke-[2.5]" />
+                </Link>
+              </div>
             </TiltCard>
 
           </div>

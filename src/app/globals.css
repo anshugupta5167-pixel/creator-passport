@@ -27,21 +27,9 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
-  background-color: #0b0d11;
+  background-color: #060911;
   color: #ffffff;
-  scroll-behavior: auto !important;
-}
-
-html.lenis, html.lenis body {
-  height: auto;
-}
-
-.lenis.lenis-smooth {
-  scroll-behavior: auto !important;
-}
-
-.lenis.lenis-stopped {
-  overflow: hidden;
+  scroll-behavior: smooth;
 }
 
 /* Fade-in utility animation */
@@ -89,31 +77,50 @@ body {
   transform: translateY(-2px);
 }
 
-/* Professional Solid Buttons */
+/* Professional Luxury Tech Gradient Pill Buttons (Exact Navbar Reference Match) */
 .btn-chq-primary {
-  background-color: #0ea5e9;
-  color: #ffffff;
-  font-weight: 600;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  background: linear-gradient(90deg, #38bdf8 0%, #7dd3fc 40%, #0ea5e9 80%, #2563eb 100%);
+  color: #020617 !important;
+  font-weight: 800;
+  border-radius: 9999px;
+  box-shadow: 0 0 24px rgba(56, 189, 248, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.25) inset;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
 }
 
 .btn-chq-primary:hover {
-  background-color: #0284c7;
-  transform: translateY(-1px);
+  background: linear-gradient(90deg, #7dd3fc 0%, #38bdf8 45%, #0284c7 85%, #1d4ed8 100%);
+  box-shadow: 0 0 32px rgba(56, 189, 248, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.35) inset;
+  transform: translateY(-1.5px) scale(1.02);
+  color: #000000 !important;
+}
+
+.btn-chq-primary:active {
+  transform: translateY(0px) scale(0.98);
 }
 
 .btn-chq-secondary {
-  background-color: #161922;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   color: #f1f5f9;
-  font-weight: 500;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  font-weight: 600;
+  border-radius: 9999px;
+  backdrop-filter: blur(8px);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
 }
 
 .btn-chq-secondary:hover {
-  background-color: #1e2330;
+  background-color: rgba(255, 255, 255, 0.1);
   border-color: rgba(56, 189, 248, 0.4);
   color: #ffffff;
+  transform: translateY(-1px);
 }
 
 /* 3D Perspective & Transform Utilities */

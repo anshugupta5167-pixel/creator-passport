@@ -4,7 +4,14 @@ import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import CamouflageBannerBg from '@/components/CamouflageBannerBg';
+import TechShowcaseBanner from '@/components/TechShowcaseBanner';
 import TiltCard from '@/components/TiltCard';
+import {
+  ZeroCompromiseSvg,
+  RealtimeSyncSvg,
+  EmpowermentSvg,
+  SecurityGuardrailsSvg
+} from '@/components/RichSvgIcons';
 import {
   ShieldCheck,
   CheckCircle2,
@@ -110,37 +117,40 @@ export default function FoundersPage() {
 
   const corePillars = [
     {
-      icon: ShieldCheck,
+      iconSvg: ZeroCompromiseSvg,
       title: 'Zero Compromise on Verification',
       desc: 'No bot-driven checkmarks. Every creator pass is validated through verified platform APIs and manual staff auditing.'
     },
     {
-      icon: Zap,
+      iconSvg: RealtimeSyncSvg,
       title: 'Real-Time Synchronized Identity',
       desc: 'When verification status or metrics update, our real-time streaming engine synchronizes public cards, directory listings, and profiles instantly.'
     },
     {
-      icon: Target,
+      iconSvg: EmpowermentSvg,
       title: 'Direct Creator Empowerment',
       desc: 'Creators own their credentials forever. Share your canonical link or QR code directly with brands and keep 100% of your sponsor revenue.'
     },
     {
-      icon: Lock,
+      iconSvg: SecurityGuardrailsSvg,
       title: 'Privacy & Security Guardrails',
       desc: 'IP locking prevents unauthorized duplicate registrations. Creators maintain one authoritative passport backed by state-of-the-art security.'
     }
   ];
 
   return (
-    <div className="min-h-screen bg-[#0b0d11] text-slate-100 flex flex-col font-sans selection:bg-sky-500/30 selection:text-white pt-20">
+    <div className="min-h-screen bg-[#07090e] text-slate-100 flex flex-col font-sans selection:bg-sky-500/30 selection:text-white pt-20">
       <Navbar />
 
-      <main className="flex-1">
-        {/* ================= HERO SECTION ================= */}
-        <section className="relative py-20 sm:py-28 bg-[#0b0d11] overflow-hidden border-b border-white/5">
-          <CamouflageBannerBg bannerOpacity="opacity-25" gridOpacity="opacity-20" />
+      <main className="flex-1 relative">
+        {/* Full-Page Ambient Tech Geometric Banner */}
+        <div className="fixed inset-0 pointer-events-none z-0">
+          <CamouflageBannerBg bannerOpacity="opacity-55" gridOpacity="opacity-35" />
+        </div>
 
-          <div className="container relative z-10 mx-auto px-4 md:px-6 max-w-5xl text-center space-y-6">
+        {/* ================= HERO SECTION ================= */}
+        <section className="relative pt-24 sm:pt-32 pb-16 z-10">
+          <div className="container relative z-10 mx-auto px-4 sm:px-6 lg:px-8 max-w-5xl text-center space-y-6">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-400 text-xs font-semibold tracking-wide uppercase font-mono">
               <Sparkles className="w-3.5 h-3.5" />
               <span>Founders & Leadership</span>
@@ -148,7 +158,7 @@ export default function FoundersPage() {
 
             <h1 className="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight text-white leading-tight font-sans">
               The Vision Behind<br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-teal-300 to-sky-200">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-cyan-300 to-sky-500">
                 CreatorHQ
               </span>
             </h1>
@@ -157,19 +167,21 @@ export default function FoundersPage() {
               Founded in September 2026 by <span className="text-white font-semibold">Anshu Gupta</span> alongside Co-Founder <span className="text-white font-semibold">Pranav Sharma</span>, CreatorHQ was built to eliminate fake metrics and establish a sovereign, verifiable identity standard for online creators worldwide.
             </p>
 
-            <div className="flex flex-wrap justify-center gap-4 pt-4">
-              <Link
-                href="/dashboard"
-                className="px-7 py-3.5 rounded-xl btn-chq-primary text-xs font-semibold flex items-center gap-2 text-white shadow-lg shadow-sky-500/10 hover:shadow-sky-500/25 transition-all"
-              >
-                <span>Launch Creator Studio</span>
-                <ArrowRight className="w-4 h-4" />
-              </Link>
+            <div className="flex flex-wrap justify-center items-center gap-4 pt-4">
+              <div className="p-1 rounded-full border border-sky-400/20 bg-sky-950/20 backdrop-blur-sm shadow-[0_0_24px_rgba(56,189,248,0.2)]">
+                <Link
+                  href="/signup"
+                  className="btn-chq-primary px-8 py-3.5 text-sm font-extrabold flex items-center gap-2"
+                >
+                  <span>Start Creating</span>
+                  <ArrowRight className="w-4 h-4 stroke-[2.5]" />
+                </Link>
+              </div>
               <Link
                 href="/talents"
-                className="px-7 py-3.5 rounded-xl btn-chq-secondary text-xs font-semibold text-slate-200 hover:text-white"
+                className="btn-chq-secondary px-7 py-3.5 text-sm font-semibold"
               >
-                Explore Verified Roster
+                View Verified Roster
               </Link>
             </div>
           </div>
@@ -287,37 +299,41 @@ export default function FoundersPage() {
         </section>
 
         {/* ================= CORE PILLARS & FOUNDER PHILOSOPHY ================= */}
-        <section className="py-24 bg-[#0b0d11] border-b border-white/5">
-          <div className="container mx-auto px-4 md:px-6 max-w-6xl space-y-16">
-            <div className="text-center max-w-2xl mx-auto space-y-3">
-              <span className="text-xs font-mono uppercase tracking-widest text-sky-400 font-semibold block">
-                CORE PHILOSOPHY
-              </span>
-              <h2 className="text-3xl sm:text-4xl font-bold text-white tracking-tight">
-                What We Stand For
+        {/* ================= CORE PHILOSOPHY & PILLARS ================= */}
+        <section className="py-20 bg-transparent">
+          <div className="container mx-auto px-4 md:px-6 max-w-7xl space-y-16">
+            <div className="text-center max-w-3xl mx-auto space-y-4">
+              <div className="inline-flex items-center gap-2 rounded-full border border-sky-500/25 bg-sky-950/40 px-4 py-1.5 shadow-sm">
+                <span className="w-2 h-2 rounded-full bg-sky-400 shadow-[0_0_8px_#38bdf8]" />
+                <span className="text-xs sm:text-sm font-semibold text-sky-300">
+                  CORE PHILOSOPHY
+                </span>
+              </div>
+              <h2 className="text-4xl sm:text-5xl font-extrabold text-white tracking-tight">
+                What We <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-cyan-200 to-blue-400">Stand For</span>
               </h2>
-              <p className="text-sm sm:text-base text-slate-400 leading-relaxed">
+              <p className="text-base sm:text-lg text-slate-300 leading-relaxed font-normal">
                 The founding principles established by Anshu Gupta and Pranav Sharma guide every algorithm, verification audit, and feature built on CreatorHQ.
               </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {corePillars.map((pillar) => {
-                const Icon = pillar.icon;
+                const IconSvg = pillar.iconSvg;
                 return (
                   <div
                     key={pillar.title}
-                    className="p-6 rounded-2xl bg-[#12151c] border border-white/10 hover:border-sky-400/40 transition-all space-y-3 group"
+                    className="p-8 sm:p-9 rounded-3xl bg-[#090d16]/90 border border-sky-500/25 hover:border-sky-400/80 transition-all duration-300 hover:-translate-y-2 shadow-2xl backdrop-blur-xl group flex flex-col justify-between"
                   >
-                    <div className="w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400 group-hover:scale-110 group-hover:bg-sky-500/20 transition-all">
-                      <Icon className="w-5 h-5" />
+                    <div className="space-y-5">
+                      <IconSvg className="w-14 h-14" size={56} />
+                      <h3 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight font-sans group-hover:text-sky-300 transition-colors">
+                        {pillar.title}
+                      </h3>
+                      <p className="text-sm sm:text-base text-slate-300 leading-relaxed font-normal">
+                        {pillar.desc}
+                      </p>
                     </div>
-                    <h3 className="text-base font-bold text-white group-hover:text-sky-300 transition-colors">
-                      {pillar.title}
-                    </h3>
-                    <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
-                      {pillar.desc}
-                    </p>
                   </div>
                 );
               })}
@@ -326,30 +342,30 @@ export default function FoundersPage() {
         </section>
 
         {/* ================= FOUNDING JOURNEY & MILESTONES ================= */}
-        <section className="py-24 bg-[#0e1117] border-b border-white/5">
+        <section className="py-20 bg-transparent">
           <div className="container mx-auto px-4 md:px-6 max-w-4xl space-y-12">
             <div className="text-center space-y-3">
               <span className="text-xs font-mono uppercase tracking-widest text-sky-400 font-semibold block">
                 ROADMAP & MOMENTUM
               </span>
-              <h2 className="text-3xl sm:text-4xl font-bold text-white tracking-tight">
-                The Founding Journey
+              <h2 className="text-4xl sm:text-5xl font-extrabold text-white tracking-tight">
+                The Founding <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-cyan-200 to-blue-400">Journey</span>
               </h2>
             </div>
 
-            <div className="relative border-l-2 border-white/10 ml-4 sm:ml-8 pl-6 sm:pl-10 space-y-10">
+            <div className="relative border-l-2 border-sky-500/30 ml-4 sm:ml-8 pl-6 sm:pl-10 space-y-10">
               {milestones.map((m, idx) => (
                 <div key={idx} className="relative group">
                   {/* Dot */}
-                  <div className="absolute -left-[31px] sm:-left-[47px] top-1.5 w-4 h-4 rounded-full bg-[#0e1117] border-2 border-sky-400 group-hover:bg-sky-400 transition-all shadow-md" />
+                  <div className="absolute -left-[31px] sm:-left-[47px] top-1.5 w-4 h-4 rounded-full bg-[#090d16] border-2 border-sky-400 group-hover:bg-sky-400 transition-all shadow-[0_0_12px_rgba(56,189,248,0.6)]" />
 
                   <span className="text-xs font-mono text-sky-400 font-semibold uppercase tracking-wider block">
                     {m.year}
                   </span>
-                  <h3 className="text-xl font-bold text-white mt-1 group-hover:text-sky-300 transition-colors">
+                  <h3 className="text-2xl sm:text-3xl font-extrabold text-white mt-1 group-hover:text-sky-300 transition-colors">
                     {m.title}
                   </h3>
-                  <p className="text-sm text-slate-400 mt-2 leading-relaxed">
+                  <p className="text-base sm:text-lg text-slate-200 mt-2 leading-relaxed font-normal">
                     {m.desc}
                   </p>
                 </div>
@@ -358,8 +374,21 @@ export default function FoundersPage() {
           </div>
         </section>
 
+        {/* High-Impact Tech Showcase Banner */}
+        <div className="container mx-auto px-4 md:px-6 max-w-6xl my-10">
+          <TechShowcaseBanner
+            badge="EXECUTIVE PROTOCOL"
+            title="The Sovereign Identity Standard for Creators"
+            subtitle="Built from first principles by Anshu Gupta and Pranav Sharma to eliminate metric fraud and give creators 100% of their sponsor revenue."
+            ctaText="Start Creating"
+            ctaHref="/signup"
+            secondaryCtaText="Contact Founders"
+            secondaryCtaHref="/contact"
+          />
+        </div>
+
         {/* ================= FINAL CALL TO ACTION ================= */}
-        <section className="py-24 bg-[#0b0d11] text-center relative overflow-hidden">
+        <section className="py-24 bg-transparent text-center relative overflow-hidden">
           <CamouflageBannerBg bannerOpacity="opacity-20" gridOpacity="opacity-15" />
 
           <div className="container relative z-10 mx-auto px-4 md:px-6 max-w-3xl space-y-6">
@@ -370,13 +399,15 @@ export default function FoundersPage() {
               Mint your official 3D Creator Pass today, submit your verified credentials, and become part of our elite, audit-verified roster.
             </p>
             <div className="pt-2 flex flex-wrap justify-center gap-4">
-              <Link
-                href="/dashboard"
-                className="px-8 py-3.5 rounded-xl btn-chq-primary text-sm font-semibold text-white shadow-lg shadow-sky-500/20 flex items-center gap-2 hover:scale-105 transition-all"
-              >
-                <span>Launch Creator Studio</span>
-                <ArrowRight className="w-4 h-4" />
-              </Link>
+              <div className="p-1 rounded-full border border-sky-400/20 bg-sky-950/20 backdrop-blur-sm shadow-[0_0_24px_rgba(56,189,248,0.2)]">
+                <Link
+                  href="/signup"
+                  className="btn-chq-primary px-8 py-3.5 text-sm font-extrabold flex items-center gap-2"
+                >
+                  <span>Start Creating</span>
+                  <ArrowRight className="w-4 h-4 stroke-[2.5]" />
+                </Link>
+              </div>
               <Link
                 href="/contact"
                 className="px-8 py-3.5 rounded-xl btn-chq-secondary text-sm font-semibold text-slate-200 hover:text-white"

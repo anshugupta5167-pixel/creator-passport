@@ -7,6 +7,8 @@ import ServiceMediaBento from '@/components/ServiceMediaBento';
 import ServiceMediaSections from '@/components/ServiceMediaSections';
 import CreatorComparisons from '@/components/CreatorComparisons';
 import CamouflageBannerBg from '@/components/CamouflageBannerBg';
+import HomeCamouflageBanner from '@/components/HomeCamouflageBanner';
+
 import ScrollReveal from '@/components/ScrollReveal';
 import HeroAnimatedHeading from '@/components/HeroAnimatedHeading';
 import { getAllCreatorsDBAsync } from '@/lib/db';
@@ -18,16 +20,18 @@ export default async function LandingPage() {
   const allCreators = await getAllCreatorsDBAsync();
 
   return (
-    <div className="min-h-screen bg-[#0b0d11] text-slate-100 flex flex-col font-sans selection:bg-sky-500/30 selection:text-white">
+    <div className="min-h-screen bg-[#07090e] text-slate-100 flex flex-col font-sans selection:bg-sky-500/30 selection:text-white relative">
+      {/* Full-Page Ambient Tech Geometric Banner Across Entire Website */}
+      <div className="fixed inset-0 pointer-events-none z-0">
+        <CamouflageBannerBg bannerOpacity="opacity-55" gridOpacity="opacity-35" />
+      </div>
+
       <Navbar />
 
-      <main className="flex-1">
+      <main className="flex-1 relative z-10">
         {/* ================= HERO SECTION (CREATORHQ MATTE GRAPHITE AESTHETIC) ================= */}
-        <section id="about" className="relative overflow-hidden min-h-[90vh] md:min-h-screen flex items-center justify-center bg-[#0b0d11] pt-28 pb-16">
+        <section id="about" className="relative overflow-hidden min-h-[90vh] md:min-h-screen flex items-center justify-center pt-28 pb-16">
           
-          {/* Camouflaged Luxury Tech Banner Background & Grid */}
-          <CamouflageBannerBg />
-
           <div className="container relative px-4 md:px-6 z-10 mx-auto">
             <div className="flex flex-col gap-8 max-w-5xl mx-auto text-center">
               {/* Main Heading with Animated Text Rotation */}
@@ -42,20 +46,22 @@ export default async function LandingPage() {
                 </div>
               </ScrollReveal>
 
-              {/* CTAs (Solid Professional Buttons) */}
+              {/* CTAs (Cool Capsule Pill Buttons - Routes to /signup for onboarding) */}
               <ScrollReveal direction="up" delay={200} distance={30} duration={700}>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-2">
-                  <Link
-                    href="/dashboard"
-                    className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-semibold h-11 rounded-lg btn-chq-primary px-8 shadow-sm"
-                  >
-                    <span>Start Creating</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </Link>
+                  <div className="p-1 rounded-full border border-sky-400/20 bg-sky-950/20 backdrop-blur-sm shadow-[0_0_24px_rgba(56,189,248,0.2)]">
+                    <Link
+                      href="/signup"
+                      className="btn-chq-primary px-8 py-3 text-sm font-bold"
+                    >
+                      <span>Start Creating</span>
+                      <ArrowRight className="w-4 h-4 stroke-[2.5]" />
+                    </Link>
+                  </div>
 
                   <a
                     href="#faq"
-                    className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-semibold h-11 rounded-lg btn-chq-secondary px-8"
+                    className="btn-chq-secondary px-7 py-3 text-sm"
                   >
                     View Frequently Asked Questions
                   </a>
@@ -71,16 +77,15 @@ export default async function LandingPage() {
           </div>
         </section>
 
-        {/* Section Divider */}
-        <div className="w-full h-px bg-white/10" />
+        {/* ================= CAMOUFLAGE BANNER (BIG & BOLD) ================= */}
+        <ScrollReveal direction="up" distance={40} duration={800}>
+          <HomeCamouflageBanner />
+        </ScrollReveal>
 
         {/* ================= MARQUEE TICKER & IMPACT STATS ================= */}
         <ScrollReveal direction="up" distance={40} duration={800}>
           <ServiceMediaBento />
         </ScrollReveal>
-
-        {/* Section Divider */}
-        <div className="w-full h-px bg-white/10" />
 
         {/* ================= ALL CREATORHQ SECTIONS (SERVICES, TIMELINE, TALENTS, QUICK INFO, FAQ) ================= */}
         <ScrollReveal direction="up" distance={30} duration={800}>
@@ -92,12 +97,9 @@ export default async function LandingPage() {
           <CreatorComparisons />
         </ScrollReveal>
 
-        {/* Section Divider */}
-        <div className="w-full h-px bg-white/10" />
-
         {/* ================= FINAL CTA ================= */}
         <ScrollReveal direction="up" distance={40} duration={800}>
-          <section className="py-24 sm:py-32 text-center bg-[#0b0d11] relative overflow-hidden">
+          <section className="py-24 sm:py-32 text-center bg-transparent relative overflow-hidden">
             <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6 relative z-10">
               <h2 className="text-4xl sm:text-5xl font-bold text-white tracking-tight leading-tight font-sans">
                 Claim Your Verified<br />
@@ -108,14 +110,16 @@ export default async function LandingPage() {
               <p className="text-sm sm:text-base text-slate-400 max-w-xl mx-auto leading-relaxed">
                 Join top gaming, tech, and lifestyle creators on CreatorHQ. Customize your pass, authenticate your metrics, and showcase your profile to brands.
               </p>
-              <div className="pt-3">
-                <Link
-                  href="/dashboard"
-                  className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-semibold h-11 rounded-lg btn-chq-primary px-9 shadow-sm"
-                >
-                  <span>Create Your Creator Pass</span>
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
+              <div className="pt-3 flex justify-center">
+                <div className="p-1 rounded-full border border-sky-400/20 bg-sky-950/20 backdrop-blur-sm shadow-[0_0_24px_rgba(56,189,248,0.2)]">
+                  <Link
+                    href="/signup"
+                    className="btn-chq-primary px-9 py-3.5 text-sm font-bold"
+                  >
+                    <span>Create Your Creator Pass</span>
+                    <ArrowRight className="w-4 h-4 stroke-[2.5]" />
+                  </Link>
+                </div>
               </div>
             </div>
           </section>

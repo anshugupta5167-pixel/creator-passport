@@ -4,33 +4,34 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { CreatorProfile } from '@/lib/types';
 import PassportCard from '@/components/PassportCard';
-import { ArrowRight, Sparkles, PlusCircle } from 'lucide-react';
+import { ArrowRight, Sparkles } from 'lucide-react';
+import { subscribeToCreatorSync } from '@/lib/sync';
 
 interface HeroPassShowcaseProps {
   initialCreators?: CreatorProfile[];
 }
 
-// Pristine "Your Channel" Demo Card shown for general visitors & prospective creators
+// Pristine "Your Channel Name" Demo Card shown for general visitors & prospective creators
 const DEMO_CHANNEL_TEMPLATE: CreatorProfile = {
-  id: 'template_demo',
+  id: 'demo_passport',
   passportId: 'yourchannel',
   slug: 'yourchannel',
   handle: '@yourchannel',
-  verification_status: 'VERIFIED' as const,
+  verification_status: 'VERIFIED',
   username: 'yourchannel',
   displayName: 'Your Channel Name',
   avatarUrl: '/icon.svg',
   category: 'Gaming & Tech Creator',
   country: 'Global',
   location: 'Global',
-  bio: 'Authenticate your YouTube channel & Discord community to mint your sovereign verified Creator Pass.',
+  bio: 'Authenticate your YouTube channel & Discord community to mint your sovereign verified Creator Pass with 0% middleman fees.',
   isVerified: true,
   isFounding: true,
-  tierName: 'Founding Member #000001',
+  tierName: 'Founding Member Pass',
   profileCompletion: 100,
-  contactEmail: 'business@yourchannel.com',
-  issuedAt: '2026-09-30',
-  lastVerifiedAt: '2026-09-30',
+  contactEmail: 'sponsors@yourchannel.com',
+  issuedAt: '2026-10-01',
+  lastVerifiedAt: '2026-10-01',
   digitalSignature: '0x0000000000000000000000000000000000000001',
   isSuspended: false,
   connections: {
@@ -42,7 +43,7 @@ const DEMO_CHANNEL_TEMPLATE: CreatorProfile = {
       metricValue: '100K+ Subscribers',
       verified: true,
       profileUrl: 'https://youtube.com',
-      lastSynced: '2026-09-30',
+      lastSynced: '2026-10-01',
     },
     discord: {
       platform: 'DISCORD',
@@ -52,84 +53,85 @@ const DEMO_CHANNEL_TEMPLATE: CreatorProfile = {
       metricValue: '10K+ Members',
       verified: true,
       profileUrl: 'https://discord.gg',
-      lastSynced: '2026-09-30',
+      lastSynced: '2026-10-01',
     },
   },
-  skills: ['Content Creation', 'Audited Metrics', 'Brand Deals'],
+  skills: ['Content Creation', 'Audited Reach', 'Direct Brand Deals'],
   achievements: [],
   collaborations: [],
   portfolio: [],
 };
-
-import { subscribeToCreatorSync } from '@/lib/sync';
 
 export default function HeroPassShowcase({ initialCreators = [] }: HeroPassShowcaseProps) {
   const [activeCreator, setActiveCreator] = useState<CreatorProfile>(DEMO_CHANNEL_TEMPLATE);
   const [hasRealCreator, setHasRealCreator] = useState(false);
 
   useEffect(() => {
-    // 1. Only show real card if the current viewer is the actual owner (saved on their device)
-    try {
-      const saved = localStorage.getItem('creatorhq_user_card');
-      if (saved) {
-        const parsed: CreatorProfile = JSON.parse(saved);
-        if (parsed && (parsed.displayName || parsed.username)) {
-          setActiveCreator(parsed);
-          setHasRealCreator(true);
-        } else {
-          setActiveCreator(DEMO_CHANNEL_TEMPLATE);
-          setHasRealCreator(false);
+    let isMounted = true;
+
+    // Purge any legacy unrulek card from localStorage to honor clean state
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('creatorhq_user_card');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed && (parsed.username === 'unrulek' || parsed.slug === 'unrulek')) {
+            localStorage.removeItem('creatorhq_user_card');
+          }
         }
-      } else {
+      } catch (e) {}
+    }
+
+    // Verify authenticated session first
+    const checkActiveSession = async () => {
+      try {
+        const res = await fetch('/api/auth/me');
+        if (res.ok) {
+          const data = await res.json();
+          if (isMounted && data.authenticated && data.creator) {
+            setActiveCreator(data.creator);
+            setHasRealCreator(true);
+            return;
+          }
+        }
+      } catch (e) {}
+
+      // If not authenticated, always display pristine "Your Channel Name" demo card
+      if (isMounted) {
         setActiveCreator(DEMO_CHANNEL_TEMPLATE);
         setHasRealCreator(false);
       }
-    } catch (e) {
-      setActiveCreator(DEMO_CHANNEL_TEMPLATE);
-      setHasRealCreator(false);
-    }
+    };
+
+    checkActiveSession();
 
     const unsubscribe = subscribeToCreatorSync((update) => {
       setActiveCreator((current) => {
-        if (!current || current.id === 'template_demo') return current;
+        if (!current || current.id === 'demo_passport') return current;
         const currentSlug = (current.slug || current.username || '').toLowerCase();
-        const currentPass = (current.passportId || '').toUpperCase();
         const targetSlug = (update.creatorSlug || '').toLowerCase();
-        const targetPass = (update.passportId || '').toUpperCase();
 
-        if (
-          (currentSlug && targetSlug && currentSlug === targetSlug) ||
-          (currentPass && targetPass && currentPass === targetPass)
-        ) {
+        if (currentSlug && targetSlug && currentSlug === targetSlug) {
           const isV = update.verificationStatus === 'VERIFIED';
-          const isR = update.verificationStatus === 'REJECTED';
-          const vStatus = (update.verificationStatus as any) || (isV ? 'VERIFIED' : 'PENDING');
-          const updated: CreatorProfile = {
+          return {
             ...current,
             isVerified: isV,
-            verification_status: vStatus,
-            tierName: isV
-              ? (current.tierName && current.tierName !== 'Candidate Member' ? current.tierName : 'Founding Member Tier I')
-              : isR
-              ? 'Verification Rejected'
-              : 'Candidate Member'
+            verification_status: update.verificationStatus,
           };
-          try {
-            localStorage.setItem('creatorhq_user_card', JSON.stringify(updated));
-          } catch (e) {}
-          return updated;
         }
         return current;
       });
     });
 
     return () => {
+      isMounted = false;
       unsubscribe();
     };
   }, []);
 
   return (
-    <div className="pt-10 flex flex-col items-center justify-center">
+    <div className="pt-8 sm:pt-10 flex flex-col items-center justify-center">
+      {/* Interactive Creator Card */}
       <div className="relative">
         <PassportCard
           creator={activeCreator}
@@ -140,24 +142,6 @@ export default function HeroPassShowcase({ initialCreators = [] }: HeroPassShowc
           allowThemes={true}
         />
       </div>
-
-      {!hasRealCreator && (
-        <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
-          <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-slate-900/80 border border-white/10 text-xs text-slate-200 font-sans shadow-lg backdrop-blur-md">
-            <span className="w-2 h-2 rounded-full bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.8)] animate-pulse" />
-            <span className="font-semibold text-white tracking-tight">Founding Member Pass</span>
-            <span className="text-slate-500">•</span>
-            <span className="text-sky-300 font-medium">Ready to Mint</span>
-          </div>
-          <Link
-            href="/dashboard"
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-sky-400 hover:text-sky-300 transition-colors"
-          >
-            <span>Claim in Studio</span>
-            <ArrowRight className="w-3 h-3" />
-          </Link>
-        </div>
-      )}
     </div>
   );
 }

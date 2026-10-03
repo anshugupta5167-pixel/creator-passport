@@ -28,12 +28,25 @@ import {
   Check,
   X,
   CreditCard,
-  Copy
+  Copy,
+  Gamepad2,
+  Palette,
+  Users,
+  Layers
 } from 'lucide-react';
 import { CreatorProfile } from '@/lib/types';
 import { submitPassportApplication } from '@/lib/data';
 import PassportCard from '@/components/PassportCard';
 
+import {
+  AuditedPrecisionSvg,
+  BrandDealsSvg,
+  Step1SubmitSvg,
+  Step2AuditSvg,
+  Step3MintSvg,
+  HoloStepBadge
+} from '@/components/RichSvgIcons';
+import TechShowcaseBanner from '@/components/TechShowcaseBanner';
 import { subscribeToCreatorSync } from '@/lib/sync';
 
 interface ServiceMediaSectionsProps {
@@ -203,172 +216,264 @@ export default function ServiceMediaSections({
   ];
 
   return (
-    <div className="w-full bg-[#0b0d11] text-slate-100 font-sans">
+    <div className="w-full bg-transparent text-slate-100 font-sans">
       
       {/* =========================================================================
-          SECTION 1: "EVERYTHING YOU NEED TO MAKE IT AS A CREATOR"
+          SECTION 1: INFRASTRUCTURE & DOMAIN EXPERTISE (TOADSTER.AI REFERENCE STYLE)
           ========================================================================= */}
-      <section id="services" className="relative py-24 md:py-32 bg-[#0b0d11]">
-        <div className="container px-4 md:px-6 mx-auto max-w-7xl">
+      <section id="services" className="relative py-24 md:py-32 bg-transparent overflow-hidden">
+        {/* Toadster Ambient Radial Glowing Sky from Bottom */}
+        <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_50%_100%,_rgba(30,27,75,0.45)_0%,_rgba(7,11,22,0.95)_50%,_transparent_85%)]" />
+
+        <div className="container px-4 md:px-6 mx-auto max-w-7xl relative z-10 space-y-20">
           
-          {/* Section Header */}
-          <div className="flex flex-col items-center text-center space-y-3 mb-16">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-[#11141a] px-4 py-1.5 shadow-sm">
-              <span className="w-2 h-2 rounded-full bg-sky-400" />
-              <span className="text-xs sm:text-sm font-semibold text-slate-200">
-                Our Services
-              </span>
+          {/* Top Half: Domain Expertise Meets Deep Engineering Layout */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-14 items-center">
+            
+            {/* Left Headline & Pitch */}
+            <div className="lg:col-span-5 space-y-6">
+              <div className="inline-flex items-center gap-2 rounded-full border border-sky-500/25 bg-sky-950/40 px-3.5 py-1 text-xs font-bold text-sky-400">
+                <span className="w-1.5 h-1.5 rounded-full bg-sky-400 shadow-[0_0_8px_#38bdf8] animate-pulse" />
+                <span>VERIFIABLE CREATOR INFRASTRUCTURE</span>
+              </div>
+
+              <h2 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-white leading-[1.08] font-sans">
+                Audited reach meets <br />
+                <span className="text-sky-400">sovereign credentials</span>
+              </h2>
+
+              <p className="text-base sm:text-lg text-slate-300 leading-relaxed font-normal">
+                Audience reach only matters when it is backed by sovereign cryptographic ownership. CreatorHQ brings together YouTube verification, Discord server proof, and fraud-proof digital media kits into one verifiable sovereign passport.
+              </p>
+
+              <p className="text-sm sm:text-base text-slate-400 leading-relaxed font-normal">
+                Our verification team audits real YouTube analytics and Discord community permissions directly. We bridge creators with tier-1 brand sponsors at 0% commission cuts, replacing outdated PDF media kits with tamper-proof sovereign credentials.
+              </p>
+
+              <div className="pt-2 flex items-center gap-4">
+                <div className="p-1 rounded-full border border-sky-400/20 bg-sky-950/20 backdrop-blur-sm shadow-[0_0_24px_rgba(56,189,248,0.2)]">
+                  <Link
+                    href="/signup"
+                    className="btn-chq-primary px-8 py-3 text-sm font-extrabold flex items-center gap-2"
+                  >
+                    <span>Start Creating</span>
+                    <ArrowRight className="w-4 h-4 stroke-[2.5]" />
+                  </Link>
+                </div>
+                <Link
+                  href="/compare"
+                  className="inline-flex items-center justify-center text-sm font-semibold text-slate-300 hover:text-white px-4 py-2.5 transition-colors"
+                >
+                  <span>Compare Alternatives</span>
+                </Link>
+              </div>
             </div>
 
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-white leading-tight font-sans">
-              Everything You Need to Make It as a Creator
-            </h2>
+            {/* Right: High-Impact Obsidian Cards with Holographic Accents */}
+            <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-6">
+              
+              {/* Obsidian Card 1: Regulatory / Staff Precision */}
+              <div className="rounded-[28px] bg-gradient-to-b from-[#0e1424] via-[#090d16] to-[#060911] text-white p-8 sm:p-10 shadow-[0_20px_50px_rgba(0,0,0,0.8)] border border-sky-500/30 hover:border-sky-400/80 hover:shadow-[0_0_35px_rgba(56,189,248,0.25)] flex flex-col justify-between transition-all duration-300 hover:-translate-y-2 group backdrop-blur-xl relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-sky-500/10 rounded-full blur-2xl pointer-events-none group-hover:bg-sky-400/20 transition-colors" />
+                
+                <div className="space-y-6 relative z-10">
+                  {/* Rich SVG Image Icon */}
+                  <AuditedPrecisionSvg className="w-16 h-16" size={64} />
+                  
+                  <h3 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight font-sans">
+                    Audited precision
+                  </h3>
+                  
+                  <p className="text-base sm:text-lg text-slate-300 leading-relaxed font-normal">
+                    Architecture designed for authentic creators. Every subscriber count, video view metric, and Discord server role is staff-audited before verified checkmarks are issued.
+                  </p>
+                </div>
 
-            <p className="text-sm sm:text-base text-slate-400 max-w-2xl mx-auto leading-relaxed">
-              Whether you're just starting out or already crushing it, we've got the services and verification tools to take you to the next level.
-            </p>
+                <div className="pt-6 mt-6 border-t border-white/10 flex items-center justify-between text-xs font-semibold text-slate-400 font-mono relative z-10">
+                  <span>Cryptographic passkeys</span>
+                  <span className="text-sky-400 font-bold">100% Tamper-proof</span>
+                </div>
+              </div>
+
+              {/* Obsidian Card 2: Direct Brand Access */}
+              <div className="rounded-[28px] bg-gradient-to-b from-[#0e1424] via-[#090d16] to-[#060911] text-white p-8 sm:p-10 shadow-[0_20px_50px_rgba(0,0,0,0.8)] border border-sky-500/30 hover:border-sky-400/80 hover:shadow-[0_0_35px_rgba(56,189,248,0.25)] flex flex-col justify-between transition-all duration-300 hover:-translate-y-2 group backdrop-blur-xl relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-sky-500/10 rounded-full blur-2xl pointer-events-none group-hover:bg-sky-400/20 transition-colors" />
+
+                <div className="space-y-6 relative z-10">
+                  {/* Rich SVG Image Icon */}
+                  <BrandDealsSvg className="w-16 h-16" size={64} />
+                  
+                  <h3 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight font-sans">
+                    Direct brand deals
+                  </h3>
+                  
+                  <p className="text-base sm:text-lg text-slate-300 leading-relaxed font-normal">
+                    We bridge creators directly with Fortune 500 brand sponsors without requiring risky 20% to 50% commission cuts from traditional talent management agencies.
+                  </p>
+                </div>
+
+                <div className="pt-6 mt-6 border-t border-white/10 flex items-center justify-between text-xs font-semibold text-slate-400 font-mono relative z-10">
+                  <span>Zero middleman fees</span>
+                  <span className="text-sky-400 font-bold">0% Commission</span>
+                </div>
+              </div>
+
+            </div>
+
           </div>
 
-          {/* Service Bento Grid (Solid Clean Cards - No Multi-Color Gradients) */}
-          {/* Service Bento Grid (Solid Clean Cards - No Multi-Color Gradients) */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            
-            {/* LEFT BIG CARD: SPONSORSHIP DEALS */}
-            <TiltCard maxTilt={6} className="md:row-span-2 rounded-2xl border border-white/15 bg-[#12151c] p-8 sm:p-9 flex flex-col justify-between hover:border-sky-400/60 shadow-lg transition-all group">
-              <div className="space-y-6">
-                <div className="w-14 h-14 rounded-xl bg-sky-500/15 text-sky-400 flex items-center justify-center border border-sky-500/30">
-                  <Handshake className="w-7 h-7" />
+          {/* Bottom Half: Simple, Clean, Big Texts, Solid Boxed Cards */}
+          <div className="pt-16 border-t border-white/10 space-y-12">
+            <div className="text-center space-y-4 max-w-4xl mx-auto">
+              <h3 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-white font-sans">
+                Industries we <span className="text-sky-400">verify</span>
+              </h3>
+              <p className="text-base sm:text-xl text-slate-300 max-w-2xl mx-auto leading-relaxed font-normal">
+                Specialized creator verification protocols dedicated to authentic audience reach.
+              </p>
+            </div>
+
+            {/* Simple, Clean, Solid Boxed Grid with Rich SVG Icon Images */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
+              
+              {/* Box 1: Gaming */}
+              <div className="p-8 sm:p-10 rounded-3xl bg-[#090d16] border border-white/10 hover:border-sky-400/50 transition-all duration-300 hover:-translate-y-1 shadow-2xl flex flex-col justify-between group">
+                <div className="space-y-6">
+                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-sky-500/20 via-sky-600/10 to-transparent border border-sky-400/30 flex items-center justify-center group-hover:scale-105 group-hover:border-sky-400 transition-all shadow-[0_0_20px_rgba(56,189,248,0.2)]">
+                    <svg className="w-9 h-9" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M10 14C10 12.3431 11.3431 11 13 11H23C24.6569 11 26 12.3431 26 14V22C26 23.6569 24.6569 25 23 25H13C11.3431 25 10 23.6569 10 22V14Z" stroke="#38bdf8" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M15 15V21M12 18H18" stroke="#ffffff" strokeWidth="2.2" strokeLinecap="round"/>
+                      <circle cx="21" cy="16.5" r="1.25" fill="#38bdf8"/>
+                      <circle cx="23.5" cy="19.5" r="1.25" fill="#ffffff"/>
+                    </svg>
+                  </div>
+                  <h4 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight font-sans">
+                    Gaming & Esports
+                  </h4>
+                  <p className="text-base sm:text-lg text-slate-300 leading-relaxed font-normal">
+                    Live streamers, competitive esports talent, and high-engagement gaming content creators.
+                  </p>
                 </div>
-                
-                <h3 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight font-sans">
-                  Sponsorship Deals
-                </h3>
-                
-                <p className="text-base sm:text-lg text-slate-200 leading-relaxed font-sans font-normal">
-                  We'll connect you with brands that actually fit your vibe. Then we'll negotiate to get you the best deals possible—because you deserve it.
-                </p>
+              </div>
 
-                <div className="pt-2 flex flex-wrap gap-2 text-xs font-sans text-slate-300">
-                  <span className="px-3 py-1.5 rounded-lg bg-[#161922] border border-white/10 font-medium">✓ Verified Brand Access</span>
-                  <span className="px-3 py-1.5 rounded-lg bg-[#161922] border border-white/10 font-medium">✓ Escrow Protection</span>
+              {/* Box 2: Tech */}
+              <div className="p-8 sm:p-10 rounded-3xl bg-[#090d16] border border-white/10 hover:border-sky-400/50 transition-all duration-300 hover:-translate-y-1 shadow-2xl flex flex-col justify-between group">
+                <div className="space-y-6">
+                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-sky-500/20 via-sky-600/10 to-transparent border border-sky-400/30 flex items-center justify-center group-hover:scale-105 group-hover:border-sky-400 transition-all shadow-[0_0_20px_rgba(56,189,248,0.2)]">
+                    <svg className="w-9 h-9" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <rect x="11" y="11" width="14" height="14" rx="3.5" stroke="#38bdf8" strokeWidth="2.2"/>
+                      <path d="M15 7V11M21 7V11M15 25V29M21 25V29M7 15H11M7 21H11M25 15H29M25 21H29" stroke="#7dd3fc" strokeWidth="2" strokeLinecap="round"/>
+                      <circle cx="18" cy="18" r="2.5" fill="#ffffff"/>
+                    </svg>
+                  </div>
+                  <h4 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight font-sans">
+                    Tech & AI Engineering
+                  </h4>
+                  <p className="text-base sm:text-lg text-slate-300 leading-relaxed font-normal">
+                    Software engineers, open-source maintainers, AI researchers, and tech reviewers.
+                  </p>
                 </div>
               </div>
 
-              <div className="pt-8">
-                <a
-                  href="#faq"
-                  className="inline-flex items-center gap-2 text-sm font-semibold btn-chq-secondary px-6 py-3 rounded-lg"
-                >
-                  <span>View Our Services FAQ</span>
-                  <ArrowRight className="w-4 h-4 text-sky-400 group-hover:translate-x-1 transition-transform" />
-                </a>
+              {/* Box 3: Finance */}
+              <div className="p-8 sm:p-10 rounded-3xl bg-[#090d16] border border-white/10 hover:border-sky-400/50 transition-all duration-300 hover:-translate-y-1 shadow-2xl flex flex-col justify-between group">
+                <div className="space-y-6">
+                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-sky-500/20 via-sky-600/10 to-transparent border border-sky-400/30 flex items-center justify-center group-hover:scale-105 group-hover:border-sky-400 transition-all shadow-[0_0_20px_rgba(56,189,248,0.2)]">
+                    <svg className="w-9 h-9" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M9 25L16 17L20 20L27 11M27 11H21M27 11V17" stroke="#38bdf8" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/>
+                      <circle cx="16" cy="17" r="1.5" fill="#ffffff"/>
+                      <circle cx="20" cy="20" r="1.5" fill="#ffffff"/>
+                      <circle cx="27" cy="11" r="2.5" fill="#38bdf8"/>
+                    </svg>
+                  </div>
+                  <h4 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight font-sans">
+                    Finance & Crypto
+                  </h4>
+                  <p className="text-base sm:text-lg text-slate-300 leading-relaxed font-normal">
+                    Market analysts, certified financial educators, and audited web3 community leaders.
+                  </p>
+                </div>
               </div>
-            </TiltCard>
 
-            {/* 4 CARDS ON RIGHT (2x2) */}
-            
-            {/* Card 1: Creator Management */}
-            <TiltCard maxTilt={8} className="rounded-2xl border border-white/15 bg-[#12151c] p-7 hover:border-sky-400/60 shadow-md transition-all group">
-              <div className="w-11 h-11 rounded-xl bg-sky-500/15 text-sky-400 flex items-center justify-center mb-4 border border-sky-500/30">
-                <UserCheck className="w-5 h-5" />
+              {/* Box 4: Media */}
+              <div className="p-8 sm:p-10 rounded-3xl bg-[#090d16] border border-white/10 hover:border-sky-400/50 transition-all duration-300 hover:-translate-y-1 shadow-2xl flex flex-col justify-between group">
+                <div className="space-y-6">
+                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-sky-500/20 via-sky-600/10 to-transparent border border-sky-400/30 flex items-center justify-center group-hover:scale-105 group-hover:border-sky-400 transition-all shadow-[0_0_20px_rgba(56,189,248,0.2)]">
+                    <svg className="w-9 h-9" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <rect x="9" y="11" width="14" height="14" rx="3" stroke="#38bdf8" strokeWidth="2.2"/>
+                      <path d="M23 15L28 12V24L23 21V15Z" stroke="#7dd3fc" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <polygon points="14,15 18,18 14,21" fill="#ffffff"/>
+                    </svg>
+                  </div>
+                  <h4 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight font-sans">
+                    Entertainment & Media
+                  </h4>
+                  <p className="text-base sm:text-lg text-slate-300 leading-relaxed font-normal">
+                    Video essayists, investigative reporters, podcasters, and high-production filmmakers.
+                  </p>
+                </div>
               </div>
-              <h4 className="text-xl font-bold text-white mb-2.5 font-sans">
-                Creator Management
-              </h4>
-              <p className="text-base text-slate-200 leading-relaxed font-sans font-normal">
-                Let us handle proof verification and identity tracking while you focus on creating.
-              </p>
-            </TiltCard>
 
-            {/* Card 2: Media Management */}
-            <TiltCard maxTilt={8} className="rounded-2xl border border-white/15 bg-[#12151c] p-7 hover:border-sky-400/60 shadow-md transition-all group">
-              <div className="w-11 h-11 rounded-xl bg-sky-500/15 text-sky-400 flex items-center justify-center mb-4 border border-sky-500/30">
-                <FileText className="w-5 h-5" />
+              {/* Box 5: Design */}
+              <div className="p-8 sm:p-10 rounded-3xl bg-[#090d16] border border-white/10 hover:border-sky-400/50 transition-all duration-300 hover:-translate-y-1 shadow-2xl flex flex-col justify-between group">
+                <div className="space-y-6">
+                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-sky-500/20 via-sky-600/10 to-transparent border border-sky-400/30 flex items-center justify-center group-hover:scale-105 group-hover:border-sky-400 transition-all shadow-[0_0_20px_rgba(56,189,248,0.2)]">
+                    <svg className="w-9 h-9" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M12 24L14 19L23 10C23.8284 9.17157 25.1716 9.17157 26 10C26.8284 10.8284 26.8284 12.1716 26 13L17 22L12 24Z" stroke="#38bdf8" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <circle cx="17" cy="18" r="1.5" fill="#ffffff"/>
+                      <path d="M9 27H27" stroke="#7dd3fc" strokeWidth="2" strokeLinecap="round"/>
+                    </svg>
+                  </div>
+                  <h4 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight font-sans">
+                    Design & Creative Arts
+                  </h4>
+                  <p className="text-base sm:text-lg text-slate-300 leading-relaxed font-normal">
+                    Visual creators, 3D illustrators, motion designers, and brand aesthetics builders.
+                  </p>
+                </div>
               </div>
-              <h4 className="text-xl font-bold text-white mb-2.5 font-sans">
-                Media Management
-              </h4>
-              <p className="text-base text-slate-200 leading-relaxed font-sans font-normal">
-                Keep your content assets and authenticated metrics organized in one verified Creator ID.
-              </p>
-            </TiltCard>
 
-            {/* Card 3: Video Production */}
-            <TiltCard maxTilt={8} className="rounded-2xl border border-white/15 bg-[#12151c] p-7 hover:border-sky-400/60 shadow-md transition-all group">
-              <div className="w-11 h-11 rounded-xl bg-sky-500/15 text-sky-400 flex items-center justify-center mb-4 border border-sky-500/30">
-                <Video className="w-5 h-5" />
+              {/* Box 6: Community */}
+              <div className="p-8 sm:p-10 rounded-3xl bg-[#090d16] border border-white/10 hover:border-sky-400/50 transition-all duration-300 hover:-translate-y-1 shadow-2xl flex flex-col justify-between group">
+                <div className="space-y-6">
+                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-sky-500/20 via-sky-600/10 to-transparent border border-sky-400/30 flex items-center justify-center group-hover:scale-105 group-hover:border-sky-400 transition-all shadow-[0_0_20px_rgba(56,189,248,0.2)]">
+                    <svg className="w-9 h-9" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M14 16C15.6569 16 17 14.6569 17 13C17 11.3431 15.6569 10 14 10C12.3431 10 11 11.3431 11 13C11 14.6569 12.3431 16 14 16Z" stroke="#38bdf8" strokeWidth="2"/>
+                      <path d="M22 16C23.6569 16 25 14.6569 25 13C25 11.3431 23.6569 10 22 10C20.3431 10 19 11.3431 19 13C19 14.6569 20.3431 16 22 16Z" stroke="#7dd3fc" strokeWidth="2"/>
+                      <path d="M8 25C8 22 11 20 14 20C17 20 20 22 20 25" stroke="#38bdf8" strokeWidth="2.2" strokeLinecap="round"/>
+                      <path d="M20.5 20.5C22 21 24 22 24 25" stroke="#ffffff" strokeWidth="2" strokeLinecap="round"/>
+                    </svg>
+                  </div>
+                  <h4 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight font-sans">
+                    Community & Discord
+                  </h4>
+                  <p className="text-base sm:text-lg text-slate-300 leading-relaxed font-normal">
+                    Server founders and community leaders with 10k+ verified active engaged members.
+                  </p>
+                </div>
               </div>
-              <h4 className="text-xl font-bold text-white mb-2.5 font-sans">
-                Video Production
-              </h4>
-              <p className="text-base text-slate-200 leading-relaxed font-sans font-normal">
-                From concept to final cut, authenticate your channel metrics and make your videos shine.
-              </p>
-            </TiltCard>
 
-            {/* Card 4: GFX Design */}
-            <TiltCard maxTilt={8} className="rounded-2xl border border-white/15 bg-[#12151c] p-7 hover:border-sky-400/60 shadow-md transition-all group">
-              <div className="w-11 h-11 rounded-xl bg-sky-500/15 text-sky-400 flex items-center justify-center mb-4 border border-sky-500/30">
-                <Pin className="w-5 h-5" />
-              </div>
-              <h4 className="text-xl font-bold text-white mb-2.5 font-sans">
-                GFX Design
-              </h4>
-              <p className="text-base text-slate-200 leading-relaxed font-sans font-normal">
-                Thumbnails and brand cards with official CreatorHQ verification seals.
-              </p>
-            </TiltCard>
-
-            {/* BOTTOM ROW (2 CARDS) */}
-            
-            {/* Card 5: Development */}
-            <TiltCard maxTilt={8} className="rounded-2xl border border-white/15 bg-[#12151c] p-7 hover:border-sky-400/60 shadow-md transition-all group">
-              <div className="w-11 h-11 rounded-xl bg-sky-500/15 text-sky-400 flex items-center justify-center mb-4 border border-sky-500/30">
-                <Code2 className="w-5 h-5" />
-              </div>
-              <h4 className="text-xl font-bold text-white mb-2.5 font-sans">
-                Development
-              </h4>
-              <p className="text-base text-slate-200 leading-relaxed font-sans font-normal">
-                Custom discord verification bots, API webhooks, and portfolio tools built for creators.
-              </p>
-            </TiltCard>
-
-            {/* Card 6: Event Management */}
-            <TiltCard maxTilt={6} className="md:col-span-2 rounded-2xl border border-white/15 bg-[#12151c] p-7 hover:border-sky-400/60 shadow-md transition-all group">
-              <div className="w-11 h-11 rounded-xl bg-sky-500/15 text-sky-400 flex items-center justify-center mb-4 border border-sky-500/30">
-                <Calendar className="w-5 h-5" />
-              </div>
-              <h4 className="text-xl font-bold text-white mb-2.5 font-sans">
-                Event Management
-              </h4>
-              <p className="text-base text-slate-200 leading-relaxed font-sans font-normal">
-                Private creator masterminds, tournament co-streams, and brand matchmaking sessions.
-              </p>
-            </TiltCard>
+            </div>
 
           </div>
 
         </div>
       </section>
 
-      {/* Section Divider */}
-      <div className="w-full h-px bg-white/10" />
-
       {/* =========================================================================
           SECTION 2: VERTICAL TIMELINE / STEP PROCESS
           ========================================================================= */}
-      <section id="timeline" className="relative py-24 md:py-32 bg-[#0b0d11]">
+      <section id="timeline" className="relative py-20 md:py-28 bg-transparent">
         <div className="container px-4 md:px-6 mx-auto max-w-6xl">
           
           <div className="text-center space-y-3 mb-20">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-[#11141a] px-4 py-1.5 shadow-sm">
-              <span className="w-2 h-2 rounded-full bg-sky-400" />
-              <span className="text-xs sm:text-sm font-semibold text-slate-200">
+            <div className="inline-flex items-center gap-2 rounded-full border border-sky-500/25 bg-sky-950/40 px-4 py-1.5 shadow-sm">
+              <span className="w-2 h-2 rounded-full bg-sky-400 shadow-[0_0_8px_#38bdf8]" />
+              <span className="text-xs sm:text-sm font-semibold text-sky-300">
                 How It Works
               </span>
             </div>
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-white leading-tight font-sans">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-white leading-tight font-sans">
               Simple 3-Step Verification
             </h2>
           </div>
@@ -384,28 +489,26 @@ export default function ServiceMediaSections({
               {/* STEP 01 */}
               <div className="relative flex flex-col md:flex-row items-center justify-between gap-8">
                 <div className="w-full md:w-[45%]">
-                  <TiltCard maxTilt={6} className="rounded-2xl border border-white/15 bg-[#12151c] p-8 sm:p-9 shadow-lg hover:border-sky-400/60 transition-all">
-                    <div className="flex items-center justify-between mb-5">
-                      <span className="text-4xl sm:text-5xl font-extrabold text-[#3ea6ff] font-sans">
-                        01
-                      </span>
-                      <div className="w-12 h-12 rounded-xl bg-sky-500/15 text-sky-400 flex items-center justify-center border border-sky-500/30">
-                        <Mail className="w-6 h-6" />
+                  <TiltCard maxTilt={6} className="rounded-3xl border border-sky-500/25 bg-[#090d16]/95 backdrop-blur-xl p-8 sm:p-10 shadow-2xl hover:border-sky-400/80 transition-all duration-300 hover:-translate-y-1">
+                    <div className="flex items-center justify-between mb-6">
+                      <HoloStepBadge number="01" />
+                      <div className="w-14 h-14 rounded-2xl bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-sky-400 shadow-[0_0_20px_rgba(56,189,248,0.2)]">
+                        <Step1SubmitSvg className="w-8 h-8" />
                       </div>
                     </div>
                     
-                    <h3 className="text-2xl sm:text-[26px] font-extrabold text-white mb-3.5 font-sans tracking-tight">
+                    <h3 className="text-2xl sm:text-3xl font-extrabold text-white mb-4 font-sans tracking-tight">
                       Submit Details & Proof
                     </h3>
                     
-                    <p className="text-base sm:text-lg text-slate-200 leading-relaxed font-sans font-normal">
+                    <p className="text-base sm:text-lg text-slate-300 leading-relaxed font-sans font-normal">
                       Apply with your channel details and upload a screenshot proof of your YouTube Studio overview or Discord Server Insights. No passwords required.
                     </p>
                   </TiltCard>
                 </div>
 
-                <div className="hidden md:flex absolute left-1/2 -translate-x-1/2 w-14 h-14 rounded-full bg-[#12151c] border-2 border-sky-400 items-center justify-center z-20 text-sky-400 shadow-md">
-                  <Mail className="w-6 h-6" />
+                <div className="hidden md:flex absolute left-1/2 -translate-x-1/2 w-16 h-16 rounded-full bg-[#090d16] border-2 border-sky-400 items-center justify-center z-20 text-sky-400 shadow-[0_0_24px_rgba(56,189,248,0.5)]">
+                  <Step1SubmitSvg className="w-7 h-7" />
                 </div>
 
                 <div className="hidden md:block w-[45%]" />
@@ -415,26 +518,24 @@ export default function ServiceMediaSections({
               <div className="relative flex flex-col md:flex-row items-center justify-between gap-8">
                 <div className="hidden md:block w-[45%]" />
 
-                <div className="hidden md:flex absolute left-1/2 -translate-x-1/2 w-14 h-14 rounded-full bg-[#12151c] border-2 border-sky-400 items-center justify-center z-20 text-sky-400 shadow-md">
-                  <Link2 className="w-6 h-6" />
+                <div className="hidden md:flex absolute left-1/2 -translate-x-1/2 w-16 h-16 rounded-full bg-[#090d16] border-2 border-sky-400 items-center justify-center z-20 text-sky-400 shadow-[0_0_24px_rgba(56,189,248,0.5)]">
+                  <Step2AuditSvg className="w-7 h-7" />
                 </div>
 
                 <div className="w-full md:w-[45%]">
-                  <TiltCard maxTilt={6} className="rounded-2xl border border-white/15 bg-[#12151c] p-8 sm:p-9 shadow-lg hover:border-sky-400/60 transition-all">
-                    <div className="flex items-center justify-between mb-5">
-                      <div className="w-12 h-12 rounded-xl bg-sky-500/15 text-sky-400 flex items-center justify-center border border-sky-500/30">
-                        <Link2 className="w-6 h-6" />
+                  <TiltCard maxTilt={6} className="rounded-3xl border border-sky-500/25 bg-[#090d16]/95 backdrop-blur-xl p-8 sm:p-10 shadow-2xl hover:border-sky-400/80 transition-all duration-300 hover:-translate-y-1">
+                    <div className="flex items-center justify-between mb-6">
+                      <div className="w-14 h-14 rounded-2xl bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-sky-400 shadow-[0_0_20px_rgba(56,189,248,0.2)]">
+                        <Step2AuditSvg className="w-8 h-8" />
                       </div>
-                      <span className="text-4xl sm:text-5xl font-extrabold text-[#3ea6ff] font-sans">
-                        02
-                      </span>
+                      <HoloStepBadge number="02" />
                     </div>
                     
-                    <h3 className="text-2xl sm:text-[26px] font-extrabold text-white mb-3.5 font-sans tracking-tight">
+                    <h3 className="text-2xl sm:text-3xl font-extrabold text-white mb-4 font-sans tracking-tight">
                       Staff Proof Inspection
                     </h3>
                     
-                    <p className="text-base sm:text-lg text-slate-200 leading-relaxed font-sans font-normal">
+                    <p className="text-base sm:text-lg text-slate-300 leading-relaxed font-sans font-normal">
                       CreatorHQ staff manually audits the dashboard screenshot in our operations console, checking UI validity, channel owner match, and subscriber reach to prevent fraud.
                     </p>
                   </TiltCard>
@@ -444,28 +545,26 @@ export default function ServiceMediaSections({
               {/* STEP 03 */}
               <div className="relative flex flex-col md:flex-row items-center justify-between gap-8">
                 <div className="w-full md:w-[45%]">
-                  <TiltCard maxTilt={6} className="rounded-2xl border border-white/15 bg-[#12151c] p-8 sm:p-9 shadow-lg hover:border-sky-400/60 transition-all">
-                    <div className="flex items-center justify-between mb-5">
-                      <span className="text-4xl sm:text-5xl font-extrabold text-[#3ea6ff] font-sans">
-                        03
-                      </span>
-                      <div className="w-12 h-12 rounded-xl bg-sky-500/15 text-sky-400 flex items-center justify-center border border-sky-500/30">
-                        <CheckCircle2 className="w-6 h-6" />
+                  <TiltCard maxTilt={6} className="rounded-3xl border border-sky-500/25 bg-[#090d16]/95 backdrop-blur-xl p-8 sm:p-10 shadow-2xl hover:border-sky-400/80 transition-all duration-300 hover:-translate-y-1">
+                    <div className="flex items-center justify-between mb-6">
+                      <HoloStepBadge number="03" />
+                      <div className="w-14 h-14 rounded-2xl bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-sky-400 shadow-[0_0_20px_rgba(56,189,248,0.2)]">
+                        <Step3MintSvg className="w-8 h-8" />
                       </div>
                     </div>
                     
-                    <h3 className="text-2xl sm:text-[26px] font-extrabold text-white mb-3.5 font-sans tracking-tight">
+                    <h3 className="text-2xl sm:text-3xl font-extrabold text-white mb-4 font-sans tracking-tight">
                       Creator ID Minting & Verification
                     </h3>
                     
-                    <p className="text-base sm:text-lg text-slate-200 leading-relaxed font-sans font-normal">
+                    <p className="text-base sm:text-lg text-slate-300 leading-relaxed font-sans font-normal">
                       Once staff approves, your official Creator ID (such as CHQ-000184) is minted. Your 3D card activates, Discord roles sync, and your profile is opened to vetted brand deals on creatorhq.fun.
                     </p>
                   </TiltCard>
                 </div>
 
-                <div className="hidden md:flex absolute left-1/2 -translate-x-1/2 w-14 h-14 rounded-full bg-[#12151c] border-2 border-sky-400 items-center justify-center z-20 text-sky-400 shadow-md">
-                  <CheckCircle2 className="w-6 h-6" />
+                <div className="hidden md:flex absolute left-1/2 -translate-x-1/2 w-16 h-16 rounded-full bg-[#090d16] border-2 border-sky-400 items-center justify-center z-20 text-sky-400 shadow-[0_0_24px_rgba(56,189,248,0.5)]">
+                  <Step3MintSvg className="w-7 h-7" />
                 </div>
 
                 <div className="hidden md:block w-[45%]" />
@@ -478,13 +577,10 @@ export default function ServiceMediaSections({
         </div>
       </section>
 
-      {/* Section Divider */}
-      <div className="w-full h-px bg-white/10" />
-
       {/* =========================================================================
           SECTION 3: "MEET OUR TALENTED CREATORS" (INSPECTION OF YOUTUBER CARDS)
           ========================================================================= */}
-      <section id="talents" className="relative py-24 md:py-32 bg-[#0b0d11]">
+      <section id="talents" className="relative py-20 md:py-28 bg-transparent">
         <div className="container px-4 md:px-6 mx-auto max-w-7xl">
           
           {/* Header */}
@@ -555,11 +651,11 @@ export default function ServiceMediaSections({
               </p>
               <div className="pt-2">
                 <Link
-                  href="/dashboard"
-                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg btn-chq-primary text-xs font-semibold text-white shadow-sm"
+                  href="/signup"
+                  className="btn-chq-primary px-6 py-2.5 text-xs font-bold inline-flex items-center gap-2"
                 >
-                  <span>Launch Creator Studio</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
+                  <span>Start Creating</span>
+                  <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
                 </Link>
               </div>
             </div>
@@ -751,37 +847,24 @@ export default function ServiceMediaSections({
             </div>
           </div>
 
-          {/* "Want to Collaborate?" Banner */}
-          <div className="rounded-2xl border border-white/15 bg-[#12151c] p-8 sm:p-12 text-center space-y-5 shadow-lg">
-            <h3 className="text-3xl sm:text-4xl font-extrabold text-white font-sans tracking-tight">
-              Want to Collaborate?
-            </h3>
-            
-            <p className="text-base sm:text-lg text-slate-200 max-w-2xl mx-auto leading-relaxed font-normal">
-              I'm always open to brand partnerships, sponsorships, and creative projects. Let's chat and see if we can create something awesome together!
-            </p>
-
-            <div className="pt-3 flex justify-center">
-              <button
-                onClick={() => setIsContactOpen(true)}
-                className="inline-flex items-center gap-2 px-8 py-3.5 rounded-lg btn-chq-primary text-sm font-semibold shadow-sm"
-              >
-                <span>Get in Touch</span>
-                <ExternalLink className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
+          {/* High-Impact Visual Banner in Section */}
+          <TechShowcaseBanner
+            badge="SOVEREIGN TALENT NETWORK"
+            title="Ready to Elevate Your Creator Presence?"
+            subtitle="Claim your tamper-proof Creator Pass, connect your YouTube and Discord, and unlock direct brand sponsorships with zero agency cuts."
+            ctaText="Start Creating"
+            ctaHref="/signup"
+            secondaryCtaText="Explore Talents"
+            secondaryCtaHref="/talents"
+          />
 
         </div>
       </section>
 
-      {/* Section Divider */}
-      <div className="w-full h-px bg-white/10" />
-
       {/* =========================================================================
           SECTION 5: "FREQUENTLY ASKED QUESTIONS"
           ========================================================================= */}
-      <section id="faq" className="relative py-24 md:py-32 bg-[#0b0d11]">
+      <section id="faq" className="relative py-20 md:py-28 bg-transparent">
         <div className="container px-4 md:px-6 mx-auto max-w-4xl">
           
           {/* Header */}

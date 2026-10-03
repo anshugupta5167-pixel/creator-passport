@@ -50,7 +50,7 @@ export default function QuickInfoCard({ creator }: QuickInfoCardProps) {
     <div className="rounded-3xl bg-[#0e1217] border border-white/10 p-6 sm:p-7 shadow-xl space-y-6">
       {/* Header */}
       <div className="flex items-center gap-2.5">
-        <div className="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.2)]">
+        <div className="w-7 h-7 rounded-lg bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-sky-400 shadow-[0_0_12px_rgba(14,165,233,0.2)]">
           <TrendingUp className="w-4 h-4 stroke-[2.5]" />
         </div>
         <h3 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight font-sans">
@@ -63,7 +63,7 @@ export default function QuickInfoCard({ creator }: QuickInfoCardProps) {
         {/* Row 1: I create */}
         <div className="flex items-center justify-between p-3.5 sm:p-4 rounded-2xl bg-[#141820] border border-white/5 hover:border-white/10 transition-colors">
           <div className="flex items-center gap-2.5 text-slate-200">
-            <Disc3 className="w-5 h-5 text-emerald-400 shrink-0" />
+            <Disc3 className="w-5 h-5 text-sky-400 shrink-0" />
             <span className="text-base font-semibold">I create</span>
           </div>
           <span className="text-base sm:text-lg font-bold text-white font-sans">
@@ -74,10 +74,10 @@ export default function QuickInfoCard({ creator }: QuickInfoCardProps) {
         {/* Row 2: Status */}
         <div className="flex items-center justify-between p-3.5 sm:p-4 rounded-2xl bg-[#141820] border border-white/5 hover:border-white/10 transition-colors">
           <div className="flex items-center gap-2.5 text-slate-200">
-            <Calendar className="w-5 h-5 text-emerald-400 shrink-0" />
+            <Calendar className="w-5 h-5 text-sky-400 shrink-0" />
             <span className="text-base font-semibold">Status</span>
           </div>
-          <span className="px-4 py-1.5 rounded-full bg-emerald-950/40 border border-emerald-500/40 text-emerald-400 text-sm sm:text-base font-bold shadow-[0_0_10px_rgba(16,185,129,0.15)]">
+          <span className="px-4 py-1.5 rounded-full bg-sky-950/40 border border-sky-500/40 text-sky-400 text-sm sm:text-base font-bold shadow-[0_0_10px_rgba(14,165,233,0.15)]">
             {quickInfo.statusText || 'Actively Creating'}
           </span>
         </div>
@@ -85,10 +85,10 @@ export default function QuickInfoCard({ creator }: QuickInfoCardProps) {
         {/* Row 3: Partnership */}
         <div className="flex items-center justify-between p-3.5 sm:p-4 rounded-2xl bg-[#141820] border border-white/5 hover:border-white/10 transition-colors">
           <div className="flex items-center gap-2.5 text-slate-200">
-            <Sparkles className="w-5 h-5 text-emerald-400 shrink-0" />
+            <Sparkles className="w-5 h-5 text-sky-400 shrink-0" />
             <span className="text-base font-semibold">Partnership</span>
           </div>
-          <span className="px-4 py-1.5 rounded-full bg-emerald-950/40 border border-emerald-500/40 text-emerald-400 text-sm sm:text-base font-bold shadow-[0_0_10px_rgba(16,185,129,0.15)]">
+          <span className="px-4 py-1.5 rounded-full bg-sky-950/40 border border-sky-500/40 text-sky-400 text-sm sm:text-base font-bold shadow-[0_0_10px_rgba(14,165,233,0.15)]">
             {quickInfo.partnership || (creator.isVerified ? 'Verified Partner' : 'Registered Creator')}
           </span>
         </div>

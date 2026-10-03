@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import CamouflageBannerBg from '@/components/CamouflageBannerBg';
+import TechShowcaseBanner from '@/components/TechShowcaseBanner';
 import {
   HelpCircle,
   ChevronDown,
@@ -58,19 +59,21 @@ export default function FaqPage() {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
 
   return (
-    <div className="min-h-screen bg-[#0b0d11] text-slate-100 flex flex-col font-sans selection:bg-sky-500/30 selection:text-white pt-20">
+    <div className="min-h-screen bg-[#07090e] text-slate-100 flex flex-col font-sans selection:bg-sky-500/30 selection:text-white pt-20">
       <Navbar />
 
-      <main className="flex-1">
-        {/* Header */}
-        <section className="relative py-24 sm:py-32 bg-[#0b0d11] overflow-hidden border-b border-white/5">
-          {/* Camouflaged Luxury Tech Banner Background & Grid */}
-          <CamouflageBannerBg />
+      <main className="flex-1 relative">
+        {/* Full-Page Ambient Tech Geometric Banner */}
+        <div className="fixed inset-0 pointer-events-none z-0">
+          <CamouflageBannerBg bannerOpacity="opacity-55" gridOpacity="opacity-35" />
+        </div>
 
-          <div className="container relative z-10 mx-auto px-4 md:px-6 max-w-4xl text-center space-y-6">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-[#11141a] px-4 py-1.5 shadow-sm">
-              <HelpCircle className="w-4 h-4 text-sky-400" />
-              <span className="text-xs sm:text-sm font-semibold text-slate-200">
+        {/* Header */}
+        <section className="relative pt-24 sm:pt-32 pb-16 z-10">
+          <div className="container relative z-10 mx-auto px-4 sm:px-6 lg:px-8 max-w-4xl text-center space-y-6">
+            <div className="inline-flex items-center gap-2 rounded-full border border-sky-500/25 bg-sky-500/10 px-4 py-1.5 shadow-sm">
+              <span className="w-2 h-2 rounded-full bg-sky-400 shadow-[0_0_8px_#38bdf8]" />
+              <span className="text-xs sm:text-sm font-bold text-sky-400 font-mono tracking-wider">
                 HELP CENTER & FAQ
               </span>
             </div>
@@ -79,15 +82,15 @@ export default function FaqPage() {
               Frequently Asked Questions
             </h1>
 
-            <p className="text-base sm:text-lg text-slate-400 max-w-2xl mx-auto leading-relaxed">
+            <p className="text-base sm:text-lg text-slate-300 max-w-2xl mx-auto leading-relaxed">
               Everything you need to know about CreatorHQ passes, staff audit guidelines, and sponsor authentication.
             </p>
           </div>
         </section>
 
         {/* FAQ Accordion List */}
-        <section className="py-24 bg-[#0e1117]">
-          <div className="container mx-auto px-4 md:px-6 max-w-3xl space-y-4">
+        <section className="relative py-12 sm:py-16 z-10">
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-3xl space-y-4">
             {faqs.map((faq, idx) => {
               const isOpen = openIndex === idx;
               return (
@@ -123,24 +126,18 @@ export default function FaqPage() {
           </div>
         </section>
 
-        {/* CTA */}
-        <section className="py-20 bg-[#0b0d11] text-center border-t border-white/5">
-          <div className="container mx-auto px-4 md:px-6 max-w-2xl space-y-4">
-            <h3 className="text-2xl font-bold text-white font-sans">
-              Have more questions?
-            </h3>
-            <p className="text-sm text-slate-400">
-              Our creator support and verification team is available 24/7.
-            </p>
-            <div className="pt-2 flex justify-center gap-4">
-              <Link
-                href="/dashboard"
-                className="px-6 py-3 rounded-lg btn-chq-primary text-xs font-semibold text-white shadow-sm flex items-center gap-2"
-              >
-                <span>Launch Creator Studio</span>
-                <ArrowRight className="w-4 h-4" />
-              </Link>
-            </div>
+        {/* High-Impact Tech Showcase Banner */}
+        <section className="py-12 bg-transparent">
+          <div className="container mx-auto px-4 md:px-6 max-w-5xl">
+            <TechShowcaseBanner
+              badge="24/7 VERIFICATION DESK"
+              title="Have More Questions About Sovereign Passes?"
+              subtitle="Our creator support and verification team is available 24/7 to audit your reach, inspect analytics proofs, and issue your official Creator ID."
+              ctaText="Start Creating"
+              ctaHref="/signup"
+              secondaryCtaText="Contact Support Desk"
+              secondaryCtaHref="/contact"
+            />
           </div>
         </section>
       </main>

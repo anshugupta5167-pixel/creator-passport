@@ -217,11 +217,11 @@ export default function WiseCardShowcase() {
 
               <div className="pt-2">
                 <Link
-                  href="/dashboard"
-                  className="w-full py-3 rounded-lg btn-chq-primary text-xs font-semibold flex items-center justify-center gap-2 shadow-sm text-white"
+                  href="/signup"
+                  className="w-full py-3 rounded-full btn-chq-primary text-xs font-extrabold flex items-center justify-center gap-2 shadow-sm"
                 >
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>Create Your Real Pass Now</span>
+                  <CheckCircle2 className="w-4 h-4 stroke-[2.5]" />
+                  <span>Start Creating Real Pass</span>
                 </Link>
               </div>
 

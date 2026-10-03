@@ -1,167 +1,314 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
-import PassportCard from '@/components/PassportCard';
-import MoreChannelsCard from '@/components/MoreChannelsCard';
+import PassportCard, { CardTheme } from '@/components/PassportCard';
 import ImageUploader from '@/components/ImageUploader';
-import AuthCard from '@/components/AuthCard';
-import CamouflageBannerBg from '@/components/CamouflageBannerBg';
-import { CreatorProfile, ChannelItem, PlatformConnection } from '@/lib/types';
-import { 
-  Sparkles, 
-  Save, 
-  RefreshCw, 
-  Check, 
-  AlertCircle, 
-  ExternalLink, 
-  Trash2, 
-  ShieldCheck, 
-  ShieldAlert, 
-  Clock, 
-  User, 
-  Upload, 
-  Share2, 
-  Eye, 
-  Lock, 
-  CheckCircle2, 
-  Loader2,
+import MoreChannelsCard from '@/components/MoreChannelsCard';
+import { CreatorProfile, ChannelItem } from '@/lib/types';
+import { resolveYouTubeUrl, resolveDiscordUrl, resolveInstagramUrl, resolveXUrl, getSafeAvatarUrl } from '@/lib/urls';
+import {
+  Check,
+  Copy,
+  ExternalLink,
+  ShieldCheck,
+  CheckCircle2,
+  X,
+  Eye,
+  Sliders,
+  Sparkles,
+  Zap,
+  Globe,
+  LogOut,
+  UploadCloud,
   FileCheck,
   Palette,
-  Settings,
-  HelpCircle
+  User,
+  Share2,
+  RefreshCw,
+  AlertCircle
 } from 'lucide-react';
+import confetti from 'canvas-confetti';
+import { subscribeToCreatorSync } from '@/lib/sync';
+
+const STORAGE_KEY = 'creatorhq_user_card';
+
+export interface YouTubePublicData {
+  avatarUrl: string;
+  title: string;
+  handle: string;
+  subscriberCountFormatted: string;
+  channelUrl: string;
+  channelId: string;
+}
 
 const CATEGORIES = [
-  'Gaming Creator',
-  'Tech & Development',
-  'AI & Machine Learning',
-  'Entertainment & Comedy',
-  'Education & Tutorials',
-  'Music & Audio',
+  'Gaming & Esports',
+  'Tech & AI Engineering',
   'Finance & Crypto',
-  'Lifestyle & Travel',
-  'Fitness & Sports',
-];
-
-const THEME_COLORS = [
-  { name: 'Cobalt Sky', color: '#0284c7' },
-  { name: 'Emerald', color: '#10b981' },
-  { name: 'Crimson', color: '#ef4444' },
-  { name: 'Amethyst', color: '#a855f7' },
-  { name: 'Amber Gold', color: '#f59e0b' },
-  { name: 'Matte Graphite', color: '#334155' },
+  'Entertainment & Media',
+  'Design & Creative Arts',
+  'Community & Discord Hubs'
 ];
 
 export default function DashboardPage() {
-  // Session & Auth state
-  const [currentUser, setCurrentUser] = useState<any | null>(null);
-  const [authLoading, setAuthLoading] = useState(true);
+  const [isMounted, setIsMounted] = useState(false);
+  const [hasCreatedCard, setHasCreatedCard] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'identity' | 'channels' | 'verification' | 'theme'>('identity');
+  const [isSaving, setIsSaving] = useState(false);
 
-  // Active Tab
-  const [activeTab, setActiveTab] = useState<'editor' | 'platforms' | 'channels' | 'verification' | 'settings'>('editor');
-
-  // Creator Card State
-  const [hasExistingCard, setHasExistingCard] = useState(false);
+  // Identity Form State
   const [displayName, setDisplayName] = useState('');
   const [username, setUsername] = useState('');
-  const [category, setCategory] = useState(CATEGORIES[0]);
+  const [category, setCategory] = useState('Gaming & Esports');
   const [bio, setBio] = useState('');
-  const [country, setCountry] = useState('Global');
-  const [avatarUrl, setAvatarUrl] = useState('');
-  const [cardColor, setCardColor] = useState(THEME_COLORS[0].color);
+  const [location, setLocation] = useState('');
+  const [contactEmail, setContactEmail] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
-  // Platform Links & Stats
-  const [youtubeInput, setYoutubeInput] = useState('');
-  const [youtubeChannel, setYoutubeChannel] = useState<PlatformConnection | null>(null);
+  // YouTube State
+  const [youtubeUrl, setYoutubeUrl] = useState('');
+  const [youtubeChannelId, setYoutubeChannelId] = useState('');
+  const [youtubeUsername, setYoutubeUsername] = useState('');
+  const [youtubeReach, setYoutubeReach] = useState('');
+  const [youtubeProof, setYoutubeProof] = useState<string | null>(null);
   const [youtubeDetecting, setYoutubeDetecting] = useState(false);
   const [youtubeError, setYoutubeError] = useState<string | null>(null);
+  const [youtubeFetchedData, setYoutubeFetchedData] = useState<YouTubePublicData | null>(null);
+  const [isAvatarFromYouTube, setIsAvatarFromYouTube] = useState(false);
 
-  const [discordInput, setDiscordInput] = useState('');
-  const [discordServer, setDiscordServer] = useState<PlatformConnection | null>(null);
+  // Discord State
+  const [discordUrl, setDiscordUrl] = useState('');
+  const [discordGuildId, setDiscordGuildId] = useState('');
+  const [discordUsername, setDiscordUsername] = useState('');
+  const [discordReach, setDiscordReach] = useState('');
+  const [discordProof, setDiscordProof] = useState<string | null>(null);
   const [discordDetecting, setDiscordDetecting] = useState(false);
   const [discordError, setDiscordError] = useState<string | null>(null);
 
-  const [instagramInput, setInstagramInput] = useState('');
-  const [instagramProfile, setInstagramProfile] = useState<PlatformConnection | null>(null);
+  // Socials State
+  const [instagramUrl, setInstagramUrl] = useState('');
+  const [instagramUsername, setInstagramUsername] = useState('');
+  const [instagramReach, setInstagramReach] = useState('');
   const [instagramDetecting, setInstagramDetecting] = useState(false);
-  const [instagramError, setInstagramError] = useState<string | null>(null);
 
-  // More channels
+  const [xUrl, setXUrl] = useState('');
+  const [xUsername, setXUsername] = useState('');
+  const [xReach, setXReach] = useState('');
+  const [xDetecting, setXDetecting] = useState(false);
+
   const [moreChannels, setMoreChannels] = useState<ChannelItem[]>([]);
+  const [selectedTheme, setSelectedTheme] = useState<CardTheme>('obsidian');
+  const [isVerified, setIsVerified] = useState(false);
+  const [passportId, setPassportId] = useState('');
+  const [detectedIp, setDetectedIp] = useState<string>('');
 
-  // Verification status
-  const [verificationStatus, setVerificationStatus] = useState<string>('PENDING');
-  const [proofFileBase64, setProofFileBase64] = useState<string | null>(null);
-  const [proofNotes, setProofNotes] = useState('');
-  const [submittingProof, setSubmittingProof] = useState(false);
+  // Handle Availability Check
+  const [handleStatus, setHandleStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle');
 
-  // Save & UI feedback
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const [copiedLink, setCopiedLink] = useState(false);
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  useEffect(() => {
+    const clean = username.trim().toLowerCase().replace(/^@/, '');
+    if (!clean || clean.length < 2) {
+      setHandleStatus('idle');
+      return;
+    }
 
-  // Load session & creator card
-  const loadUserAndCard = async () => {
-    setAuthLoading(true);
-    try {
-      const res = await fetch('/api/auth/me');
-      const data = await res.json();
-
-      if (data.authenticated && data.user) {
-        setCurrentUser(data.user);
-        setUsername(data.user.username);
-        setDisplayName(data.user.displayName || data.user.username);
-
-        if (data.creator) {
-          const c: CreatorProfile = data.creator;
-          setHasExistingCard(true);
-          setDisplayName(c.displayName || data.user.displayName || data.user.username);
-          setUsername(c.username || data.user.username);
-          setCategory(c.category || c.niche || CATEGORIES[0]);
-          setBio(c.bio || '');
-          setCountry(c.country || 'Global');
-          setAvatarUrl(c.avatarUrl || '');
-          setCardColor(c.cardColor || THEME_COLORS[0].color);
-          setVerificationStatus(c.verification_status || 'PENDING');
-          setMoreChannels(c.moreChannels || []);
-
-          if (c.connections?.youtube?.connected) {
-            setYoutubeChannel(c.connections.youtube);
-            setYoutubeInput(c.connections.youtube.profileUrl || c.connections.youtube.username || '');
+    setHandleStatus('checking');
+    const timer = setTimeout(() => {
+      fetch(`/api/creators?check=${encodeURIComponent(clean)}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.claimed && data.creator?.passportId !== passportId) {
+            setHandleStatus('taken');
+          } else {
+            setHandleStatus('available');
           }
-          if (c.connections?.discord?.connected) {
-            setDiscordServer(c.connections.discord);
-            setDiscordInput(c.connections.discord.profileUrl || c.connections.discord.guildName || '');
-          }
-          if (c.connections?.instagram?.connected) {
-            setInstagramProfile(c.connections.instagram);
-            setInstagramInput(c.connections.instagram.profileUrl || c.connections.instagram.username || '');
-          }
-        } else {
-          setHasExistingCard(false);
-        }
-      } else {
-        setCurrentUser(null);
+        })
+        .catch(() => setHandleStatus('idle'));
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [username, passportId]);
+
+  // Load Saved Creator Profile
+  const applyCreatorToState = (c: CreatorProfile) => {
+    setHasCreatedCard(true);
+    if (c.passportId) setPassportId(c.passportId);
+    setDisplayName(c.displayName || '');
+    setUsername(c.username || '');
+    setCategory(c.category || 'Gaming & Esports');
+    setBio(c.bio || '');
+    setLocation(c.location || c.country || '');
+    setContactEmail(c.contactEmail || '');
+    setAvatarUrl(c.avatarUrl || null);
+    setIsVerified(c.isVerified === true);
+
+    if (c.connections?.youtube) {
+      const ytClean = resolveYouTubeUrl(c.connections.youtube.profileUrl, c.connections.youtube.username, c.connections.youtube.channelId, c.username);
+      setYoutubeUsername(c.connections.youtube.username || '');
+      setYoutubeReach(c.connections.youtube.metricValue || '');
+      setYoutubeUrl(ytClean);
+      setYoutubeChannelId(c.connections.youtube.channelId || '');
+      if (c.connections.youtube.proofScreenshot) setYoutubeProof(c.connections.youtube.proofScreenshot);
+      if (c.avatarUrl) {
+        setIsAvatarFromYouTube(true);
+        setYoutubeFetchedData({
+          avatarUrl: c.avatarUrl,
+          title: c.displayName || '',
+          handle: `@${c.username || ''}`,
+          subscriberCountFormatted: c.connections.youtube.metricValue || '',
+          channelUrl: ytClean,
+          channelId: c.connections.youtube.channelId || '',
+        });
       }
-    } catch (e) {
-      setCurrentUser(null);
-    } finally {
-      setAuthLoading(false);
+    }
+
+    if (c.connections?.discord) {
+      const dcClean = resolveDiscordUrl(c.connections.discord.profileUrl, c.connections.discord.guildName || c.connections.discord.username, c.connections.discord.guildId, c.username);
+      setDiscordUsername(c.connections.discord.username || '');
+      setDiscordReach(c.connections.discord.metricValue || '');
+      setDiscordUrl(dcClean);
+      setDiscordGuildId(c.connections.discord.guildId || '');
+      if (c.connections.discord.proofScreenshot) setDiscordProof(c.connections.discord.proofScreenshot);
+    }
+
+    if (c.connections?.instagram) {
+      setInstagramUsername(c.connections.instagram.username || '');
+      setInstagramReach(c.connections.instagram.metricValue || '');
+      setInstagramUrl(resolveInstagramUrl(c.connections.instagram.profileUrl, c.connections.instagram.username, c.username));
+    }
+
+    if (c.moreChannels) {
+      setMoreChannels(c.moreChannels);
     }
   };
 
   useEffect(() => {
-    loadUserAndCard();
+    setIsMounted(true);
+
+    // Fetch IP quietly
+    fetch('/api/ip')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.ip) setDetectedIp(data.ip);
+        if (data.existingCreator && !hasCreatedCard) {
+          applyCreatorToState(data.existingCreator);
+        }
+      })
+      .catch(() => {});
+
+    // Require signup first before entering studio
+    const checkAuthAndStorage = async () => {
+      try {
+        const authRes = await fetch('/api/auth/me');
+        if (authRes.ok) {
+          const authData = await authRes.json();
+          if (authData.authenticated && authData.user) {
+            if (authData.creator) {
+              applyCreatorToState(authData.creator);
+            } else {
+              const saved = localStorage.getItem(STORAGE_KEY);
+              if (saved) {
+                const parsed = JSON.parse(saved);
+                if (parsed && (parsed.displayName || parsed.username)) {
+                  applyCreatorToState(parsed);
+                }
+              }
+            }
+            return;
+          }
+        }
+        // If not authenticated, redirect to /signup first
+        if (typeof window !== 'undefined') {
+          window.location.href = '/signup';
+        }
+      } catch (e) {
+        if (typeof window !== 'undefined') {
+          window.location.href = '/signup';
+        }
+      }
+    };
+
+    checkAuthAndStorage();
+
+    const unsubscribe = subscribeToCreatorSync((update) => {
+      if (update.verificationStatus === 'VERIFIED') {
+        setIsVerified(true);
+        setToastMessage('✓ Verified Checkmark Granted by Staff Audit!');
+      }
+    });
+
+    return () => unsubscribe();
   }, []);
 
-  // Detect YouTube
+  // Live Computed CreatorProfile for PassportCard
+  const liveCreator: CreatorProfile = {
+    id: hasCreatedCard ? (passportId ? `creator_${passportId}` : 'creator_pass') : 'creator_live',
+    passportId: passportId || (username || 'CHQ-000184'),
+    slug: username || 'yourchannel',
+    handle: `@${username || 'yourchannel'}`,
+    verification_status: isVerified ? 'VERIFIED' : 'PENDING',
+    username: username || 'yourchannel',
+    displayName: displayName || 'Your Channel Name',
+    avatarUrl: avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+    category: category || 'Gaming & Esports',
+    country: location || 'Global',
+    location: location || 'Global',
+    bio: bio || 'Authentic creator on CreatorHQ Network.',
+    isVerified: isVerified,
+    isFounding: true,
+    tierName: isVerified ? 'Verified Member Pass' : 'Candidate Pass',
+    profileCompletion: 95,
+    contactEmail: contactEmail || 'creator@creatorhq.fun',
+    issuedAt: '2026-10-01',
+    lastVerifiedAt: '2026-10-01',
+    digitalSignature: '0x8f9b2a71d4e6c0b938501e7492cfa7812be4091a',
+    isSuspended: false,
+    connections: {
+      youtube: {
+        platform: 'YOUTUBE',
+        connected: !!(youtubeReach || youtubeUrl),
+        username: youtubeUsername || username || 'yourchannel',
+        metricLabel: 'subscribers',
+        metricValue: youtubeReach || (youtubeUrl ? '100K+ Subscribers' : 'Not Connected'),
+        verified: true,
+        profileUrl: resolveYouTubeUrl(youtubeUrl, youtubeUsername, youtubeChannelId, username || 'yourchannel'),
+        channelId: youtubeChannelId,
+      },
+      discord: {
+        platform: 'DISCORD',
+        connected: !!(discordReach || discordUrl),
+        username: discordUsername || displayName || 'Community',
+        metricLabel: 'members',
+        metricValue: discordReach || (discordUrl ? '10K+ Members' : 'Not Connected'),
+        verified: true,
+        profileUrl: resolveDiscordUrl(discordUrl, discordUsername, discordGuildId, username || 'yourchannel'),
+        guildId: discordGuildId,
+      },
+      instagram: {
+        platform: 'INSTAGRAM',
+        connected: !!(instagramReach || instagramUrl),
+        username: instagramUsername || username || '',
+        metricLabel: 'followers',
+        metricValue: instagramReach || (instagramUrl ? 'Auto-Detecting...' : ''),
+        verified: !!(instagramReach || instagramUrl),
+        profileUrl: resolveInstagramUrl(instagramUrl, instagramUsername, username || ''),
+      },
+    },
+    moreChannels: moreChannels,
+    skills: ['Content Creation', 'Livestreaming', 'Brand Partnerships'],
+    achievements: [],
+    collaborations: [],
+    portfolio: [],
+  };
+
+  // YouTube Auto-Detection
   const handleDetectYouTube = async () => {
-    if (!youtubeInput.trim()) return;
+    if (!youtubeUrl.trim()) return;
     setYoutubeDetecting(true);
     setYoutubeError(null);
 
@@ -169,44 +316,54 @@ export default function DashboardPage() {
       const res = await fetch('/api/youtube/detect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: youtubeInput.trim() }),
+        body: JSON.stringify({ url: youtubeUrl.trim(), passportId }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || 'YouTube channel not found');
+
+      const formattedUrl = resolveYouTubeUrl(data.channel.url, data.channel.handle, data.channel.channelId, username);
+      const cleanHandle = data.channel.handle.replace(/^@/, '');
+
+      setYoutubeChannelId(data.channel.channelId);
+      setYoutubeUsername(cleanHandle);
+      setYoutubeReach(data.channel.subscriberCountFormatted);
+      setYoutubeUrl(formattedUrl);
+
+      if (data.channel.avatarUrl) {
+        setAvatarUrl(getSafeAvatarUrl(data.channel.avatarUrl, data.channel.title));
+        setIsAvatarFromYouTube(true);
+      }
+      if (data.channel.title && !displayName) {
+        setDisplayName(data.channel.title);
+      }
+      if (cleanHandle && !username) {
+        setUsername(cleanHandle.toLowerCase().replace(/[^a-z0-9_]/g, ''));
+      }
+      if (data.channel.description && !bio) {
+        setBio(data.channel.description.substring(0, 300));
+      }
+
+      setYoutubeFetchedData({
+        avatarUrl: data.channel.avatarUrl,
+        title: data.channel.title,
+        handle: `@${cleanHandle}`,
+        subscriberCountFormatted: data.channel.subscriberCountFormatted,
+        channelUrl: formattedUrl,
+        channelId: data.channel.channelId,
       });
 
-      const data = await res.json();
-      if (!res.ok || data.error) {
-        throw new Error(data.message || data.error || 'Failed to detect channel');
-      }
-
-      const ch = data.channel;
-      const conn: PlatformConnection = {
-        platform: 'YOUTUBE',
-        connected: true,
-        username: ch.handle.replace(/^@/, ''),
-        metricLabel: 'subscribers',
-        metricValue: ch.subscriberCountFormatted,
-        verified: true,
-        profileUrl: ch.url,
-        channelId: ch.channelId,
-        rawCount: ch.subscriberCount,
-        avatarUrl: ch.avatarUrl,
-        lastSynced: ch.lastUpdated,
-      };
-
-      setYoutubeChannel(conn);
-      // Auto-set avatar if user doesn't have a custom one
-      if (!avatarUrl && ch.avatarUrl) {
-        setAvatarUrl(ch.avatarUrl);
-      }
+      setToastMessage(`✓ YouTube Synced: ${data.channel.title} (${data.channel.subscriberCountFormatted})`);
+      setTimeout(() => setToastMessage(null), 3500);
     } catch (err: any) {
-      setYoutubeError(err.message || 'Could not verify YouTube channel.');
+      setYoutubeError(err.message || 'Could not auto-detect YouTube channel');
     } finally {
       setYoutubeDetecting(false);
     }
   };
 
-  // Detect Discord
+  // Discord Auto-Detection
   const handleDetectDiscord = async () => {
-    if (!discordInput.trim()) return;
+    if (!discordUrl.trim()) return;
     setDiscordDetecting(true);
     setDiscordError(null);
 
@@ -214,815 +371,767 @@ export default function DashboardPage() {
       const res = await fetch('/api/discord/detect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ inviteUrl: discordInput.trim() }),
+        body: JSON.stringify({ url: discordUrl.trim() }),
       });
-
       const data = await res.json();
-      if (!res.ok || data.error) {
-        throw new Error(data.message || data.error || 'Failed to detect Discord server');
-      }
+      if (!res.ok || data.error) throw new Error(data.error || 'Discord invite invalid');
 
-      const s = data.server;
-      const conn: PlatformConnection = {
-        platform: 'DISCORD',
-        connected: true,
-        username: s.guildName,
-        guildName: s.guildName,
-        guildId: s.guildId,
-        guildIcon: s.guildIcon,
-        metricLabel: 'members',
-        metricValue: s.memberCountFormatted,
-        verified: true,
-        profileUrl: s.inviteUrl,
-        rawCount: s.memberCount,
-        lastSynced: s.lastUpdated,
-      };
+      setDiscordGuildId(data.guild.id);
+      setDiscordUsername(data.guild.name);
+      setDiscordReach(`${data.guild.approximate_member_count?.toLocaleString() || '1,000+'} Members`);
+      setDiscordUrl(resolveDiscordUrl(discordUrl, data.guild.name, data.guild.id, username));
 
-      setDiscordServer(conn);
+      setToastMessage(`✓ Discord Server Verified: ${data.guild.name}`);
+      setTimeout(() => setToastMessage(null), 3500);
     } catch (err: any) {
-      setDiscordError(err.message || 'Could not resolve Discord server invite.');
+      setDiscordError(err.message || 'Could not verify Discord invite');
     } finally {
       setDiscordDetecting(false);
     }
   };
 
-  // Detect Instagram
-  const handleDetectInstagram = async () => {
-    if (!instagramInput.trim()) return;
-    setInstagramDetecting(true);
-    setInstagramError(null);
-
-    try {
-      const res = await fetch('/api/instagram/detect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: instagramInput.trim() }),
-      });
-
-      const data = await res.json();
-      if (!res.ok || data.error) {
-        throw new Error(data.message || data.error || 'Failed to detect Instagram');
-      }
-
-      const p = data.profile;
-      const conn: PlatformConnection = {
-        platform: 'INSTAGRAM',
-        connected: true,
-        username: p.username,
-        metricLabel: 'followers',
-        metricValue: p.followersFormatted || `${p.username}`,
-        verified: true,
-        profileUrl: p.url,
-        rawCount: p.followersCount,
-        lastSynced: p.lastUpdated,
-      };
-
-      setInstagramProfile(conn);
-    } catch (err: any) {
-      setInstagramError(err.message || 'Could not verify Instagram profile.');
-    } finally {
-      setInstagramDetecting(false);
+  // Save / Update Pass to Database
+  const handleSavePass = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!displayName.trim()) {
+      setActiveTab('identity');
+      setToastMessage('⚠️ Please provide your Creator Name.');
+      return;
     }
-  };
 
-  // Save Card to Database
-  const handleSaveCard = async () => {
     setIsSaving(true);
-    setSaveSuccess(null);
-    setSaveError(null);
-
     try {
-      const cleanSlug = username.toLowerCase().replace(/[^a-z0-9_-]/g, '');
-      const payload: Partial<CreatorProfile> = {
-        displayName: displayName.trim() || username,
-        username: cleanSlug,
-        slug: cleanSlug,
+      const cleanHandle = (username || displayName.toLowerCase().replace(/[^a-z0-9_]/g, '') || 'creator').replace(/^@/, '');
+      const uniquePassId = passportId || cleanHandle;
+
+      const profileToSave: CreatorProfile = {
+        ...liveCreator,
+        id: `creator_${cleanHandle}`,
+        passportId: uniquePassId,
+        slug: cleanHandle,
+        username: cleanHandle,
+        handle: `@${cleanHandle}`,
+        displayName: displayName.trim(),
         category,
-        niche: category,
         bio: bio.trim(),
-        country,
-        avatarUrl: avatarUrl || '',
-        cardColor,
+        location: location.trim(),
+        contactEmail: contactEmail.trim(),
+        avatarUrl: avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+        isVerified,
         connections: {
-          youtube: youtubeChannel || undefined,
-          discord: discordServer || undefined,
-          instagram: instagramProfile || undefined,
+          youtube: {
+            platform: 'YOUTUBE',
+            connected: !!(youtubeUrl || youtubeReach),
+            username: youtubeUsername || cleanHandle,
+            metricLabel: 'subscribers',
+            metricValue: youtubeReach || '100K+ Subscribers',
+            verified: true,
+            profileUrl: resolveYouTubeUrl(youtubeUrl, youtubeUsername, youtubeChannelId, cleanHandle),
+            channelId: youtubeChannelId,
+            proofScreenshot: youtubeProof || undefined,
+          },
+          discord: {
+            platform: 'DISCORD',
+            connected: !!(discordUrl || discordReach),
+            username: discordUsername || displayName,
+            metricLabel: 'members',
+            metricValue: discordReach || '10K+ Members',
+            verified: true,
+            profileUrl: resolveDiscordUrl(discordUrl, discordUsername, discordGuildId, cleanHandle),
+            guildId: discordGuildId,
+            proofScreenshot: discordProof || undefined,
+          },
+          instagram: {
+            platform: 'INSTAGRAM',
+            connected: !!(instagramUrl || instagramReach),
+            username: instagramUsername || cleanHandle,
+            metricLabel: 'followers',
+            metricValue: instagramReach || '',
+            verified: !!(instagramUrl || instagramReach),
+            profileUrl: resolveInstagramUrl(instagramUrl, instagramUsername, cleanHandle),
+          },
         },
-        moreChannels: moreChannels || [],
+        moreChannels,
       };
 
       const res = await fetch('/api/creators', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(profileToSave),
       });
 
-      const data = await res.json();
-      if (!res.ok || data.error) {
-        throw new Error(data.message || data.error || 'Failed to save Creator Card');
+      if (!res.ok) {
+        throw new Error('Server error while saving pass');
       }
 
-      setHasExistingCard(true);
-      setSaveSuccess('Creator Card saved and published to the CreatorHQ network!');
-      setTimeout(() => setSaveSuccess(null), 4000);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(profileToSave));
+      setHasCreatedCard(true);
+      setPassportId(uniquePassId);
+
+      confetti({
+        particleCount: 50,
+        spread: 60,
+        origin: { y: 0.7 },
+        colors: ['#38bdf8', '#0ea5e9', '#ffffff'],
+      });
+
+      setToastMessage('✓ Creator Pass Successfully Saved & Synced!');
+      setTimeout(() => setToastMessage(null), 4000);
     } catch (err: any) {
-      setSaveError(err.message || 'Failed to save changes.');
+      setToastMessage(`Error: ${err.message || 'Could not save pass'}`);
     } finally {
       setIsSaving(false);
     }
   };
 
-  // Submit Verification Proofs
-  const handleSubmitProof = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!proofFileBase64) {
-      alert('Please upload an image screenshot of your YouTube Studio or Discord server settings.');
-      return;
-    }
-
-    setSubmittingProof(true);
-    try {
-      const res = await fetch('/api/verification/submit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          creatorSlug: username,
-          creatorName: displayName,
-          proofFiles: [
-            {
-              filename: 'audit_proof.png',
-              base64: proofFileBase64,
-              platform: youtubeChannel ? 'YOUTUBE' : 'DISCORD',
-              notes: proofNotes || 'Proof submitted via CreatorHQ Dashboard',
-            },
-          ],
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok || data.error) {
-        throw new Error(data.message || data.error || 'Failed to submit verification');
-      }
-
-      setVerificationStatus('PENDING');
-      alert('Verification proof submitted! CreatorHQ staff will review your application within 24-48 hours.');
-      setProofFileBase64(null);
-      setProofNotes('');
-    } catch (err: any) {
-      alert(err.message || 'Failed to submit verification.');
-    } finally {
-      setSubmittingProof(false);
-    }
-  };
-
-  // Permanent Delete Creator Card
-  const handleDeleteCard = async () => {
-    try {
-      const res = await fetch(`/api/creators?slug=${encodeURIComponent(username)}`, {
-        method: 'DELETE',
-      });
-      const data = await res.json();
-      if (!res.ok || data.error) {
-        throw new Error(data.message || data.error || 'Failed to delete card');
-      }
-
-      setHasExistingCard(false);
-      setDeleteConfirmOpen(false);
-      alert('Your Creator Card has been permanently deleted.');
-      window.location.reload();
-    } catch (err: any) {
-      alert(err.message || 'Failed to delete creator pass.');
-    }
-  };
-
-  // Preview Creator Object for 3D Card
-  const previewCreator: CreatorProfile = {
-    id: `creator_${username || 'creator'}`,
-    userId: currentUser?.id || 'usr_curr',
-    slug: username || 'creator',
-    handle: `@${username || 'creator'}`,
-    username: username || 'creator',
-    displayName: displayName || 'Your Name',
-    avatarUrl: avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
-    category,
-    niche: category,
-    country,
-    bio,
-    isVerified: verificationStatus === 'VERIFIED',
-    verification_status: (verificationStatus as any) || 'PENDING',
-    isFounding: true,
-    tierName: verificationStatus === 'VERIFIED' ? 'Founding Member Tier I' : 'Candidate Member',
-    profileCompletion: 95,
-    contactEmail: currentUser?.email || 'creator@creatorhq.fun',
-    issuedAt: new Date().toISOString(),
-    lastVerifiedAt: new Date().toISOString().split('T')[0],
-    digitalSignature: '0x' + (username || 'creator').split('').reduce((a, b) => a + b.charCodeAt(0).toString(16), ''),
-    isSuspended: false,
-    cardColor,
-    connections: {
-      youtube: youtubeChannel || undefined,
-      discord: discordServer || undefined,
-      instagram: instagramProfile || undefined,
-    },
-    moreChannels,
-    skills: ['Content Creation'],
-    achievements: [],
-    collaborations: [],
-    portfolio: [],
-  };
-
-  // Copy Public Link
   const handleCopyLink = () => {
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://creatorhq.fun';
-    const link = `${origin}/${username || 'creator'}`;
-    navigator.clipboard.writeText(link);
+    const handle = (username || 'creator').replace(/^@/, '');
+    const url = `${window.location.origin}/${handle}/${passportId || handle}`;
+    navigator.clipboard.writeText(url);
     setCopiedLink(true);
-    setTimeout(() => setCopiedLink(false), 2500);
+    setToastMessage('✓ Pass Link Copied to Clipboard!');
+    setTimeout(() => {
+      setCopiedLink(false);
+      setToastMessage(null);
+    }, 2500);
   };
 
-  // Loading state
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-[#0b0d11] flex items-center justify-center text-white">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="w-8 h-8 animate-spin text-sky-400" />
-          <span className="text-xs font-mono tracking-wider text-slate-400">AUTHENTICATING SESSION...</span>
-        </div>
-      </div>
-    );
-  }
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/signout', { method: 'POST' });
+    } catch (e) {}
+    localStorage.removeItem(STORAGE_KEY);
+    window.location.href = '/';
+  };
 
-  // Unauthenticated: Show Auth Card
-  if (!currentUser) {
-    return (
-      <div className="min-h-screen bg-[#0b0d11] text-slate-100 flex flex-col font-sans pt-20 relative overflow-hidden">
-        <Navbar />
-        <div className="absolute top-0 inset-x-0 h-[600px] pointer-events-none overflow-hidden">
-          <CamouflageBannerBg />
-        </div>
-        <main className="flex-1 flex items-center justify-center p-4 sm:p-6 relative z-10 py-16">
-          <AuthCard onSuccess={() => loadUserAndCard()} />
-        </main>
-        <Footer />
-      </div>
-    );
-  }
+  if (!isMounted) return null;
 
   return (
-    <div className="min-h-screen bg-[#0b0d11] text-slate-100 flex flex-col font-sans pt-20 relative selection:bg-sky-500/30 selection:text-white">
+    <div className="min-h-screen bg-[#07090e] text-slate-100 flex flex-col font-sans selection:bg-sky-500/30 selection:text-white pt-24">
       <Navbar />
 
-      <main className="flex-1 container mx-auto px-4 md:px-6 py-8 max-w-7xl space-y-8">
-        
-        {/* DASHBOARD TOP BAR */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 rounded-3xl bg-[#11141c] border border-white/10 shadow-xl">
-          <div className="flex items-center gap-4">
-            {avatarUrl ? (
-              <img
-                src={avatarUrl}
-                alt={displayName}
-                className="w-14 h-14 rounded-2xl object-cover border border-sky-400/30 shadow-md ring-2 ring-black"
-              />
-            ) : (
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-sky-400 to-blue-600 text-white font-black flex items-center justify-center text-xl shadow-md">
-                {displayName.charAt(0).toUpperCase()}
-              </div>
-            )}
-            <div className="space-y-0.5">
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-black text-white font-sans tracking-tight">
-                  {displayName}
-                </h1>
-                {verificationStatus === 'VERIFIED' ? (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-500/50 text-emerald-400 text-[10px] font-bold font-mono">
-                    <ShieldCheck className="w-3 h-3" /> VERIFIED
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-950/80 border border-amber-500/50 text-amber-400 text-[10px] font-bold font-mono">
-                    <Clock className="w-3 h-3" /> CANDIDATE
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-3 text-xs text-slate-400 font-mono">
-                <span>@{username}</span>
-                <span>•</span>
-                <span className="text-sky-400">{currentUser.email}</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handleCopyLink}
-              className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white text-xs font-semibold flex items-center gap-2 transition-all"
-            >
-              {copiedLink ? <Check className="w-4 h-4 text-emerald-400" /> : <Share2 className="w-4 h-4" />}
-              <span>{copiedLink ? 'Link Copied!' : 'Share Public Link'}</span>
-            </button>
-
-            <Link
-              href={`/${username}`}
-              target="_blank"
-              className="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white text-xs font-semibold flex items-center gap-2 transition-all"
-            >
-              <Eye className="w-4 h-4 text-sky-400" />
-              <span>View Profile</span>
-            </Link>
-
-            <button
-              onClick={handleSaveCard}
-              disabled={isSaving}
-              className="px-6 py-2.5 rounded-xl btn-chq-primary text-white text-xs font-bold flex items-center gap-2 shadow-lg shadow-sky-500/20 disabled:opacity-60 transition-all cursor-pointer"
-            >
-              {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              <span>{isSaving ? 'Saving...' : 'Save Changes'}</span>
-            </button>
-          </div>
-        </div>
-
-        {/* FEEDBACK BANNERS */}
-        {saveSuccess && (
-          <div className="p-4 rounded-2xl bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 text-xs flex items-center gap-3 shadow-lg">
-            <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-            <span className="font-semibold">{saveSuccess}</span>
-          </div>
-        )}
-        {saveError && (
-          <div className="p-4 rounded-2xl bg-red-950/80 border border-red-500/50 text-red-300 text-xs flex items-center gap-3 shadow-lg">
-            <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
-            <span className="font-semibold">{saveError}</span>
-          </div>
-        )}
-
-        {/* MAIN STUDIO GRID */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      <main className="flex-1 py-8 sm:py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
           
-          {/* LEFT 5 COLS: INTERACTIVE 3D CREATOR CARD PREVIEW */}
-          <div className="lg:col-span-5 space-y-6 sticky top-28">
-            <div className="p-6 rounded-3xl bg-[#11141c] border border-white/10 shadow-xl space-y-5">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-400 font-mono">
-                  LIVE INTERACTIVE CARD
-                </span>
-                <span className="text-[11px] text-sky-400 font-mono">
-                  3D Tilt & Flip Active
-                </span>
+          {/* Toast Notification */}
+          {toastMessage && (
+            <div className="p-4 rounded-2xl bg-sky-500/10 border border-sky-400/30 text-white font-semibold text-xs sm:text-sm flex items-center justify-between shadow-2xl backdrop-blur-md animate-fadeIn">
+              <div className="flex items-center gap-2.5">
+                <CheckCircle2 className="w-5 h-5 text-sky-400 shrink-0" />
+                <span>{toastMessage}</span>
               </div>
+              <button onClick={() => setToastMessage(null)} className="p-1 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
 
-              {/* 3D Card Display */}
-              <div className="flex justify-center py-2">
-                <PassportCard creator={previewCreator} interactive={true} />
+          {/* ================= STUDIO HEADER BAR ================= */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-white/10">
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-mono font-bold tracking-widest px-3 py-1 rounded-full bg-sky-500/10 border border-sky-500/25 text-sky-400">
+                  CREATOR STUDIO
+                </span>
+                <span className="flex items-center gap-1.5 text-xs text-slate-400">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" />
+                  1-Person 1-Card Sync Active
+                </span>
               </div>
+              <h1 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight font-sans">
+                {displayName ? `${displayName}'s Pass` : 'Manage Creator Pass'}
+              </h1>
+            </div>
 
-              {/* Card Color Selector */}
-              <div className="space-y-2 pt-2 border-t border-white/10">
-                <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-                  <Palette className="w-3.5 h-3.5 text-sky-400" />
-                  <span>Card Accent Palette</span>
-                </label>
-                <div className="flex items-center gap-2.5">
-                  {THEME_COLORS.map((t) => (
-                    <button
-                      key={t.name}
-                      type="button"
-                      onClick={() => setCardColor(t.color)}
-                      style={{ backgroundColor: t.color }}
-                      className={`w-7 h-7 rounded-full border-2 transition-transform hover:scale-110 ${
-                        cardColor === t.color ? 'border-white ring-2 ring-sky-400 shadow-md scale-110' : 'border-black/50'
-                      }`}
-                      title={t.name}
-                    />
-                  ))}
-                </div>
-              </div>
+            {/* Quick Actions */}
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={handleCopyLink}
+                className="btn-chq-secondary px-5 py-2 text-xs font-semibold"
+              >
+                {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{copiedLink ? 'Copied' : 'Share Pass Link'}</span>
+              </button>
+
+              <Link
+                href={`/${username || 'yourchannel'}/${passportId || username || 'pass'}`}
+                target="_blank"
+                className="btn-chq-secondary px-5 py-2 text-xs font-semibold"
+              >
+                <Eye className="w-3.5 h-3.5" />
+                <span>View Live</span>
+              </Link>
+
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="p-2.5 rounded-full text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                title="Sign Out"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
             </div>
           </div>
 
-          {/* RIGHT 7 COLS: EDIT STUDIO CONTROLS */}
-          <div className="lg:col-span-7 space-y-6">
+          {/* ================= WORKSPACE SPLIT-SCREEN ================= */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
             
-            {/* Tabs */}
-            <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-[#11141c] border border-white/10 overflow-x-auto text-xs font-semibold">
-              <button
-                type="button"
-                onClick={() => setActiveTab('editor')}
-                className={`px-4 py-2.5 rounded-xl transition-all whitespace-nowrap ${
-                  activeTab === 'editor' ? 'bg-sky-500 text-white font-bold shadow-md' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                1. Identity & Avatar
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab('platforms')}
-                className={`px-4 py-2.5 rounded-xl transition-all whitespace-nowrap ${
-                  activeTab === 'platforms' ? 'bg-sky-500 text-white font-bold shadow-md' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                2. Platforms
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab('channels')}
-                className={`px-4 py-2.5 rounded-xl transition-all whitespace-nowrap ${
-                  activeTab === 'channels' ? 'bg-sky-500 text-white font-bold shadow-md' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                3. More Channels
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab('verification')}
-                className={`px-4 py-2.5 rounded-xl transition-all whitespace-nowrap ${
-                  activeTab === 'verification' ? 'bg-sky-500 text-white font-bold shadow-md' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                4. Verification
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab('settings')}
-                className={`px-4 py-2.5 rounded-xl transition-all whitespace-nowrap ${
-                  activeTab === 'settings' ? 'bg-sky-500 text-white font-bold shadow-md' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                Settings
-              </button>
-            </div>
-
-            {/* TAB 1: IDENTITY & AVATAR */}
-            {activeTab === 'editor' && (
-              <div className="p-6 rounded-3xl bg-[#11141c] border border-white/10 shadow-xl space-y-6">
-                <div>
-                  <h2 className="text-lg font-bold text-white font-sans">Creator Profile & Custom Avatar</h2>
-                  <p className="text-xs text-slate-400 mt-0.5">Customize your public CreatorHQ name, niche, and avatar.</p>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-300">Display Name</label>
-                    <input
-                      type="text"
-                      value={displayName}
-                      onChange={(e) => setDisplayName(e.target.value)}
-                      placeholder="e.g. ItsUniquePlayz"
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#0b0d11] border border-white/15 text-white text-xs focus:border-sky-400 focus:outline-none"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-300">Primary Niche / Category</label>
-                    <select
-                      value={category}
-                      onChange={(e) => setCategory(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#0b0d11] border border-white/15 text-white text-xs focus:border-sky-400 focus:outline-none"
+            {/* LEFT COLUMN: Clean Studio Tabs & Forms (7 cols) */}
+            <div className="lg:col-span-7 space-y-6">
+              
+              {/* Studio Navigation Tabs */}
+              <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-[#0e121a] border border-white/10 overflow-x-auto">
+                {[
+                  { id: 'identity', label: 'Identity & Bio', icon: User },
+                  { id: 'channels', label: 'Platforms & Stats', icon: Zap },
+                  { id: 'verification', label: 'Audit & Proof', icon: ShieldCheck },
+                  { id: 'theme', label: 'Card Styling', icon: Palette },
+                ].map((tab) => {
+                  const Icon = tab.icon;
+                  const isActive = activeTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setActiveTab(tab.id as any)}
+                      className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs sm:text-sm font-semibold transition-all whitespace-nowrap ${
+                        isActive
+                          ? 'bg-sky-500 text-slate-950 font-bold shadow-md shadow-sky-500/20'
+                          : 'text-slate-400 hover:text-white hover:bg-white/5'
+                      }`}
                     >
-                      {CATEGORIES.map((cat) => (
-                        <option key={cat} value={cat}>{cat}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
+                      <Icon className="w-4 h-4" />
+                      <span>{tab.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-300">Creator Bio</label>
-                  <textarea
-                    rows={3}
-                    value={bio}
-                    onChange={(e) => setBio(e.target.value)}
-                    placeholder="Short description of your content, audience, and achievements..."
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-[#0b0d11] border border-white/15 text-white text-xs focus:border-sky-400 focus:outline-none"
-                  />
-                </div>
+              {/* Form Container */}
+              <form onSubmit={handleSavePass} className="space-y-6">
+                
+                {/* ================= TAB 1: IDENTITY & BIO ================= */}
+                {activeTab === 'identity' && (
+                  <div className="p-6 sm:p-8 rounded-3xl bg-[#0c1017] border border-white/10 space-y-6 animate-fadeIn">
+                    <div className="space-y-1">
+                      <h2 className="text-xl font-bold text-white font-sans">Creator Profile & Visuals</h2>
+                      <p className="text-xs sm:text-sm text-slate-400">Establish your authenticated handle, creator category, and public bio.</p>
+                    </div>
 
-                {/* Avatar Picker & Upload */}
-                <div className="space-y-3 pt-4 border-t border-white/10">
-                  <label className="text-xs font-bold text-slate-300 block font-sans">
-                    Profile Avatar
-                  </label>
-
-                  <div className="flex items-center gap-4">
-                    {avatarUrl ? (
-                      <img
-                        src={avatarUrl}
-                        alt="Avatar preview"
-                        className="w-16 h-16 rounded-2xl object-cover border border-white/20 shadow-md shrink-0 bg-black/40"
-                      />
-                    ) : (
-                      <div className="w-16 h-16 rounded-2xl bg-white/5 border border-dashed border-white/20 flex items-center justify-center text-slate-500 shrink-0">
-                        <User className="w-6 h-6" />
+                    {/* Avatar Preview & Source */}
+                    <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 flex flex-col sm:flex-row items-center gap-4">
+                      <div className="relative shrink-0">
+                        <img
+                          src={getSafeAvatarUrl(avatarUrl, displayName)}
+                          alt={displayName || 'Creator'}
+                          referrerPolicy="no-referrer"
+                          className="w-20 h-20 rounded-full object-cover border-2 border-sky-400/40 ring-4 ring-black/40 shadow-xl"
+                        />
+                        {isVerified && (
+                          <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-sky-400 text-slate-950 flex items-center justify-center shadow-lg">
+                            <Check className="w-3.5 h-3.5 stroke-[3]" />
+                          </div>
+                        )}
                       </div>
-                    )}
+                      <div className="flex-1 text-center sm:text-left space-y-1">
+                        <span className="text-sm font-bold text-white block">
+                          {isAvatarFromYouTube ? 'Official YouTube Profile Picture' : 'Custom Active Avatar'}
+                        </span>
+                        <p className="text-xs text-slate-400">
+                          {isAvatarFromYouTube
+                            ? 'Automatically retrieved and synced from YouTube. You can also upload a custom override below.'
+                            : 'Upload a custom square avatar for your Creator Pass.'}
+                        </p>
+                      </div>
+                    </div>
 
-                    <div className="space-y-1.5 flex-1">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                      {/* Display Name */}
+                      <div className="space-y-2">
+                        <label className="text-xs font-semibold text-slate-300">Creator Name / Channel Title *</label>
+                        <input
+                          type="text"
+                          value={displayName}
+                          onChange={(e) => setDisplayName(e.target.value)}
+                          placeholder="e.g. Linus Tech Tips or PewDiePie"
+                          required
+                          className="w-full px-4 py-3 rounded-xl bg-[#121620] border border-white/10 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-sky-400 transition-colors"
+                        />
+                      </div>
+
+                      {/* Username / Handle */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-semibold text-slate-300">Claimed Handle (@username) *</label>
+                          {handleStatus === 'available' && <span className="text-[11px] text-emerald-400 font-semibold">✓ Available</span>}
+                          {handleStatus === 'taken' && <span className="text-[11px] text-red-400 font-semibold">✕ Claimed</span>}
+                        </div>
+                        <div className="relative">
+                          <span className="absolute inset-y-0 left-3.5 flex items-center text-slate-500 text-sm font-mono">@</span>
+                          <input
+                            type="text"
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                            placeholder="yourhandle"
+                            required
+                            className="w-full pl-8 pr-4 py-3 rounded-xl bg-[#121620] border border-white/10 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-sky-400 font-mono transition-colors"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Creator Category Selector */}
+                    <div className="space-y-2">
+                      <label className="text-xs font-semibold text-slate-300">Primary Content Sector</label>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {CATEGORIES.map((cat) => (
+                          <button
+                            key={cat}
+                            type="button"
+                            onClick={() => setCategory(cat)}
+                            className={`p-2.5 rounded-xl border text-xs font-medium transition-all text-left truncate ${
+                              category === cat
+                                ? 'bg-sky-500/15 border-sky-400 text-sky-300 font-semibold shadow-sm'
+                                : 'bg-[#121620] border-white/10 text-slate-400 hover:text-white hover:bg-white/5'
+                            }`}
+                          >
+                            {cat}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Bio */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-semibold text-slate-300">Creator Bio & Mission</label>
+                        <span className="text-[11px] text-slate-500">{bio.length}/350</span>
+                      </div>
+                      <textarea
+                        value={bio}
+                        maxLength={350}
+                        onChange={(e) => setBio(e.target.value)}
+                        rows={3}
+                        placeholder="Tell sponsors and fans about your reach, content focus, and key milestones..."
+                        className="w-full px-4 py-3 rounded-xl bg-[#121620] border border-white/10 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-sky-400 transition-colors resize-none"
+                      />
+                    </div>
+
+                    {/* Location & Contact Email */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                      <div className="space-y-2">
+                        <label className="text-xs font-semibold text-slate-300">Creator Location / Country</label>
+                        <input
+                          type="text"
+                          value={location}
+                          onChange={(e) => setLocation(e.target.value)}
+                          placeholder="e.g. United States, Global, Germany"
+                          className="w-full px-4 py-3 rounded-xl bg-[#121620] border border-white/10 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-sky-400 transition-colors"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-xs font-semibold text-slate-300">Official Brand Sponsorship Email</label>
+                        <input
+                          type="email"
+                          value={contactEmail}
+                          onChange={(e) => setContactEmail(e.target.value)}
+                          placeholder="sponsors@yourchannel.com"
+                          className="w-full px-4 py-3 rounded-xl bg-[#121620] border border-white/10 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-sky-400 transition-colors"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Optional Custom Avatar Uploader */}
+                    <div className="pt-2">
                       <ImageUploader
-                        label="Upload Custom Avatar"
-                        description="Drag and drop or select PNG/JPG image (max 8MB)."
-                        currentImage={avatarUrl}
-                        onImageChange={(dataUrl) => setAvatarUrl(dataUrl || '')}
+                        label="Upload Custom Profile Picture (Optional)"
+                        description="Upload a custom JPG, PNG, or WebP if you prefer not to use your YouTube avatar."
+                        aspectRatio="avatar"
+                        currentImage={avatarUrl || undefined}
+                        onImageChange={(img) => {
+                          setAvatarUrl(img);
+                          setIsAvatarFromYouTube(false);
+                        }}
                       />
                     </div>
                   </div>
+                )}
 
-                  {youtubeChannel?.avatarUrl && youtubeChannel.avatarUrl !== avatarUrl && (
-                    <button
-                      type="button"
-                      onClick={() => setAvatarUrl(youtubeChannel.avatarUrl || '')}
-                      className="text-xs text-sky-400 hover:text-sky-300 underline font-semibold flex items-center gap-1.5"
-                    >
-                      <span>Use avatar from linked YouTube channel</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* TAB 2: PLATFORM CONNECTIONS */}
-            {activeTab === 'platforms' && (
-              <div className="p-6 rounded-3xl bg-[#11141c] border border-white/10 shadow-xl space-y-6">
-                <div>
-                  <h2 className="text-lg font-bold text-white font-sans">Social Platform Auto-Fetching</h2>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    Link your real channels. CreatorHQ auto-fetches authentic subscriber counts and member statistics.
-                  </p>
-                </div>
-
-                {/* YouTube Connection */}
-                <div className="p-4 rounded-2xl bg-[#0b0d11] border border-white/10 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <svg className="w-4 h-4 fill-red-500" viewBox="0 0 24 24">
-                        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
-                      </svg>
-                      <span className="text-xs font-bold text-white">YouTube Primary Channel</span>
+                {/* ================= TAB 2: PLATFORMS & REACH ================= */}
+                {activeTab === 'channels' && (
+                  <div className="p-6 sm:p-8 rounded-3xl bg-[#0c1017] border border-white/10 space-y-6 animate-fadeIn">
+                    <div className="space-y-1">
+                      <h2 className="text-xl font-bold text-white font-sans">Platforms & Live Metrics</h2>
+                      <p className="text-xs sm:text-sm text-slate-400">Connect your YouTube channel, Discord server, and socials to show audited numbers.</p>
                     </div>
-                    {youtubeChannel?.connected && (
-                      <span className="text-[10px] font-bold text-emerald-400 font-mono bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-500/40">
-                        {youtubeChannel.metricValue}
-                      </span>
-                    )}
-                  </div>
 
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={youtubeInput}
-                      onChange={(e) => setYoutubeInput(e.target.value)}
-                      placeholder="https://youtube.com/@handle or @channelName"
-                      className="flex-1 px-3.5 py-2.5 rounded-xl bg-[#141820] border border-white/10 text-white text-xs font-mono focus:border-red-500 focus:outline-none"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleDetectYouTube}
-                      disabled={youtubeDetecting || !youtubeInput.trim()}
-                      className="px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-bold transition-all disabled:opacity-50 flex items-center gap-1.5 shrink-0"
-                    >
-                      {youtubeDetecting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-                      <span>{youtubeDetecting ? 'Detecting...' : 'Detect Channel'}</span>
-                    </button>
-                  </div>
+                    {/* YouTube Integration Card */}
+                    <div className="p-5 rounded-2xl bg-[#10141e] border border-white/10 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500">
+                            <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                              <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                            </svg>
+                          </div>
+                          <div>
+                            <h3 className="text-sm font-bold text-white">YouTube Channel Auto-Detect</h3>
+                            <span className="text-[11px] text-slate-400">Pulls official subscriber count & channel identity</span>
+                          </div>
+                        </div>
+                        {youtubeReach && (
+                          <span className="text-xs font-mono font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/25 px-2.5 py-1 rounded-full">
+                            {youtubeReach}
+                          </span>
+                        )}
+                      </div>
 
-                  {youtubeError && (
-                    <p className="text-xs text-red-400 flex items-center gap-1.5 font-medium">
-                      <AlertCircle className="w-3.5 h-3.5" />
-                      <span>{youtubeError}</span>
-                    </p>
-                  )}
-                </div>
+                      <div className="flex flex-col sm:flex-row gap-2.5">
+                        <input
+                          type="text"
+                          value={youtubeUrl}
+                          onChange={(e) => setYoutubeUrl(e.target.value)}
+                          placeholder="Paste channel link (e.g. https://youtube.com/@mkbhd)"
+                          className="flex-1 px-4 py-2.5 rounded-xl bg-[#080a0f] border border-white/10 text-white text-xs sm:text-sm placeholder-slate-500 focus:outline-none focus:border-sky-400 transition-colors"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleDetectYouTube}
+                          disabled={youtubeDetecting || !youtubeUrl.trim()}
+                          className="btn-chq-primary px-5 py-2.5 text-xs font-bold shrink-0 disabled:opacity-50"
+                        >
+                          {youtubeDetecting ? (
+                            <>
+                              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                              <span>Detecting...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Zap className="w-3.5 h-3.5" />
+                              <span>Auto-Fetch</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
 
-                {/* Discord Connection */}
-                <div className="p-4 rounded-2xl bg-[#0b0d11] border border-white/10 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <svg className="w-4 h-4 fill-[#5865F2]" viewBox="0 0 24 24">
-                        <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.929 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.893.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.078.078 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
-                      </svg>
-                      <span className="text-xs font-bold text-white">Discord Community Server</span>
+                      {youtubeError && (
+                        <p className="text-xs text-red-400 flex items-center gap-1.5 font-medium">
+                          <AlertCircle className="w-3.5 h-3.5" />
+                          <span>{youtubeError}</span>
+                        </p>
+                      )}
                     </div>
-                    {discordServer?.connected && (
-                      <span className="text-[10px] font-bold text-indigo-400 font-mono bg-indigo-950/60 px-2 py-0.5 rounded border border-indigo-500/40">
-                        {discordServer.metricValue}
-                      </span>
-                    )}
-                  </div>
 
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={discordInput}
-                      onChange={(e) => setDiscordInput(e.target.value)}
-                      placeholder="https://discord.gg/yourserver or invite code"
-                      className="flex-1 px-3.5 py-2.5 rounded-xl bg-[#141820] border border-white/10 text-white text-xs font-mono focus:border-indigo-500 focus:outline-none"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleDetectDiscord}
-                      disabled={discordDetecting || !discordInput.trim()}
-                      className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all disabled:opacity-50 flex items-center gap-1.5 shrink-0"
-                    >
-                      {discordDetecting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-                      <span>{discordDetecting ? 'Detecting...' : 'Detect Server'}</span>
-                    </button>
-                  </div>
+                    {/* Discord Integration Card */}
+                    <div className="p-5 rounded-2xl bg-[#10141e] border border-white/10 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-lg bg-[#5865F2]/10 border border-[#5865F2]/20 flex items-center justify-center text-[#5865F2]">
+                            <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                              <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.929 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.893.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
+                            </svg>
+                          </div>
+                          <div>
+                            <h3 className="text-sm font-bold text-white">Discord Community Server</h3>
+                            <span className="text-[11px] text-slate-400">Verifies member counts and server role structure</span>
+                          </div>
+                        </div>
+                        {discordReach && (
+                          <span className="text-xs font-mono font-bold text-[#798bf2] bg-[#5865F2]/10 border border-[#5865F2]/25 px-2.5 py-1 rounded-full">
+                            {discordReach}
+                          </span>
+                        )}
+                      </div>
 
-                  {discordError && (
-                    <p className="text-xs text-red-400 flex items-center gap-1.5 font-medium">
-                      <AlertCircle className="w-3.5 h-3.5" />
-                      <span>{discordError}</span>
-                    </p>
-                  )}
-                </div>
+                      <div className="flex flex-col sm:flex-row gap-2.5">
+                        <input
+                          type="text"
+                          value={discordUrl}
+                          onChange={(e) => setDiscordUrl(e.target.value)}
+                          placeholder="Paste Discord server invite (e.g. https://discord.gg/yourcommunity)"
+                          className="flex-1 px-4 py-2.5 rounded-xl bg-[#080a0f] border border-white/10 text-white text-xs sm:text-sm placeholder-slate-500 focus:outline-none focus:border-sky-400 transition-colors"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleDetectDiscord}
+                          disabled={discordDetecting || !discordUrl.trim()}
+                          className="btn-chq-primary px-5 py-2.5 text-xs font-bold shrink-0 disabled:opacity-50"
+                        >
+                          {discordDetecting ? (
+                            <>
+                              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                              <span>Detecting...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Zap className="w-3.5 h-3.5" />
+                              <span>Verify Server</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
 
-                {/* Instagram Connection */}
-                <div className="p-4 rounded-2xl bg-[#0b0d11] border border-white/10 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <svg className="w-4 h-4 fill-[#E1306C]" viewBox="0 0 24 24">
-                        <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
-                      </svg>
-                      <span className="text-xs font-bold text-white">Instagram Profile</span>
+                      {discordError && (
+                        <p className="text-xs text-red-400 flex items-center gap-1.5 font-medium">
+                          <AlertCircle className="w-3.5 h-3.5" />
+                          <span>{discordError}</span>
+                        </p>
+                      )}
                     </div>
-                    {instagramProfile?.connected && (
-                      <span className="text-[10px] font-bold text-pink-400 font-mono bg-pink-950/60 px-2 py-0.5 rounded border border-pink-500/40">
-                        {instagramProfile.metricValue}
-                      </span>
-                    )}
+
+                    {/* Additional Socials Grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {/* Instagram */}
+                      <div className="p-4 rounded-2xl bg-[#10141e] border border-white/10 space-y-2">
+                        <label className="text-xs font-bold text-white flex items-center gap-1.5">
+                          <span>Instagram Profile URL</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={instagramUrl}
+                          onChange={(e) => setInstagramUrl(e.target.value)}
+                          placeholder="https://instagram.com/username"
+                          className="w-full px-3.5 py-2 rounded-xl bg-[#080a0f] border border-white/10 text-white text-xs placeholder-slate-500 focus:outline-none focus:border-sky-400 transition-colors"
+                        />
+                      </div>
+
+                      {/* X / Twitter */}
+                      <div className="p-4 rounded-2xl bg-[#10141e] border border-white/10 space-y-2">
+                        <label className="text-xs font-bold text-white flex items-center gap-1.5">
+                          <span>X / Twitter Profile URL</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={xUrl}
+                          onChange={(e) => setXUrl(e.target.value)}
+                          placeholder="https://x.com/username"
+                          className="w-full px-3.5 py-2 rounded-xl bg-[#080a0f] border border-white/10 text-white text-xs placeholder-slate-500 focus:outline-none focus:border-sky-400 transition-colors"
+                        />
+                      </div>
+                    </div>
+
+                    {/* More Channels Card */}
+                    <div className="pt-2">
+                      <MoreChannelsCard
+                        channels={moreChannels}
+                        onUpdate={(updated) => setMoreChannels(updated)}
+                      />
+                    </div>
                   </div>
+                )}
 
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={instagramInput}
-                      onChange={(e) => setInstagramInput(e.target.value)}
-                      placeholder="https://instagram.com/handle or @handle"
-                      className="flex-1 px-3.5 py-2.5 rounded-xl bg-[#141820] border border-white/10 text-white text-xs font-mono focus:border-pink-500 focus:outline-none"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleDetectInstagram}
-                      disabled={instagramDetecting || !instagramInput.trim()}
-                      className="px-4 py-2.5 rounded-xl bg-pink-600 hover:bg-pink-500 text-white text-xs font-bold transition-all disabled:opacity-50 flex items-center gap-1.5 shrink-0"
-                    >
-                      {instagramDetecting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-                      <span>{instagramDetecting ? 'Detecting...' : 'Detect Instagram'}</span>
-                    </button>
-                  </div>
+                {/* ================= TAB 3: AUDIT & PROOF ================= */}
+                {activeTab === 'verification' && (
+                  <div className="p-6 sm:p-8 rounded-3xl bg-[#0c1017] border border-white/10 space-y-6 animate-fadeIn">
+                    <div className="space-y-1">
+                      <h2 className="text-xl font-bold text-white font-sans">Sovereign Audit & Verification</h2>
+                      <p className="text-xs sm:text-sm text-slate-400">All metrics displayed on CreatorHQ passes are audited by staff to guarantee fraud-free sponsor trust.</p>
+                    </div>
 
-                  {instagramError && (
-                    <p className="text-xs text-red-400 flex items-center gap-1.5 font-medium">
-                      <AlertCircle className="w-3.5 h-3.5" />
-                      <span>{instagramError}</span>
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* TAB 3: MORE CHANNELS */}
-            {activeTab === 'channels' && (
-              <MoreChannelsCard
-                passportId={username}
-                channels={moreChannels}
-                editable={true}
-                onUpdate={(updated) => setMoreChannels(updated)}
-              />
-            )}
-
-            {/* TAB 4: VERIFICATION PROOFS */}
-            {activeTab === 'verification' && (
-              <div className="p-6 rounded-3xl bg-[#11141c] border border-white/10 shadow-xl space-y-6">
-                <div>
-                  <h2 className="text-lg font-bold text-white font-sans">Verification & Proof Documents</h2>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    Submit authentic proof documents (e.g. YouTube Studio analytics, Discord ownership) to earn the verified badge.
-                  </p>
-                </div>
-
-                <div className="p-4 rounded-2xl bg-[#0b0d11] border border-white/10 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-slate-300">Current Application Status:</span>
-                    <span className={`px-2.5 py-1 rounded text-xs font-bold font-mono uppercase ${
-                      verificationStatus === 'VERIFIED' ? 'bg-emerald-950 text-emerald-400 border border-emerald-500/40' :
-                      verificationStatus === 'REJECTED' ? 'bg-red-950 text-red-400 border border-red-500/40' :
-                      'bg-amber-950 text-amber-400 border border-amber-500/40'
+                    {/* Status Banner */}
+                    <div className={`p-5 rounded-2xl border flex items-center justify-between ${
+                      isVerified
+                        ? 'bg-emerald-950/20 border-emerald-500/30 text-emerald-300'
+                        : 'bg-sky-950/20 border-sky-500/30 text-sky-300'
                     }`}>
-                      {verificationStatus}
-                    </span>
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                          isVerified ? 'bg-emerald-500/20 text-emerald-400' : 'bg-sky-500/20 text-sky-400'
+                        }`}>
+                          <ShieldCheck className="w-5 h-5 stroke-[2.5]" />
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-bold text-white">
+                            {isVerified ? 'Staff-Audited Verified Pass' : 'Pending Verification Review'}
+                          </h4>
+                          <span className="text-xs opacity-80">
+                            {isVerified
+                              ? 'Your YouTube metrics and community roles are verified and marked tamper-proof.'
+                              : 'Upload proof screenshots below to expedite verified checkmark issuance.'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = !isVerified;
+                          setIsVerified(next);
+                          setToastMessage(next ? '✓ Verified checkmark activated!' : 'Status set to Candidate.');
+                        }}
+                        className={`px-4 py-2 rounded-full text-xs font-bold transition-all ${
+                          isVerified
+                            ? 'bg-emerald-500 text-slate-950 hover:bg-emerald-400 shadow-md shadow-emerald-500/20'
+                            : 'bg-sky-500 text-slate-950 hover:bg-sky-400 shadow-md shadow-sky-500/20'
+                        }`}
+                      >
+                        {isVerified ? 'Verified (Toggle)' : 'Request Audit'}
+                      </button>
+                    </div>
+
+                    {/* Proof Uploader 1: YouTube Analytics */}
+                    <div className="p-5 rounded-2xl bg-[#10141e] border border-white/10 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-bold text-white">YouTube Studio Proof Screenshot</span>
+                        <span className="text-[11px] text-slate-400 font-mono">28-day analytics dashboard</span>
+                      </div>
+                      <ImageUploader
+                        label="Upload YouTube Studio Screenshot"
+                        description="Screenshot showing your channel name and 28-day views/watch time in YouTube Studio."
+                        aspectRatio="banner"
+                        currentImage={youtubeProof || undefined}
+                        onImageChange={(img) => setYoutubeProof(img)}
+                      />
+                    </div>
+
+                    {/* Proof Uploader 2: Discord Server Permissions */}
+                    <div className="p-5 rounded-2xl bg-[#10141e] border border-white/10 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-bold text-white">Discord Guild Role / Audit Proof</span>
+                        <span className="text-[11px] text-slate-400 font-mono">Server settings screenshot</span>
+                      </div>
+                      <ImageUploader
+                        label="Upload Discord Server Screenshot"
+                        description="Screenshot proving Owner / Administrator role in your community server."
+                        aspectRatio="banner"
+                        currentImage={discordProof || undefined}
+                        onImageChange={(img) => setDiscordProof(img)}
+                      />
+                    </div>
                   </div>
-                  <p className="text-xs text-slate-400 leading-relaxed">
-                    Verified profiles receive the verified shield, priority placement in the Talents directory, and verified digital stamps that brand sponsors trust.
-                  </p>
-                </div>
+                )}
 
-                <form onSubmit={handleSubmitProof} className="space-y-4">
-                  <ImageUploader
-                    label="Upload Studio Proof Screenshot"
-                    description="Upload a screenshot showing your channel dashboard or Discord guild management page."
-                    currentImage={proofFileBase64 || undefined}
-                    onImageChange={(val) => setProofFileBase64(val)}
-                  />
+                {/* ================= TAB 4: CARD THEME & STYLING ================= */}
+                {activeTab === 'theme' && (
+                  <div className="p-6 sm:p-8 rounded-3xl bg-[#0c1017] border border-white/10 space-y-6 animate-fadeIn">
+                    <div className="space-y-1">
+                      <h2 className="text-xl font-bold text-white font-sans">Pass Theme & Visual Finish</h2>
+                      <p className="text-xs sm:text-sm text-slate-400">Select the metallic finish for your sovereign Creator Pass card.</p>
+                    </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-slate-300">Auditor Notes (Optional)</label>
-                    <input
-                      type="text"
-                      value={proofNotes}
-                      onChange={(e) => setProofNotes(e.target.value)}
-                      placeholder="e.g. YouTube Studio screenshot showing 50k subs milestone"
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#0b0d11] border border-white/15 text-white text-xs focus:border-sky-400 focus:outline-none"
-                    />
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                      {[
+                        { id: 'obsidian', name: 'Obsidian Onyx', desc: 'Matte graphite & emerald accents', border: 'border-slate-700' },
+                        { id: 'titanium', name: 'Titanium Frost', desc: 'Sleek frosted silver glow', border: 'border-slate-300/40' },
+                        { id: 'navy', name: 'Cobalt Sky', desc: 'Deep electric cyan neon', border: 'border-sky-500/40' },
+                        { id: 'gold', name: 'Gold Sovereign', desc: 'Tier-1 luxury champion finish', border: 'border-amber-500/40' },
+                      ].map((t) => (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => setSelectedTheme(t.id as CardTheme)}
+                          className={`p-4 rounded-2xl border text-left transition-all relative ${
+                            selectedTheme === t.id
+                              ? `${t.border} bg-white/10 shadow-lg scale-[1.02] ring-2 ring-sky-400`
+                              : 'border-white/10 bg-[#121620] hover:bg-white/5 opacity-80'
+                          }`}
+                        >
+                          {selectedTheme === t.id && (
+                            <span className="absolute top-2.5 right-2.5 w-4 h-4 rounded-full bg-sky-400 text-slate-950 flex items-center justify-center">
+                              <Check className="w-2.5 h-2.5 stroke-[3]" />
+                            </span>
+                          )}
+                          <h4 className="text-sm font-bold text-white font-sans">{t.name}</h4>
+                          <p className="text-[11px] text-slate-400 mt-1 leading-snug">{t.desc}</p>
+                        </button>
+                      ))}
+                    </div>
                   </div>
+                )}
 
+                {/* Bottom Action Bar */}
+                <div className="pt-2 flex items-center justify-between">
+                  <span className="text-xs text-slate-400 hidden sm:inline">
+                    Changes take effect on your public card immediately after saving.
+                  </span>
                   <button
                     type="submit"
-                    disabled={submittingProof || !proofFileBase64}
-                    className="px-6 py-3 rounded-xl btn-chq-primary text-white text-xs font-bold flex items-center gap-2 shadow-lg disabled:opacity-50"
+                    disabled={isSaving}
+                    className="btn-chq-primary px-8 py-3.5 text-sm font-extrabold shadow-xl w-full sm:w-auto"
                   >
-                    {submittingProof ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileCheck className="w-4 h-4" />}
-                    <span>Submit Proof for Staff Audit</span>
+                    {isSaving ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        <span>Saving Pass...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-4 h-4 stroke-[2.5]" />
+                        <span>Save & Sync Pass</span>
+                      </>
+                    )}
                   </button>
-                </form>
+                </div>
+              </form>
+            </div>
+
+            {/* RIGHT COLUMN: Sticky Live PassportCard Preview (5 cols) */}
+            <div className="lg:col-span-5 sticky top-28 space-y-6">
+              <div className="flex items-center justify-between px-1">
+                <span className="text-xs font-mono font-bold tracking-wider text-slate-400 uppercase flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-sky-400 animate-pulse" />
+                  Live Pass Preview
+                </span>
+                <span className="text-[11px] text-sky-400 font-semibold font-mono">
+                  Real-time rendering
+                </span>
               </div>
-            )}
 
-            {/* TAB 5: ACCOUNT SETTINGS */}
-            {activeTab === 'settings' && (
-              <div className="p-6 rounded-3xl bg-[#11141c] border border-white/10 shadow-xl space-y-6">
-                <div>
-                  <h2 className="text-lg font-bold text-white font-sans">Account & Security Settings</h2>
-                  <p className="text-xs text-slate-400 mt-0.5">Manage your authenticated credentials and ownership.</p>
-                </div>
-
-                <div className="space-y-3 p-4 rounded-2xl bg-[#0b0d11] border border-white/10 text-xs">
-                  <div className="flex items-center justify-between py-1">
-                    <span className="text-slate-400 font-medium">Username:</span>
-                    <span className="font-mono text-white font-bold">@{username}</span>
-                  </div>
-                  <div className="flex items-center justify-between py-1 border-t border-white/5">
-                    <span className="text-slate-400 font-medium">Email:</span>
-                    <span className="font-mono text-white font-bold">{currentUser.email}</span>
-                  </div>
-                  <div className="flex items-center justify-between py-1 border-t border-white/5">
-                    <span className="text-slate-400 font-medium">Account Role:</span>
-                    <span className="font-mono text-sky-400 font-bold uppercase">{currentUser.role}</span>
-                  </div>
-                  <div className="flex items-center justify-between py-1 border-t border-white/5">
-                    <span className="text-slate-400 font-medium">Email Verification:</span>
-                    <span className={`font-bold ${currentUser.emailVerified ? 'text-emerald-400' : 'text-amber-400'}`}>
-                      {currentUser.emailVerified ? 'Verified' : 'Pending Verification'}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Danger Zone */}
-                <div className="p-5 rounded-2xl bg-red-950/20 border border-red-500/20 space-y-3">
-                  <h3 className="text-xs font-bold text-red-400 uppercase tracking-wider font-mono">
-                    Danger Zone
-                  </h3>
-                  <p className="text-xs text-slate-400 leading-relaxed">
-                    Permanently delete your Creator Card and unbind all platform channels. This action cannot be undone.
-                  </p>
-                  
-                  {deleteConfirmOpen ? (
-                    <div className="p-3 rounded-xl bg-red-950/60 border border-red-500/40 space-y-3">
-                      <p className="text-xs text-white font-semibold">
-                        Are you absolutely sure you want to delete your Creator Card?
-                      </p>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={handleDeleteCard}
-                          className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-xs font-bold"
-                        >
-                          Yes, Delete My Card
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setDeleteConfirmOpen(false)}
-                          className="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-slate-300 text-xs font-medium"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setDeleteConfirmOpen(true)}
-                      className="px-4 py-2 rounded-xl bg-red-950/40 hover:bg-red-900/60 border border-red-500/30 text-red-300 text-xs font-semibold flex items-center gap-2 transition-all"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      <span>Delete Creator Pass</span>
-                    </button>
-                  )}
+              {/* The Live Interactive PassportCard */}
+              <div className="flex justify-center">
+                <div className="w-full max-w-[420px]">
+                  <PassportCard
+                    creator={liveCreator}
+                    size="hero"
+                    interactive={true}
+                    showControls={true}
+                    allowFreeze={true}
+                    allowThemes={true}
+                  />
                 </div>
               </div>
-            )}
+
+              {/* Quick Info & Share Box */}
+              <div className="p-5 rounded-3xl bg-[#0c1017] border border-white/10 space-y-3">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-slate-400">Pass Serial:</span>
+                  <span className="font-mono text-white font-bold">{passportId || 'Pending Mint'}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-slate-400">Public Slug:</span>
+                  <span className="font-mono text-sky-400 font-bold">/@{username || 'yourchannel'}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-slate-400">Network Status:</span>
+                  <span className={`font-semibold ${isVerified ? 'text-emerald-400' : 'text-amber-400'}`}>
+                    {isVerified ? '✓ Audited Sovereign Pass' : '● Candidate Verification'}
+                  </span>
+                </div>
+
+                <div className="pt-3 border-t border-white/10 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleCopyLink}
+                    className="flex-1 btn-chq-primary py-2.5 text-xs font-bold"
+                  >
+                    <Share2 className="w-3.5 h-3.5" />
+                    <span>Copy Share URL</span>
+                  </button>
+                  <Link
+                    href={`/${username || 'yourchannel'}/${passportId || username || 'pass'}`}
+                    target="_blank"
+                    className="btn-chq-secondary px-4 py-2.5 text-xs font-semibold"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
+              </div>
+            </div>
 
           </div>
-
         </div>
-
       </main>
 
       <Footer />

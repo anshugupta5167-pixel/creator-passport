@@ -15,8 +15,12 @@ export default function Footer() {
           
           {/* Brand Info */}
           <div className="md:col-span-2 space-y-4">
-            <Link href="/" className="inline-block">
-              <CHQLogo size="md" showText={true} />
+            <Link href="/" className="inline-flex items-center gap-2.5 group">
+              <CHQLogo size="sm" showText={false} />
+              <span className="font-extrabold text-xl tracking-tight text-white font-sans flex items-center">
+                Creator<span className="text-sky-400">HQ</span>
+                <span className="ml-1.5 w-1.5 h-1.5 rounded-full bg-sky-400 shadow-[0_0_8px_#38bdf8]" />
+              </span>
             </Link>
             <p className="text-xs sm:text-sm text-slate-400 max-w-sm leading-relaxed">
               CreatorHQ is the private creator network and verification infrastructure for online creators. Connecting authenticated YouTube channels, Discord servers, and creator credentials into one verifiable passport.

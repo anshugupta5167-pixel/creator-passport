@@ -1,1 +1,9 @@
-[]
+[
+  {
+    "id": "sess_1791013456387_1ff747983fd1e89a",
+    "userId": "usr_admin_system_001",
+    "token": "4ed6a9ff72c71da352f423e4acf06fd9f49f278a8b6c5c92657a5817f9ae0271",
+    "createdAt": "2026-10-03T07:44:16.387Z",
+    "expiresAt": "2026-11-02T07:44:16.388Z"
+  }
+]

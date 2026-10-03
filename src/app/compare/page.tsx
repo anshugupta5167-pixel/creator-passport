@@ -13,11 +13,11 @@ export const metadata: Metadata = {
 
 export default function ComparePage() {
   return (
-    <div className="min-h-screen bg-[#0b0d11] text-slate-100 flex flex-col font-sans pt-20 relative overflow-hidden">
+    <div className="min-h-screen bg-[#07090e] text-slate-100 flex flex-col font-sans pt-20 relative">
       <Navbar />
 
-      <div className="absolute top-0 inset-x-0 h-[600px] pointer-events-none overflow-hidden">
-        <CamouflageBannerBg />
+      <div className="fixed inset-0 pointer-events-none z-0">
+        <CamouflageBannerBg bannerOpacity="opacity-55" gridOpacity="opacity-35" />
       </div>
 
       <main className="flex-1 relative z-10">

@@ -6,6 +6,14 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import TiltCard from '@/components/TiltCard';
 import CamouflageBannerBg from '@/components/CamouflageBannerBg';
+import TechShowcaseBanner from '@/components/TechShowcaseBanner';
+import {
+  AuditedPrecisionSvg,
+  CryptoPassSvg,
+  PrivacyShieldSvg,
+  GlobalTalentSvg,
+  BrandDealsSvg
+} from '@/components/RichSvgIcons';
 import {
   ShieldCheck,
   CheckCircle2,
@@ -69,39 +77,50 @@ const leadershipTeam = [
 
 export default function AboutPage() {
   return (
-    <div className="min-h-screen bg-[#0b0d11] text-slate-100 flex flex-col font-sans selection:bg-sky-500/30 selection:text-white pt-20">
+    <div className="min-h-screen bg-[#07090e] text-slate-100 flex flex-col font-sans selection:bg-sky-500/30 selection:text-white pt-20">
       <Navbar />
 
-      <main className="flex-1">
+      <main className="flex-1 relative">
+        {/* Full-Page Ambient Tech Geometric Banner */}
+        <div className="fixed inset-0 pointer-events-none z-0">
+          <CamouflageBannerBg bannerOpacity="opacity-55" gridOpacity="opacity-35" />
+        </div>
         
         {/* ================= ABOUT HERO ================= */}
-        <section className="relative py-24 sm:py-32 bg-[#0b0d11] overflow-hidden border-b border-white/5">
-          {/* Camouflaged Luxury Tech Banner Background & Grid */}
-          <CamouflageBannerBg />
+        <section className="relative pt-24 sm:pt-32 pb-16 z-10">
+          <div className="container relative z-10 mx-auto px-4 sm:px-6 lg:px-8 max-w-5xl text-center space-y-6">
+            <div className="inline-flex items-center gap-2 rounded-full border border-sky-500/25 bg-sky-500/10 px-4 py-1.5 shadow-sm">
+              <span className="w-2 h-2 rounded-full bg-sky-400 shadow-[0_0_8px_#38bdf8]" />
+              <span className="text-xs sm:text-sm font-bold text-sky-400 font-mono tracking-wider">
+                ABOUT CREATORHQ
+              </span>
+            </div>
 
-          <div className="container relative z-10 mx-auto px-4 md:px-6 max-w-5xl text-center space-y-6">
             <h1 className="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight text-white leading-tight font-sans">
               The Architecture of<br />
-              <span className="text-sky-400">
+              <span className="bg-gradient-to-r from-sky-400 via-cyan-300 to-sky-500 bg-clip-text text-transparent">
                 Creator Credibility
               </span>
             </h1>
 
-            <p className="text-base sm:text-xl text-slate-400 max-w-3xl mx-auto leading-relaxed">
+            <p className="text-base sm:text-xl text-slate-300 max-w-3xl mx-auto leading-relaxed">
               CreatorHQ was founded with a singular conviction: independent online creators should own verified, fraud-proof credentials that establish instant trust with global sponsors.
             </p>
 
-            <div className="flex flex-wrap justify-center gap-4 pt-4">
-              <Link
-                href="/dashboard"
-                className="px-7 py-3.5 rounded-lg btn-chq-primary text-xs font-semibold flex items-center gap-2 text-white shadow-sm"
-              >
-                <span>Launch Creator Studio</span>
-                <ArrowRight className="w-4 h-4" />
-              </Link>
+            <div className="flex flex-wrap justify-center items-center gap-4 pt-4">
+              <div className="p-1 rounded-full border border-sky-400/20 bg-sky-950/20 backdrop-blur-sm shadow-[0_0_24px_rgba(56,189,248,0.2)]">
+                <Link
+                  href="/signup"
+                  className="btn-chq-primary px-8 py-3.5 text-sm font-extrabold flex items-center gap-2"
+                >
+                  <span>Start Creating</span>
+                  <ArrowRight className="w-4 h-4 stroke-[2.5]" />
+                </Link>
+              </div>
+
               <Link
                 href="/talents"
-                className="px-7 py-3.5 rounded-lg btn-chq-secondary text-xs font-semibold text-slate-200 hover:text-white"
+                className="btn-chq-secondary px-7 py-3.5 text-sm font-semibold"
               >
                 Explore Verified Talent Roster
               </Link>
@@ -110,7 +129,7 @@ export default function AboutPage() {
         </section>
 
         {/* ================= ORIGIN STORY: THE PROBLEM & OUR SOLUTION ================= */}
-        <section className="py-24 bg-[#0e1117] border-b border-white/5">
+        <section className="py-20 bg-transparent">
           <div className="container mx-auto px-4 md:px-6 max-w-6xl">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
               
@@ -136,35 +155,35 @@ export default function AboutPage() {
 
               {/* Technical Architecture Bento */}
               <div className="lg:col-span-6 space-y-4">
-                <TiltCard maxTilt={6} className="p-7 rounded-2xl bg-[#12151c] border border-white/15 hover:border-sky-400/60 transition-colors space-y-3 shadow-md">
-                  <div className="flex items-center gap-2 text-sky-400 font-semibold text-xs uppercase tracking-wider font-mono">
-                    <ShieldCheck className="w-4 h-4" />
-                    <span>Audited Data Proof</span>
+                <TiltCard maxTilt={6} className="p-7 rounded-2xl bg-[#090d16]/90 backdrop-blur-md border border-white/15 hover:border-sky-400/60 transition-colors space-y-3 shadow-md">
+                  <div className="flex items-center gap-3">
+                    <AuditedPrecisionSvg className="w-8 h-8" size={32} />
+                    <span className="text-sky-400 font-semibold text-xs uppercase tracking-wider font-mono">Audited Data Proof</span>
                   </div>
                   <h3 className="text-xl font-bold text-white font-sans">No Passwords or Tokens</h3>
-                  <p className="text-base text-slate-200 leading-relaxed font-sans font-normal">
+                  <p className="text-base text-slate-300 leading-relaxed font-sans font-normal">
                     Creators never share sensitive credentials or OAuth tokens. Verification relies on staff review of official studio dashboards and public network validation.
                   </p>
                 </TiltCard>
 
-                <TiltCard maxTilt={6} className="p-7 rounded-2xl bg-[#12151c] border border-white/15 hover:border-sky-400/60 transition-colors space-y-3 shadow-md">
-                  <div className="flex items-center gap-2 text-sky-400 font-semibold text-xs uppercase tracking-wider font-mono">
-                    <Layers className="w-4 h-4" />
-                    <span>Canonical Creator Domain</span>
+                <TiltCard maxTilt={6} className="p-7 rounded-2xl bg-[#090d16]/90 backdrop-blur-md border border-white/15 hover:border-sky-400/60 transition-colors space-y-3 shadow-md">
+                  <div className="flex items-center gap-3">
+                    <CryptoPassSvg className="w-8 h-8" size={32} />
+                    <span className="text-sky-400 font-semibold text-xs uppercase tracking-wider font-mono">Canonical Creator Domain</span>
                   </div>
                   <h3 className="text-xl font-bold text-white font-sans">Universal creatorhq.fun Passkey</h3>
-                  <p className="text-base text-slate-200 leading-relaxed font-sans font-normal">
+                  <p className="text-base text-slate-300 leading-relaxed font-sans font-normal">
                     Every creator receives a permanent, public verification link and high-resolution QR passkey for sponsor decks, video descriptions, and rate cards.
                   </p>
                 </TiltCard>
 
-                <TiltCard maxTilt={6} className="p-7 rounded-2xl bg-[#12151c] border border-white/15 hover:border-sky-400/60 transition-colors space-y-3 shadow-md">
-                  <div className="flex items-center gap-2 text-sky-400 font-semibold text-xs uppercase tracking-wider font-mono">
-                    <Lock className="w-4 h-4" />
-                    <span>Cryptographic Pass Freeze</span>
+                <TiltCard maxTilt={6} className="p-7 rounded-2xl bg-[#090d16]/90 backdrop-blur-md border border-white/15 hover:border-sky-400/60 transition-colors space-y-3 shadow-md">
+                  <div className="flex items-center gap-3">
+                    <PrivacyShieldSvg className="w-8 h-8" size={32} />
+                    <span className="text-sky-400 font-semibold text-xs uppercase tracking-wider font-mono">Cryptographic Pass Freeze</span>
                   </div>
                   <h3 className="text-xl font-bold text-white font-sans">Full Creator Sovereignty</h3>
-                  <p className="text-base text-slate-200 leading-relaxed font-sans font-normal">
+                  <p className="text-base text-slate-300 leading-relaxed font-sans font-normal">
                     Instantly freeze your credentials with zero downtime. Maintain total privacy whenever taking breaks or reviewing exclusive contractual windows.
                   </p>
                 </TiltCard>
@@ -297,26 +316,43 @@ export default function AboutPage() {
           </div>
         </section>
 
+        {/* ================= HIGH-IMPACT SHOWCASE BANNER ================= */}
+        <section className="py-8 bg-transparent">
+          <div className="container mx-auto px-4 md:px-6 max-w-6xl">
+            <TechShowcaseBanner
+              badge="INDEPENDENT CREATOR SOVEREIGNTY"
+              title="Own Your Reach. Keep 100% of Your Earnings."
+              subtitle="Stop giving away 30-50% to outdated management agencies. Mint your official Creator Pass and partner directly with world-class sponsors."
+              ctaText="Start Creating"
+              ctaHref="/signup"
+              secondaryCtaText="Meet The Founders"
+              secondaryCtaHref="/founders"
+            />
+          </div>
+        </section>
+
         {/* ================= FINAL ABOUT CTA ================= */}
-        <section className="py-24 bg-[#0e1117] text-center border-t border-white/5">
+        <section className="py-20 bg-transparent text-center">
           <div className="container mx-auto px-4 md:px-6 max-w-3xl space-y-6">
             <h2 className="text-3xl sm:text-4xl font-bold text-white font-sans">
               Experience the Future of Creator Identity
             </h2>
-            <p className="text-sm sm:text-base text-slate-400 leading-relaxed">
+            <p className="text-sm sm:text-base text-slate-300 leading-relaxed">
               Mint your official pass today or explore our directory of top YouTube and Discord talents.
             </p>
             <div className="pt-2 flex flex-wrap justify-center gap-4">
-              <Link
-                href="/dashboard"
-                className="px-8 py-3.5 rounded-lg btn-chq-primary text-sm font-semibold text-white shadow-sm flex items-center gap-2"
-              >
-                <span>Create Pass in Studio</span>
-                <ArrowRight className="w-4 h-4" />
-              </Link>
+              <div className="p-1 rounded-full border border-sky-400/20 bg-sky-950/20 backdrop-blur-sm shadow-[0_0_24px_rgba(56,189,248,0.2)]">
+                <Link
+                  href="/signup"
+                  className="btn-chq-primary px-8 py-3.5 text-sm font-extrabold flex items-center gap-2"
+                >
+                  <span>Start Creating</span>
+                  <ArrowRight className="w-4 h-4 stroke-[2.5]" />
+                </Link>
+              </div>
               <Link
                 href="/contact"
-                className="px-8 py-3.5 rounded-lg btn-chq-secondary text-sm font-semibold text-slate-200 hover:text-white"
+                className="btn-chq-secondary px-8 py-3.5 text-sm font-semibold"
               >
                 Contact Partnership Desk
               </Link>

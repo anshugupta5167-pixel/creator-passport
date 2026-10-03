@@ -18,7 +18,7 @@ import CHQLogo from './CHQLogo';
 
 interface AuthCardProps {
   initialMode?: 'signin' | 'signup' | 'forgot' | 'verify';
-  onSuccess: (user: any, creator?: any) => void;
+  onSuccess?: (user: any, creator?: any) => void;
   defaultEmail?: string;
   defaultUsername?: string;
 }
@@ -74,7 +74,11 @@ export default function AuthCard({
 
       setSuccessMsg('Welcome back! Loading your dashboard...');
       setTimeout(() => {
-        onSuccess(data.user, data.creator);
+        if (onSuccess) {
+          onSuccess(data.user, data.creator);
+        } else if (typeof window !== 'undefined') {
+          window.location.href = '/dashboard';
+        }
       }, 500);
     } catch (err: any) {
       setErrorMsg(err.message || 'Authentication failed. Please try again.');
@@ -124,7 +128,11 @@ export default function AuthCard({
 
       setSuccessMsg('Account created successfully!');
       setTimeout(() => {
-        onSuccess(data.user, data.creator);
+        if (onSuccess) {
+          onSuccess(data.user, data.creator);
+        } else if (typeof window !== 'undefined') {
+          window.location.href = '/dashboard';
+        }
       }, 600);
     } catch (err: any) {
       setErrorMsg(err.message || 'Registration failed. Please try again.');
@@ -193,7 +201,11 @@ export default function AuthCard({
 
       setSuccessMsg('Email verified successfully! You are all set.');
       setTimeout(() => {
-        if (data.user) onSuccess(data.user);
+        if (onSuccess) {
+          if (data.user) onSuccess(data.user);
+        } else if (typeof window !== 'undefined') {
+          window.location.href = '/dashboard';
+        }
       }, 700);
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to verify email.');
@@ -210,7 +222,7 @@ export default function AuthCard({
         {/* Header */}
         <div className="text-center space-y-2">
           <div className="inline-flex items-center justify-center p-3 rounded-2xl bg-white/[0.04] border border-white/10 shadow-inner mb-2">
-            <CHQLogo className="w-8 h-8" />
+            <CHQLogo size="sm" showText={false} />
           </div>
           
           <h2 className="text-2xl font-black text-white tracking-tight font-sans">

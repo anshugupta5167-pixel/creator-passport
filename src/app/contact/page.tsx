@@ -33,19 +33,21 @@ export default function ContactPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0b0d11] text-slate-100 flex flex-col font-sans selection:bg-sky-500/30 selection:text-white pt-20">
+    <div className="min-h-screen bg-[#07090e] text-slate-100 flex flex-col font-sans selection:bg-sky-500/30 selection:text-white pt-20">
       <Navbar />
 
-      <main className="flex-1">
-        {/* Header */}
-        <section className="relative py-24 sm:py-32 bg-[#0b0d11] overflow-hidden border-b border-white/5">
-          {/* Camouflaged Luxury Tech Banner Background & Grid */}
-          <CamouflageBannerBg />
+      <main className="flex-1 relative">
+        {/* Full-Page Ambient Tech Geometric Banner */}
+        <div className="fixed inset-0 pointer-events-none z-0">
+          <CamouflageBannerBg bannerOpacity="opacity-45" gridOpacity="opacity-30" />
+        </div>
 
-          <div className="container relative z-10 mx-auto px-4 md:px-6 max-w-4xl text-center space-y-6">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-[#11141a] px-4 py-1.5 shadow-sm">
+        {/* Header */}
+        <section className="relative pt-24 sm:pt-32 pb-16 z-10">
+          <div className="container relative z-10 mx-auto px-4 sm:px-6 lg:px-8 max-w-4xl text-center space-y-6">
+            <div className="inline-flex items-center gap-2 rounded-full border border-sky-500/25 bg-sky-500/10 px-4 py-1.5 shadow-sm">
               <Mail className="w-4 h-4 text-sky-400" />
-              <span className="text-xs sm:text-sm font-semibold text-slate-200">
+              <span className="text-xs sm:text-sm font-bold text-sky-400 font-mono tracking-wider">
                 GET IN TOUCH
               </span>
             </div>
@@ -54,14 +56,14 @@ export default function ContactPage() {
               Contact CreatorHQ
             </h1>
 
-            <p className="text-base sm:text-lg text-slate-400 max-w-2xl mx-auto leading-relaxed">
+            <p className="text-base sm:text-lg text-slate-300 max-w-2xl mx-auto leading-relaxed">
               Whether you are a brand exploring sponsor campaigns or a creator requesting verification assistance, our team is here to help.
             </p>
           </div>
         </section>
 
         {/* Contact Form & Info Grid */}
-        <section className="py-24 bg-[#0e1117]">
+        <section className="relative py-12 sm:py-20 z-10">
           <div className="container mx-auto px-4 md:px-6 max-w-5xl">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
               

@@ -44,6 +44,7 @@ import {
   RotateCcw
 } from 'lucide-react';
 import CHQLogo from '@/components/CHQLogo';
+import CamouflageBannerBg from '@/components/CamouflageBannerBg';
 import { subscribeToCreatorSync, broadcastLocalChange } from '@/lib/sync';
 
 // =============================================
@@ -559,14 +560,14 @@ export default function AdminPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          emailOrUsername: staffId.trim(),
+          identifier: staffId.trim(),
           password: staffPass,
         }),
       });
 
       const data = await res.json();
       if (!res.ok) {
-        setLoginError(data.error || 'Authentication failed. Please verify credentials.');
+        setLoginError(data.message || data.error || 'Authentication failed. Please verify credentials.');
         setLoginLoading(false);
         return;
       }
@@ -982,8 +983,13 @@ export default function AdminPage() {
   // =========================================================================
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-[#0b0d11] text-white flex flex-col justify-center items-center px-4 font-sans">
-        <div className="w-full max-w-md p-8 rounded-2xl bg-[#11141a] border border-white/10 shadow-2xl space-y-6">
+      <div className="min-h-screen bg-[#060911] text-white flex flex-col justify-center items-center px-4 font-sans relative overflow-hidden">
+        {/* Seamless Luxury Tech Atmosphere */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <CamouflageBannerBg bannerOpacity="opacity-50" gridOpacity="opacity-25" />
+        </div>
+
+        <div className="w-full max-w-md p-8 sm:p-9 rounded-3xl bg-[#0c101d]/90 border border-white/10 shadow-2xl space-y-6 relative z-10 backdrop-blur-2xl">
           <div className="flex flex-col items-center text-center space-y-2">
             <CHQLogo size="lg" showText={false} />
             <h1 className="text-2xl font-bold text-white tracking-tight mt-2 font-sans">

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu, X, ArrowRight, User as UserIcon, ShieldCheck, LogOut } from 'lucide-react';
+import { Menu, X, ArrowRight, User as UserIcon, ShieldCheck, LogOut, Sparkles } from 'lucide-react';
 import CHQLogo from '@/components/CHQLogo';
 import { subscribeToCreatorSync } from '@/lib/sync';
 
@@ -83,12 +83,15 @@ export default function Navbar() {
     }
   };
 
+  // Dedicated routes
   const navLinks = [
+    { name: 'About', href: '/about' },
+    { name: 'Services', href: '/services' },
     { name: 'Talents', href: '/talents' },
-    { name: 'Brands', href: '/brands' },
     { name: 'Compare', href: '/compare' },
-    { name: 'About', href: '/#about' },
-    { name: 'FAQ', href: '/#faq' },
+    { name: 'FAQ', href: '/faq' },
+    { name: 'Contact', href: '/contact' },
+    { name: 'Founders', href: '/founders' },
   ];
 
   const displayName = creator?.displayName || user?.displayName || user?.username || 'Creator';
@@ -96,194 +99,190 @@ export default function Navbar() {
   const avatarUrl = creator?.avatarUrl || user?.avatarUrl;
 
   return (
-    <header className="fixed top-0 inset-x-0 z-50 bg-[#0b0d11]/85 backdrop-blur-md border-b border-white/10 transition-colors">
-      <div className="container mx-auto px-4 md:px-6 h-16 sm:h-20 flex items-center justify-between gap-4">
-        
-        {/* LOGO & BRAND */}
-        <div className="flex items-center gap-8">
-          <Link href="/" className="flex items-center gap-2 group transition-transform active:scale-95">
-            <CHQLogo className="w-8 h-8 sm:w-9 sm:h-9" />
-            <span className="font-extrabold text-xl sm:text-2xl tracking-tighter text-white font-sans flex items-center">
-              CREATOR<span className="text-sky-400">HQ</span>
-            </span>
-          </Link>
+    <header className="fixed top-4 sm:top-5 inset-x-0 z-50 flex justify-center px-3 sm:px-6 pointer-events-none">
+      <nav className="pointer-events-auto w-full max-w-6xl flex items-center justify-between px-5 sm:px-7 py-2.5 sm:py-3 rounded-full bg-[#080c16]/90 border border-white/10 backdrop-blur-2xl shadow-[0_12px_40px_rgba(0,0,0,0.6)]">
+          
+          {/* LEFT: BRAND LOGO */}
+          <div className="flex items-center gap-3">
+            <Link href="/" className="flex items-center gap-2.5 group transition-transform active:scale-95">
+              <CHQLogo size="sm" showText={false} />
+              <span className="font-extrabold text-xl sm:text-2xl tracking-tight text-white font-sans flex items-center">
+                Creator<span className="text-sky-400">HQ</span>
+                <span className="ml-1.5 w-1.5 h-1.5 rounded-full bg-sky-400 shadow-[0_0_8px_#38bdf8]" />
+              </span>
+            </Link>
+          </div>
 
-          {/* DESKTOP NAV */}
-          <nav className="hidden lg:flex items-center gap-6">
+          {/* CENTER: DESKTOP NAV LINKS (Toadster rounded pills) */}
+          <div className="hidden lg:flex items-center gap-1">
             {navLinks.map((link) => {
               const isActive = pathname === link.href;
               return (
                 <Link
                   key={link.name}
                   href={link.href}
-                  className={`text-sm font-medium transition-colors hover:text-white ${
-                    isActive ? 'text-white font-semibold' : 'text-slate-300'
+                  className={`text-xs xl:text-sm font-medium px-3 py-1.5 rounded-full transition-all ${
+                    isActive
+                      ? 'text-white bg-white/10 font-semibold shadow-sm'
+                      : 'text-slate-300 hover:text-white hover:bg-white/5'
                   }`}
                 >
                   {link.name}
                 </Link>
               );
             })}
-          </nav>
-        </div>
-
-        {/* RIGHT CONTROLS / AUTH */}
-        <div className="flex items-center gap-3">
-          {user ? (
-            <div className="flex items-center gap-2 sm:gap-3">
-              {/* Creator Identity Button */}
-              <Link
-                href="/dashboard"
-                className="group flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-[#121622] via-[#161b2a] to-[#141824] border border-white/15 hover:border-sky-400/60 transition-all shadow-[0_2px_14px_rgba(0,0,0,0.5)] hover:shadow-sky-500/20"
-                title={`Signed in as ${displayName} (@${handle})`}
-              >
-                {avatarUrl ? (
-                  <img
-                    src={avatarUrl}
-                    alt={displayName}
-                    className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover border border-sky-400/40 shrink-0 ring-2 ring-black/80 shadow-md"
-                  />
-                ) : (
-                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-br from-sky-400 via-sky-500 to-blue-600 text-white font-black flex items-center justify-center text-xs shrink-0 shadow-md ring-1 ring-sky-300/50">
-                    {displayName.charAt(0).toUpperCase()}
-                  </div>
-                )}
-                <div className="flex flex-col text-left leading-tight min-w-0 pr-1">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-bold text-white group-hover:text-sky-300 transition-colors tracking-tight truncate max-w-[120px] font-sans">
-                      {displayName}
-                    </span>
-                    {creator?.isVerified && (
-                      <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0 shadow-[0_0_8px_#10b981]" />
-                    )}
-                  </div>
-                  <span className="text-[10px] font-semibold text-sky-400 font-sans tracking-tight">
-                    @{handle}
-                  </span>
-                </div>
-              </Link>
-
-              {/* Verified Badge if verified */}
-              {creator?.isVerified && (
-                <div
-                  className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-950/60 border border-emerald-500/40 text-emerald-400 text-xs font-semibold select-none backdrop-blur-md"
-                  title="Official CreatorHQ Verified Profile"
-                >
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                  <span className="text-[10px] uppercase font-bold tracking-wide">Verified</span>
-                </div>
-              )}
-
-              {/* Logout Option */}
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-[#161922] hover:bg-red-950/40 border border-white/10 hover:border-red-500/40 text-slate-300 hover:text-red-400 text-xs font-semibold transition-all shadow-sm"
-                title="Sign out of your account"
-              >
-                <LogOut className="w-3.5 h-3.5 text-slate-400 group-hover:text-red-400" />
-                <span className="hidden sm:inline font-sans">Sign Out</span>
-              </button>
-            </div>
-          ) : (
-            <>
-              <Link
-                href="/dashboard"
-                className="text-sm font-semibold text-slate-300 hover:text-white transition-colors px-3 py-2 hidden sm:flex items-center gap-1.5"
-              >
-                <UserIcon className="w-4 h-4 text-sky-400" />
-                <span>Sign In</span>
-              </Link>
-
-              <Link
-                href="/dashboard"
-                className="items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-semibold h-10 px-5 hidden md:flex btn-chq-primary shadow-sm text-white"
-              >
-                <span>Start Creating</span>
-                <ArrowRight className="w-4 h-4" />
-              </Link>
-            </>
-          )}
-
-          {/* MOBILE MENU TOGGLE */}
-          <div className="lg:hidden">
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="inline-flex items-center justify-center rounded-lg text-sm font-medium h-10 w-10 border border-white/10 bg-[#161922] text-slate-200 hover:text-white"
-              aria-label="Open navigation menu"
-            >
-              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </button>
           </div>
-        </div>
 
-      </div>
-
-      {/* MOBILE MENU DRAWER */}
-      {mobileMenuOpen && (
-        <div className="lg:hidden border-b border-white/10 bg-[#0b0d11] px-4 pt-2 pb-6 space-y-3">
-          {navLinks.map((link) => (
-            <Link
-              key={link.name}
-              href={link.href}
-              onClick={() => setMobileMenuOpen(false)}
-              className="block py-2 text-base font-medium text-slate-300 hover:text-sky-400 transition-colors"
-            >
-              {link.name}
-            </Link>
-          ))}
-          <div className="pt-4 border-t border-white/10 flex flex-col gap-2">
+          {/* RIGHT: AUTH / DASHBOARD CTAS */}
+          <div className="flex items-center gap-2 sm:gap-3">
             {user ? (
-              <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                {/* Creator Studio Profile Pill */}
                 <Link
                   href="/dashboard"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center gap-3.5 p-3 rounded-2xl bg-gradient-to-r from-[#121622] to-[#171d2b] border border-white/15 text-white shadow-lg"
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/10 hover:border-sky-400/50 hover:bg-white/[0.08] transition-all shadow-sm"
+                  title={`Signed in as ${displayName} (@${handle})`}
                 >
                   {avatarUrl ? (
                     <img
                       src={avatarUrl}
                       alt={displayName}
-                      className="w-10 h-10 rounded-full object-cover border border-sky-400/40 shrink-0 ring-2 ring-black/80 shadow-md"
+                      className="w-6 h-6 rounded-full object-cover border border-sky-400/40 ring-1 ring-black"
                     />
                   ) : (
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-sky-400 to-blue-600 text-white font-black flex items-center justify-center text-sm shrink-0 shadow-md ring-1 ring-sky-300/40">
+                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-sky-400 to-blue-600 text-white font-black flex items-center justify-center text-[10px]">
                       {displayName.charAt(0).toUpperCase()}
                     </div>
                   )}
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-bold truncate flex items-center gap-2 font-sans tracking-tight">
-                      <span>{displayName}</span>
-                      {creator?.isVerified && (
-                        <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0 shadow-[0_0_8px_#10b981]" />
-                      )}
-                    </div>
-                    <div className="text-xs text-sky-400 font-semibold font-mono">
-                      @{handle}
-                    </div>
-                  </div>
+                  <span className="text-xs font-bold text-white tracking-tight truncate max-w-[100px] sm:max-w-[130px]">
+                    {displayName}
+                  </span>
+                  {creator?.isVerified && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_#10b981]" />
+                  )}
                 </Link>
 
+                {/* Studio CTA */}
+                <Link
+                  href="/dashboard"
+                  className="hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full bg-sky-500/10 border border-sky-500/30 text-sky-300 hover:bg-sky-500/20 transition-colors"
+                >
+                  <span>Studio</span>
+                </Link>
+
+                {/* Logout Button */}
                 <button
-                  onClick={() => {
-                    setMobileMenuOpen(false);
-                    handleLogout();
-                  }}
-                  className="w-full py-2.5 rounded-lg bg-red-950/40 hover:bg-red-900/60 border border-red-500/30 text-red-300 text-xs font-semibold flex items-center justify-center gap-2"
+                  onClick={handleLogout}
+                  className="p-1.5 rounded-full text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                  title="Sign Out"
                 >
                   <LogOut className="w-4 h-4" />
-                  <span>Sign Out</span>
                 </button>
               </div>
             ) : (
-              <Link
-                href="/dashboard"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center justify-center gap-2 w-full h-11 rounded-lg btn-chq-primary text-sm font-semibold"
-              >
-                <span>Start Creating</span>
-                <ArrowRight className="w-4 h-4" />
-              </Link>
+              <div className="flex items-center gap-2">
+                <Link
+                  href="/signin"
+                  className="text-xs sm:text-sm font-semibold text-slate-300 hover:text-white transition-colors px-3 py-1.5 rounded-full hover:bg-white/5"
+                >
+                  Sign In
+                </Link>
+
+                <Link
+                  href="/signup"
+                  className="inline-flex items-center justify-center gap-1.5 text-xs sm:text-sm font-extrabold h-9 sm:h-10 px-5 rounded-full bg-gradient-to-r from-sky-400 via-sky-300 to-blue-500 hover:from-sky-300 hover:to-blue-400 text-slate-950 shadow-[0_0_24px_rgba(56,189,248,0.35)] active:scale-95 transition-all"
+                >
+                  <span>Start Creating</span>
+                  <ArrowRight className="w-3.5 h-3.5 text-slate-950 stroke-[2.5]" />
+                </Link>
+              </div>
             )}
+
+            {/* Mobile menu toggle */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="lg:hidden p-2 rounded-xl text-slate-300 hover:text-white hover:bg-white/5 transition-colors"
+              aria-label="Toggle navigation menu"
+            >
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
+          </div>
+
+        </nav>
+
+      {/* MOBILE DRAWER */}
+      {mobileMenuOpen && (
+        <div className="pointer-events-auto lg:hidden w-full max-w-7xl px-3 sm:px-6 pt-2">
+          <div className="p-4 rounded-2xl bg-[#0b0e14]/95 border border-white/10 backdrop-blur-2xl shadow-2xl space-y-2">
+            <div className="grid grid-cols-2 gap-1.5">
+              {navLinks.map((link) => {
+                const isActive = pathname === link.href;
+                return (
+                  <Link
+                    key={link.name}
+                    href={link.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`text-sm font-medium px-3 py-2 rounded-xl transition-all ${
+                      isActive
+                        ? 'text-white bg-white/10 font-semibold'
+                        : 'text-slate-300 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    {link.name}
+                  </Link>
+                );
+              })}
+            </div>
+
+            <div className="pt-3 border-t border-white/10 flex flex-col gap-2">
+              {user ? (
+                <>
+                  <Link
+                    href="/dashboard"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center justify-between p-3 rounded-xl bg-white/[0.04] border border-white/10 text-white font-semibold text-sm"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      {avatarUrl ? (
+                        <img src={avatarUrl} alt="" className="w-7 h-7 rounded-full object-cover" />
+                      ) : (
+                        <div className="w-7 h-7 rounded-full bg-sky-500 text-slate-950 font-bold flex items-center justify-center text-xs">
+                          {displayName.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      <span>Creator Studio</span>
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-sky-400" />
+                  </Link>
+                  <button
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      handleLogout();
+                    }}
+                    className="w-full text-center text-xs text-red-400 py-2 hover:bg-red-500/10 rounded-lg transition-colors font-medium"
+                  >
+                    Log Out
+                  </button>
+                </>
+              ) : (
+                <div className="grid grid-cols-2 gap-2">
+                  <Link
+                    href="/signin"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center justify-center h-10 rounded-xl bg-white/[0.05] border border-white/10 text-sm font-semibold text-white hover:bg-white/10 transition-colors"
+                  >
+                    Sign In
+                  </Link>
+                  <Link
+                    href="/signup"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center justify-center h-10 rounded-xl bg-gradient-to-r from-sky-400 to-blue-600 text-slate-950 text-sm font-bold shadow-md"
+                  >
+                    Start Creating
+                  </Link>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

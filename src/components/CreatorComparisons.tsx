@@ -97,7 +97,7 @@ export default function CreatorComparisons() {
   const activeComp = comparisons.find((c) => c.id === activeComparisonId) || comparisons[0];
 
   return (
-    <section className="py-20 md:py-28 bg-[#0b0d11] relative overflow-hidden border-t border-white/5 font-sans">
+    <section className="py-20 md:py-28 bg-transparent relative overflow-hidden font-sans">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         
         {/* Section Header */}
@@ -155,23 +155,23 @@ export default function CreatorComparisons() {
               <strong className="text-white">Pricing & Economics:</strong> {activeComp.costComparison}
             </span>
             <Link
-              href="/dashboard"
-              className="text-sky-400 hover:text-sky-300 font-semibold flex items-center gap-1.5 shrink-0 text-sm"
+              href="/signup"
+              className="text-sky-400 hover:text-sky-300 font-bold flex items-center gap-1.5 shrink-0 text-sm"
             >
-              <span>Mint Passport</span>
+              <span>Start Creating</span>
               <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
         </div>
 
-        {/* Horizontal Navigation Pills (Exact Style from Screenshot 5) */}
+        {/* Horizontal Navigation Pills */}
         <div className="flex items-center gap-2.5 overflow-x-auto pb-4 scrollbar-none">
           <Link
-            href="/dashboard"
-            className="px-5 py-3 rounded-xl btn-chq-primary text-xs font-bold text-white shrink-0 flex items-center gap-2 shadow-lg shadow-sky-500/20 hover:scale-[1.02] transition-transform"
+            href="/signup"
+            className="px-6 py-2.5 rounded-full btn-chq-primary text-xs font-extrabold shrink-0 flex items-center gap-2 shadow-lg shadow-sky-500/20"
           >
-            <span>Open CreatorHQ</span>
-            <ArrowRight className="w-3.5 h-3.5" />
+            <span>Start Creating</span>
+            <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
           </Link>
 
           {comparisons.map((c) => {

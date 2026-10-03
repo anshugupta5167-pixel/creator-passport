@@ -28,12 +28,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = await request.json();
-    const { identifier, password } = body;
+    const body = await request.json().catch(() => ({}));
+    const identifier = (body.identifier || body.emailOrUsername || body.email || body.username || body.staffId || '').toString().trim();
+    const password = (body.password || body.staffPass || '').toString();
 
-    if (!identifier || typeof identifier !== 'string' || !password || typeof password !== 'string') {
+    if (!identifier || !password) {
       return NextResponse.json(
-        { error: 'VALIDATION_ERROR', message: 'Please provide both your email/username and password.' },
+        { error: 'VALIDATION_ERROR', message: 'Please provide both your ID / email and password.' },
         { status: 400 }
       );
     }

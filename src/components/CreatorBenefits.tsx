@@ -127,13 +127,15 @@ export default function CreatorBenefits() {
               Join verified YouTube and Discord creators with an authenticated passkey.
             </p>
           </div>
-          <Link
-            href="/dashboard"
-            className="px-6 py-3 rounded-lg btn-chq-primary text-xs font-semibold flex items-center gap-2 text-white shrink-0 shadow-sm"
-          >
-            <span>Create Your Pass</span>
-            <ArrowRight className="w-4 h-4" />
-          </Link>
+          <div className="p-1 rounded-full border border-sky-400/20 bg-sky-950/20 backdrop-blur-sm shadow-[0_0_24px_rgba(56,189,248,0.2)] shrink-0">
+            <Link
+              href="/signup"
+              className="btn-chq-primary px-7 py-3 text-xs sm:text-sm font-extrabold flex items-center gap-2"
+            >
+              <span>Start Creating</span>
+              <ArrowRight className="w-4 h-4 stroke-[2.5]" />
+            </Link>
+          </div>
         </div>
 
       </div>
