@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchYouTubeChannel } from '@/lib/youtube';
-import { getCreatorByIdDB, addCreatorDB } from '@/lib/db';
+import { getAllCreatorsDBAsync, getCreatorByIdDB, addCreatorDB } from '@/lib/db';
 import { getAuthenticatedUser } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
+    await getAllCreatorsDBAsync();
     const body = await request.json();
     const { url, passportId, channelId } = body;
 

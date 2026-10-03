@@ -4,7 +4,7 @@ import {
   getUserByResetTokenPersistentDB,
   updateUserPersistentDB,
   deleteUserSessionsDB,
-  addAuditLogDB,
+  addAuditLogPersistentDB,
 } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
     // Invalidate all active sessions for security
     deleteUserSessionsDB(user.id);
 
-    addAuditLogDB({
+    await addAuditLogPersistentDB({
       userId: user.id,
       action: 'PASSWORD_RESET_COMPLETED',
       actor: user.email,

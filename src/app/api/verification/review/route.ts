@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { updateVerificationStatusDB, addAuditLogDB } from '@/lib/db';
+import { updateVerificationStatusDB, addAuditLogPersistentDB, getAllVerificationsDBAsync, persistVerificationDB } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
@@ -12,6 +12,7 @@ export async function POST(request: NextRequest) {
     if (adminResponse || !auth) return adminResponse!;
 
     const adminUser = auth.user;
+    await getAllVerificationsDBAsync();
     const body = await request.json();
     const {
       verificationId,
@@ -83,7 +84,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    addAuditLogDB({
+    await persistVerificationDB(result.verification, result.creator);
+
+    await addAuditLogPersistentDB({
       userId: adminUser.id,
       action: `VERIFICATION_${newStatus}`,
       actor: adminUser.email,

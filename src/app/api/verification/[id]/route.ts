@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getVerificationQueue } from '@/lib/data';
-import { getVerificationByIdDB } from '@/lib/db';
+import { getAllVerificationsDBAsync, getVerificationByIdDB } from '@/lib/db';
+import { isMongoConfigured } from '@/lib/mongoStore';
 
 export async function GET(
   request: NextRequest,
@@ -8,7 +9,10 @@ export async function GET(
 ) {
   const { id } = await context.params;
 
-  // Try the new DB first, then fall back to in-memory queue
+  // Hydrate the canonical database first so serverless instances never read a
+  // stale process cache. MongoDB is authoritative in production; never expose
+  // demo queue entries when a real record is absent there.
+  await getAllVerificationsDBAsync();
   const dbItem = getVerificationByIdDB(id);
   if (dbItem) {
     return NextResponse.json({
@@ -20,6 +24,13 @@ export async function GET(
       submittedAt: dbItem.submittedAt,
       proofDocuments: dbItem.proofDocuments,
     });
+  }
+
+  if (isMongoConfigured()) {
+    return NextResponse.json(
+      { error: 'Verification record not found', id },
+      { status: 404 }
+    );
   }
 
   const queue = getVerificationQueue();

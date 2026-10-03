@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateSecureToken, checkRateLimit } from '@/lib/auth';
-import { getUserByEmailPersistentDB, updateUserPersistentDB, addAuditLogDB } from '@/lib/db';
+import { getUserByEmailPersistentDB, updateUserPersistentDB, addAuditLogPersistentDB } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
       resetExpires,
     });
 
-    addAuditLogDB({
+    await addAuditLogPersistentDB({
       userId: user.id,
       action: 'PASSWORD_RESET_REQUESTED',
       actor: user.email,

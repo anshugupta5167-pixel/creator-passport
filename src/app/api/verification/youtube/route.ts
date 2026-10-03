@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCreatorBySlug, togglePlatformConnection } from '@/lib/data';
-import { getCreatorBySlugDB, addCreatorDB } from '@/lib/db';
+import { getAllCreatorsDBAsync, getCreatorBySlugDB, addCreatorDB } from '@/lib/db';
 
 export async function POST(request: NextRequest) {
   try {
@@ -8,6 +8,7 @@ export async function POST(request: NextRequest) {
     const { slug, handle, googleAuthToken } = body;
 
     const identifier = slug || handle || '';
+    await getAllCreatorsDBAsync();
     const creator = getCreatorBySlugDB(identifier) || getCreatorBySlug(identifier);
     if (!creator) {
       return NextResponse.json({ error: 'Creator not found' }, { status: 404 });

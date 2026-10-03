@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getProofFilePath } from '@/lib/db';
+import { getProofFileDB } from '@/lib/db';
 import { getAuthenticatedUser } from '@/lib/auth';
-import fs from 'fs';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,16 +43,14 @@ export async function GET(
       );
     }
 
-    const filePath = getProofFilePath(creatorSlug, storedFilename);
+    const fileBuffer = await getProofFileDB(creatorSlug, storedFilename);
 
-    if (!filePath || !fs.existsSync(filePath)) {
+    if (!fileBuffer) {
       return NextResponse.json(
         { error: 'Proof file not found' },
         { status: 404 }
       );
     }
-
-    const fileBuffer = fs.readFileSync(filePath);
 
     const ext = storedFilename.split('.').pop()?.toLowerCase() || 'png';
     const contentTypeMap: Record<string, string> = {
@@ -66,7 +63,7 @@ export async function GET(
     };
     const contentType = contentTypeMap[ext] || 'application/octet-stream';
 
-    return new NextResponse(fileBuffer, {
+    return new NextResponse(new Uint8Array(fileBuffer), {
       status: 200,
       headers: {
         'Content-Type': contentType,

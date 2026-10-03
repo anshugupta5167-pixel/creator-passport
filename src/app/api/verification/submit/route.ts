@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
-  submitVerificationDB,
+  submitVerificationPersistentDB,
   getAllVerificationsDBAsync,
   saveProofDocumentDB,
   getCreatorBySlugDB,
   getCreatorByUserIdDB,
-  addAuditLogDB,
+  addAuditLogPersistentDB,
 } from '@/lib/db';
 import { getAuthenticatedUser, requireAuth, requireAdmin } from '@/lib/auth';
 
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
     const savedProofs = [];
     if (Array.isArray(proofFiles)) {
       for (const file of proofFiles) {
-        const doc = saveProofDocumentDB(
+        const doc = await saveProofDocumentDB(
           targetSlug,
           file.filename || 'proof.png',
           file.base64 || '',
@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create the verification submission
-    const submission = submitVerificationDB({
+    const submission = await submitVerificationPersistentDB({
       creatorId: creator.id,
       userId: user.id,
       creatorSlug: targetSlug,
@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
       reviewedBy: undefined,
     });
 
-    addAuditLogDB({
+    await addAuditLogPersistentDB({
       userId: user.id,
       action: 'VERIFICATION_SUBMITTED',
       actor: user.email,

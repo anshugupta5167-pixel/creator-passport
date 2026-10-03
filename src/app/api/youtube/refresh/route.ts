@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchYouTubeChannel } from '@/lib/youtube';
-import { getCreatorByIdDB, addCreatorDB } from '@/lib/db';
+import { getAllCreatorsDBAsync, getCreatorByIdDB, addCreatorDB } from '@/lib/db';
 
 export async function GET(request: NextRequest) {
   return handleRefresh(request);
@@ -12,6 +12,7 @@ export async function POST(request: NextRequest) {
 
 async function handleRefresh(request: NextRequest) {
   try {
+    await getAllCreatorsDBAsync();
     const searchParams = request.nextUrl.searchParams;
     let passportId = searchParams.get('passportId');
     let channelId = searchParams.get('channelId');

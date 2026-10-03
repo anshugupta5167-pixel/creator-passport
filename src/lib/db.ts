@@ -32,6 +32,14 @@ import {
 } from './firebaseAdminStore';
 import { resolveYouTubeUrl, resolveDiscordUrl, resolveInstagramUrl } from './urls';
 import { notifySubscribers } from './events';
+import { isEphemeralRuntime } from './runtime';
+import {
+  getMongoDb,
+  getMongoProofBucket,
+  isMongoConfigured,
+  readMongoProofFile,
+  saveMongoProofFile,
+} from './mongoStore';
 
 // Data directory
 const SEED_DIR = path.join(process.cwd(), 'data');
@@ -108,11 +116,7 @@ function applyReviewedVerificationStatuses(): void {
 }
 
 export function getWritablePaths() {
-  const isServerless = Boolean(
-    process.env.VERCEL || 
-    process.env.AWS_LAMBDA_FUNCTION_NAME || 
-    process.env.NOW_REGION
-  );
+  const isServerless = isEphemeralRuntime();
 
   if (isServerless) {
     const tmpDataDir = path.join(os.tmpdir(), 'creator-passport-data');
@@ -238,35 +242,55 @@ export function getUserByUsernameDB(username: string): User | null {
 }
 
 export async function getUserByIdPersistentDB(id: string): Promise<User | null> {
+  if (isMongoConfigured()) {
+    const db = await getMongoDb();
+    return await db.collection<User>('users').findOne({ id }, { projection: { _id: 0 } }) as User | null;
+  }
+  if (isEphemeralRuntime()) return null;
   const localUser = getUserByIdDB(id);
-  if (!isFirebaseAdminStoreConfigured()) return process.env.VERCEL && localUser?.role !== 'ADMIN' ? null : localUser;
+  if (!isFirebaseAdminStoreConfigured()) return isEphemeralRuntime() && localUser?.role !== 'ADMIN' ? null : localUser;
 
   const remoteUser = await readFirestoreDocument<User>('users', id);
   if (remoteUser) return remoteUser;
-  return process.env.VERCEL && localUser?.role !== 'ADMIN' ? null : localUser;
+  return isEphemeralRuntime() && localUser?.role !== 'ADMIN' ? null : localUser;
 }
 
 export async function getUserByEmailPersistentDB(email: string): Promise<User | null> {
   const cleanEmail = email.toLowerCase().trim();
+  if (isMongoConfigured()) {
+    const db = await getMongoDb();
+    return await db.collection<User>('users').findOne({ email: cleanEmail }, { projection: { _id: 0 } }) as User | null;
+  }
+  if (isEphemeralRuntime()) return null;
   if (isFirebaseAdminStoreConfigured()) {
     const remoteUser = await findFirestoreDocument<User>('users', 'email', cleanEmail);
     if (remoteUser) return remoteUser;
   }
   const localUser = getUserByEmailDB(cleanEmail);
-  return process.env.VERCEL && localUser?.role !== 'ADMIN' ? null : localUser;
+  return isEphemeralRuntime() && localUser?.role !== 'ADMIN' ? null : localUser;
 }
 
 export async function getUserByUsernamePersistentDB(username: string): Promise<User | null> {
   const cleanUsername = username.toLowerCase().replace(/^@/, '').trim();
+  if (isMongoConfigured()) {
+    const db = await getMongoDb();
+    return await db.collection<User>('users').findOne({ username: cleanUsername }, { projection: { _id: 0 } }) as User | null;
+  }
+  if (isEphemeralRuntime()) return null;
   if (isFirebaseAdminStoreConfigured()) {
     const remoteUser = await findFirestoreDocument<User>('users', 'username', cleanUsername);
     if (remoteUser) return remoteUser;
   }
   const localUser = getUserByUsernameDB(cleanUsername);
-  return process.env.VERCEL && localUser?.role !== 'ADMIN' ? null : localUser;
+  return isEphemeralRuntime() && localUser?.role !== 'ADMIN' ? null : localUser;
 }
 
 export async function getUserByResetTokenPersistentDB(token: string): Promise<User | null> {
+  if (isMongoConfigured()) {
+    const db = await getMongoDb();
+    return await db.collection<User>('users').findOne({ resetToken: token }, { projection: { _id: 0 } }) as User | null;
+  }
+  if (isEphemeralRuntime()) return null;
   if (isFirebaseAdminStoreConfigured()) {
     return findFirestoreDocument<User>('users', 'resetToken', token);
   }
@@ -274,8 +298,14 @@ export async function getUserByResetTokenPersistentDB(token: string): Promise<Us
 }
 
 export async function createUserPersistentDB(user: User): Promise<User> {
-  if (process.env.VERCEL && !isFirebaseAdminStoreConfigured()) {
-    throw new Error('Creator account storage is not configured. Add Firebase Admin service-account credentials in Vercel before signing up.');
+  if (isMongoConfigured()) {
+    const db = await getMongoDb();
+    await db.collection<User>('users').insertOne(user);
+    memoryUsers = [...memoryUsers.filter((item) => item.id !== user.id), user];
+    return user;
+  }
+  if (isEphemeralRuntime()) {
+    throw new Error('Account storage is not configured. Add MONGODB_URI to this deployment before signing up.');
   }
   createUserDB(user);
   if (isFirebaseAdminStoreConfigured()) {
@@ -285,12 +315,23 @@ export async function createUserPersistentDB(user: User): Promise<User> {
 }
 
 export async function updateUserPersistentDB(id: string, updates: Partial<User>): Promise<User | null> {
+  if (isMongoConfigured()) {
+    const db = await getMongoDb();
+    const users = db.collection<User>('users');
+    const current = await users.findOne({ id }, { projection: { _id: 0 } }) as User | null;
+    if (!current) return null;
+    const updated: User = { ...current, ...updates, updatedAt: new Date().toISOString() };
+    await users.replaceOne({ id }, updated, { upsert: false });
+    memoryUsers = [...memoryUsers.filter((item) => item.id !== id), updated];
+    return updated;
+  }
+  if (isEphemeralRuntime()) throw new Error('Account storage is not configured. Add MONGODB_URI to this deployment.');
   const user = await getUserByIdPersistentDB(id);
   if (!user) return null;
   const updated: User = { ...user, ...updates, updatedAt: new Date().toISOString() };
   if (isFirebaseAdminStoreConfigured()) {
     await writeFirestoreDocument('users', id, updated as unknown as Record<string, unknown>);
-  } else if (process.env.VERCEL && updated.role !== 'ADMIN') {
+  } else if (isEphemeralRuntime() && updated.role !== 'ADMIN') {
     throw new Error('Creator account storage is not configured.');
   }
   updateUserDB(id, updates);
@@ -298,8 +339,19 @@ export async function updateUserPersistentDB(id: string, updates: Partial<User>)
 }
 
 export async function deleteUserPersistentDB(id: string): Promise<boolean> {
+  if (isMongoConfigured()) {
+    const db = await getMongoDb();
+    const users = db.collection<User>('users');
+    const result = await users.deleteOne({ id });
+    if (!result.deletedCount) return false;
+    await db.collection('sessions').deleteMany({ userId: id });
+    await deleteCreatorByUserIdDB(id);
+    memoryUsers = memoryUsers.filter((user) => user.id !== id);
+    return true;
+  }
+  if (isEphemeralRuntime()) throw new Error('Account storage is not configured. Add MONGODB_URI to this deployment.');
   if (isFirebaseAdminStoreConfigured()) await deleteFirestoreDocument('users', id);
-  else if (process.env.VERCEL && getUserByIdDB(id)?.role !== 'ADMIN') {
+  else if (isEphemeralRuntime() && getUserByIdDB(id)?.role !== 'ADMIN') {
     throw new Error('Creator account storage is not configured.');
   }
   return deleteUserDB(id);
@@ -458,6 +510,53 @@ export function addAuditLogDB(log: { userId?: string | null; action: string; act
   return entry;
 }
 
+export async function addAuditLogPersistentDB(log: { userId?: string | null; action: string; actor: string; details?: any }): Promise<AuditLog> {
+  if (isMongoConfigured()) {
+    const db = await getMongoDb();
+    const entry: AuditLog = {
+      id: `audit_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+      userId: log.userId || null,
+      action: log.action,
+      actor: log.actor,
+      details: log.details || null,
+      timestamp: new Date().toISOString(),
+    };
+    await db.collection<AuditLog>('auditLogs').insertOne(entry);
+    memoryAuditLogs = [entry, ...memoryAuditLogs].slice(0, 500);
+    return entry;
+  }
+  if (isEphemeralRuntime()) throw new Error('Audit storage is not configured. Add MONGODB_URI to this deployment.');
+  const entry = addAuditLogDB(log);
+  if (isFirebaseAdminStoreConfigured()) {
+    await writeFirestoreDocument('auditLogs', entry.id, entry as unknown as Record<string, unknown>);
+  } else if (isEphemeralRuntime()) {
+    throw new Error('Audit log storage is not configured. Add MONGODB_URI to this deployment.');
+  }
+  return entry;
+}
+
+export async function getAuditLogsPersistentDB(): Promise<AuditLog[]> {
+  if (isMongoConfigured()) {
+    const db = await getMongoDb();
+    const logs = await db.collection<AuditLog>('auditLogs')
+      .find({}, { projection: { _id: 0 } })
+      .sort({ timestamp: -1 })
+      .limit(500)
+      .toArray();
+    memoryAuditLogs = logs;
+    return logs;
+  }
+  if (isEphemeralRuntime()) throw new Error('Audit storage is not configured. Add MONGODB_URI to this deployment.');
+  if (isFirebaseAdminStoreConfigured()) {
+    const records = await listFirestoreDocuments<AuditLog>('auditLogs');
+    return records.sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp)).slice(0, 500);
+  }
+  if (isEphemeralRuntime()) {
+    throw new Error('Audit log storage is not configured. Add MONGODB_URI to this deployment.');
+  }
+  return getAuditLogsDB();
+}
+
 // ==========================================
 // CREATOR PROFILES & CARDS
 // ==========================================
@@ -551,9 +650,11 @@ export function saveCreatorsToDisk(creators: CreatorProfile[]): boolean {
   }
 
   // Sync to persistent cloud database in background
-  pushCreatorsToCloudStore(memoryCreators).catch((err) => {
-    console.warn('[DB] Cloud sync notice:', err);
-  });
+  if (!isMongoConfigured()) {
+    pushCreatorsToCloudStore(memoryCreators).catch((err) => {
+      console.warn('[DB] Cloud sync notice:', err);
+    });
+  }
 
   return true;
 }
@@ -568,6 +669,64 @@ export function getAllCreatorsDB(): CreatorProfile[] {
 
 export async function getAllCreatorsDBAsync(): Promise<CreatorProfile[]> {
   getAllCreatorsDB();
+
+  if (isMongoConfigured()) {
+    const db = await getMongoDb();
+    const creators = await db.collection<CreatorProfile>('creators')
+      .find({}, { projection: { _id: 0 } })
+      .toArray();
+    memoryCreators = creators.map((creator) => normalizeCreatorVerification({
+      ...creator,
+      connections: creator.connections || {},
+    }));
+    const verifications = await db.collection<VerificationSubmission>('verifications')
+      .find({}, { projection: { _id: 0 } })
+      .toArray();
+    memoryVerifications = verifications;
+    areVerificationsLoaded = true;
+    return memoryCreators.map((creator) => ({ ...creator, connections: creator.connections || {} }));
+  }
+  if (isEphemeralRuntime()) throw new Error('Creator storage is not configured. Add MONGODB_URI to this deployment.');
+
+  // Firestore is authoritative on serverless hosting. Only import a legacy
+  // GitHub snapshot when the Firestore collection is still empty; otherwise
+  // deleted or stale records from the old snapshot could reappear.
+  if (isFirebaseAdminStoreConfigured()) {
+    const firebaseCreators = await listFirestoreDocuments<CreatorProfile>('creators');
+    if (firebaseCreators.length > 0) {
+      memoryCreators = firebaseCreators.map((creator) => normalizeCreatorVerification({
+        ...creator,
+        connections: creator.connections || {},
+      }));
+    } else {
+      const legacy = await fetchFromCloudStore();
+      if (legacy.hasCreatorSnapshot && legacy.creators.length > 0) {
+        memoryCreators = legacy.creators.map((creator) => normalizeCreatorVerification({
+          ...creator,
+          connections: creator.connections || {},
+        }));
+        await Promise.all(memoryCreators.map((creator) => {
+          const docId = (creator.passportId || creator.slug || creator.username || creator.id).toLowerCase().replace(/^@/, '');
+          return writeFirestoreDocument('creators', docId, creator as unknown as Record<string, unknown>);
+        }));
+      }
+    }
+
+    memoryVerifications = await listFirestoreDocuments<VerificationSubmission>('verifications');
+    if (memoryVerifications.length === 0) {
+      const legacy = await fetchFromCloudStore();
+      if (legacy.verifications?.length) {
+        memoryVerifications = legacy.verifications;
+        await Promise.all(memoryVerifications.map((verification) =>
+          writeFirestoreDocument('verifications', verification.id, verification as unknown as Record<string, unknown>)
+        ));
+      }
+    }
+    areVerificationsLoaded = true;
+    applyReviewedVerificationStatuses();
+    return memoryCreators.map((creator) => ({ ...creator, connections: creator.connections || {} }));
+  }
+
   try {
     const cloud = await fetchFromCloudStore();
     if (cloud.hasCreatorSnapshot) {
@@ -587,15 +746,6 @@ export async function getAllCreatorsDBAsync(): Promise<CreatorProfile[]> {
       mergeIncomingCreators(firebaseCreators);
     } catch (e) {
       console.warn('[DB] Firebase creator refresh notice:', e);
-    }
-  }
-
-  if (isFirebaseAdminStoreConfigured()) {
-    try {
-      const firebaseCreators = await listFirestoreDocuments<CreatorProfile>('creators');
-      mergeIncomingCreators(firebaseCreators);
-    } catch (e) {
-      console.warn('[DB] Firebase server creator refresh notice:', e);
     }
   }
 
@@ -651,6 +801,11 @@ export function getCreatorByIdDB(target: string): CreatorProfile | null {
 }
 
 export async function getCreatorByIdDBAsync(target: string): Promise<CreatorProfile | null> {
+  if (isMongoConfigured()) {
+    await getAllCreatorsDBAsync();
+    return getCreatorByIdDB(target);
+  }
+  if (isEphemeralRuntime()) throw new Error('Creator storage is not configured. Add MONGODB_URI to this deployment.');
   getAllCreatorsDB();
 
   try {
@@ -669,7 +824,7 @@ export function getCreatorByUsernameDB(username: string): CreatorProfile | null 
 }
 
 export async function addCreatorDB(creator: CreatorProfile): Promise<CreatorProfile> {
-  const current = getAllCreatorsDB();
+  const current = await getAllCreatorsDBAsync();
 
   // Normalize slug, handle, and niche — use slug as the primary identifier
   const rawSlug = (creator.slug || creator.username || 'creator').toLowerCase().replace(/^@/, '').trim();
@@ -696,6 +851,16 @@ export async function addCreatorDB(creator: CreatorProfile): Promise<CreatorProf
   let updatedList: CreatorProfile[];
   if (existingIdx >= 0) {
     const existing = current[existingIdx];
+    const existingVerification = memoryVerifications.find((verification) =>
+      verification.creatorSlug.toLowerCase() === cleanSlug ||
+      (!!existing.userId && verification.userId === existing.userId)
+    );
+    const hasStaffReview = Boolean(existingVerification?.reviewedAt || existing.verificationReviewedAt);
+    const canonicalStatus = hasStaffReview
+      ? (existingVerification?.reviewedAt && existingVerification.reviewedAt >= (existing.verificationReviewedAt || '')
+        ? existingVerification.status
+        : existing.verification_status || (existing.isVerified ? 'VERIFIED' : 'PENDING'))
+      : (creator.verification_status || existing.verification_status || (creator.isVerified || existing.isVerified ? 'VERIFIED' : 'PENDING'));
     const merged: CreatorProfile = {
       ...existing,
       ...creator,
@@ -707,8 +872,12 @@ export async function addCreatorDB(creator: CreatorProfile): Promise<CreatorProf
       digitalSignature: existing.digitalSignature || creator.digitalSignature,
       category: creator.category || existing.category,
       niche: creator.niche || existing.niche || creator.category,
-      verification_status: creator.verification_status || existing.verification_status || (creator.isVerified || existing.isVerified ? 'VERIFIED' : 'PENDING'),
-      isVerified: (creator.verification_status || existing.verification_status || (creator.isVerified || existing.isVerified ? 'VERIFIED' : 'PENDING')) === 'VERIFIED',
+      verification_status: canonicalStatus,
+      isVerified: canonicalStatus === 'VERIFIED',
+      verificationReviewedAt: existingVerification?.reviewedAt || existing.verificationReviewedAt,
+      rejectionReason: canonicalStatus === 'REJECTED'
+        ? (existingVerification?.rejectionReason || existing.rejectionReason || creator.rejectionReason)
+        : undefined,
       proofDocuments: creator.proofDocuments || existing.proofDocuments || [],
       connections: {
         ...existing.connections,
@@ -729,10 +898,39 @@ export async function addCreatorDB(creator: CreatorProfile): Promise<CreatorProf
 
   // Automatically sync creator proof and verification entry
   try {
-    syncCreatorToVerificationDB(existingIdx >= 0 ? current[existingIdx] : creator);
+    const syncedVerification = syncCreatorToVerificationDB(existingIdx >= 0 ? current[existingIdx] : creator);
+    if (syncedVerification && !isMongoConfigured() && isFirebaseAdminStoreConfigured()) {
+      await writeFirestoreDocument('verifications', syncedVerification.id, syncedVerification as unknown as Record<string, unknown>);
+    }
   } catch (e) {}
 
   const savedCreator = existingIdx >= 0 ? current[existingIdx] : creator;
+  if (isMongoConfigured()) {
+    const db = await getMongoDb();
+    const creators = db.collection<CreatorProfile>('creators');
+    const existing = await creators.findOne({
+      $or: [
+        ...(savedCreator.userId ? [{ userId: savedCreator.userId }] : []),
+        { slug: savedCreator.slug },
+      ],
+    });
+    if (existing) await creators.replaceOne({ _id: existing._id }, savedCreator);
+    else await creators.insertOne(savedCreator);
+
+    const synced = memoryVerifications.find((verification) => verification.creatorSlug === savedCreator.slug)
+      || syncCreatorToVerificationDB(savedCreator);
+    if (synced) {
+      await db.collection<VerificationSubmission>('verifications').replaceOne(
+        { creatorSlug: savedCreator.slug },
+        synced,
+        { upsert: true }
+      );
+      memoryVerifications = [...memoryVerifications.filter((verification) => verification.creatorSlug !== savedCreator.slug), synced];
+    }
+    return savedCreator;
+  }
+  if (isEphemeralRuntime()) throw new Error('Creator storage is not configured. Add MONGODB_URI to this deployment.');
+
   let savedToFirebase = false;
   if (isFirebaseAdminStoreConfigured()) {
     const docId = (savedCreator.passportId || savedCreator.slug || savedCreator.username || savedCreator.id).toLowerCase().replace(/^@/, '');
@@ -742,8 +940,8 @@ export async function addCreatorDB(creator: CreatorProfile): Promise<CreatorProf
     savedToFirebase = await syncCreatorToFirebase(savedCreator);
   }
   const savedToCloud = await pushCreatorsToCloudStore(memoryCreators);
-  if (process.env.VERCEL && !savedToFirebase && !savedToCloud) {
-    throw new Error('Creator card storage is not configured. Enable Firebase sync or configure GITHUB_DATA_TOKEN in Vercel before saving creator cards.');
+  if (isEphemeralRuntime() && !savedToFirebase && !savedToCloud) {
+    throw new Error('Creator card storage is not configured. Add MONGODB_URI to this deployment.');
   }
 
   return existingIdx >= 0 ? memoryCreators[existingIdx] : memoryCreators[0];
@@ -774,6 +972,30 @@ export async function deleteCreatorDB(targets: string[]): Promise<boolean> {
   });
 
   const changed = remaining.length !== current.length;
+  if (isMongoConfigured()) {
+    if (!changed) return false;
+    const removed = current.filter((creator) => !remaining.some((item) => item.id === creator.id));
+    const db = await getMongoDb();
+    const slugs = removed.map((creator) => creator.slug).filter(Boolean);
+    await db.collection('creators').deleteMany({
+      $or: [
+        { id: { $in: removed.map((creator) => creator.id) } },
+        { slug: { $in: slugs } },
+        { userId: { $in: removed.map((creator) => creator.userId).filter(Boolean) } },
+      ],
+    });
+    if (slugs.length) await db.collection('verifications').deleteMany({ creatorSlug: { $in: slugs } });
+    for (const creator of removed) {
+      if (!creator.slug) continue;
+      const bucket = await getMongoProofBucket();
+      const files = await bucket.find({ filename: new RegExp(`^creator-proofs/${creator.slug}/`) }).toArray();
+      await Promise.all(files.map((file) => bucket.delete(file._id).catch(() => undefined)));
+    }
+    memoryCreators = remaining;
+    memoryVerifications = memoryVerifications.filter((verification) => !slugs.includes(verification.creatorSlug));
+    return true;
+  }
+  if (isEphemeralRuntime()) throw new Error('Creator storage is not configured. Add MONGODB_URI to this deployment.');
   if (changed) {
     saveCreatorsToDisk(remaining);
     const cloudSaved = await pushCreatorsToCloudStore(remaining);
@@ -790,8 +1012,8 @@ export async function deleteCreatorDB(targets: string[]): Promise<boolean> {
         }
       } catch (e) {}
     }
-    if (process.env.VERCEL && !cloudSaved && !savedToFirebase && current.length > 0) {
-      throw new Error('Creator was removed locally, but cloud storage could not save the deletion. Configure Firebase Admin storage or GITHUB_DATA_TOKEN in Vercel.');
+    if (isEphemeralRuntime() && !cloudSaved && !savedToFirebase && current.length > 0) {
+      throw new Error('Creator was removed locally, but cloud storage could not save the deletion. Add MONGODB_URI to this deployment.');
     }
   }
 
@@ -848,9 +1070,11 @@ export function saveVerificationsToDisk(submissions: VerificationSubmission[]): 
     console.error('[DB] Error saving verifications to disk:', err);
   }
 
-  pushVerificationsToCloudStore(submissions).catch((err) => {
-    console.warn('[DB] Cloud sync notice (verifications):', err);
-  });
+  if (!isMongoConfigured()) {
+    pushVerificationsToCloudStore(submissions).catch((err) => {
+      console.warn('[DB] Cloud sync notice (verifications):', err);
+    });
+  }
 
   return true;
 }
@@ -862,12 +1086,102 @@ export function getAllVerificationsDB(): VerificationSubmission[] {
 
 export async function getAllVerificationsDBAsync(): Promise<VerificationSubmission[]> {
   getAllVerificationsDB();
+  if (isMongoConfigured()) {
+    const db = await getMongoDb();
+    memoryVerifications = await db.collection<VerificationSubmission>('verifications')
+      .find({}, { projection: { _id: 0 } })
+      .sort({ submittedAt: -1 })
+      .toArray();
+    areVerificationsLoaded = true;
+    return memoryVerifications;
+  }
+  if (isEphemeralRuntime()) throw new Error('Verification storage is not configured. Add MONGODB_URI to this deployment.');
+  if (isFirebaseAdminStoreConfigured()) {
+    const firebaseVerifications = await listFirestoreDocuments<VerificationSubmission>('verifications');
+    memoryVerifications = firebaseVerifications;
+    if (memoryVerifications.length === 0) {
+      const legacy = await fetchFromCloudStore();
+      if (legacy.verifications?.length) {
+        memoryVerifications = legacy.verifications;
+        await Promise.all(memoryVerifications.map((verification) =>
+          writeFirestoreDocument('verifications', verification.id, verification as unknown as Record<string, unknown>)
+        ));
+      }
+    }
+    areVerificationsLoaded = true;
+    applyReviewedVerificationStatuses();
+    return memoryVerifications;
+  }
+  if (isEphemeralRuntime()) {
+    throw new Error('Verification storage is not configured. Add MONGODB_URI to this deployment.');
+  }
   try {
     const cloud = await fetchFromCloudStore();
     mergeIncomingVerifications(cloud.verifications || []);
     applyReviewedVerificationStatuses();
   } catch (e) {}
   return memoryVerifications;
+}
+
+export async function submitVerificationPersistentDB(submission: any): Promise<VerificationSubmission> {
+  if (isMongoConfigured()) {
+    const saved = submitVerificationDB(submission);
+    const db = await getMongoDb();
+    await db.collection<VerificationSubmission>('verifications').replaceOne(
+      { creatorSlug: saved.creatorSlug },
+      saved,
+      { upsert: true }
+    );
+    memoryVerifications = [...memoryVerifications.filter((item) => item.creatorSlug !== saved.creatorSlug), saved];
+    return saved;
+  }
+  if (isEphemeralRuntime()) throw new Error('Verification storage is not configured. Add MONGODB_URI to this deployment.');
+  const saved = submitVerificationDB(submission);
+  if (isFirebaseAdminStoreConfigured()) {
+    await writeFirestoreDocument('verifications', saved.id, saved as unknown as Record<string, unknown>);
+  } else if (isEphemeralRuntime()) {
+    throw new Error('Verification storage is not configured. Add MONGODB_URI to this deployment.');
+  }
+  return saved;
+}
+
+export async function persistVerificationDB(
+  submission: VerificationSubmission | null,
+  creator?: CreatorProfile | null
+): Promise<void> {
+  if (isMongoConfigured()) {
+    const db = await getMongoDb();
+    if (submission) {
+      await db.collection<VerificationSubmission>('verifications').replaceOne(
+        { creatorSlug: submission.creatorSlug },
+        submission,
+        { upsert: true }
+      );
+      memoryVerifications = [...memoryVerifications.filter((item) => item.creatorSlug !== submission.creatorSlug), submission];
+    }
+    if (creator) {
+      const { _id: _ignored, ...cleanCreator } = creator as CreatorProfile & { _id?: unknown };
+      await db.collection<CreatorProfile>('creators').replaceOne(
+        { slug: creator.slug },
+        cleanCreator,
+        { upsert: true }
+      );
+      memoryCreators = [...memoryCreators.filter((item) => item.slug !== creator.slug), creator];
+    }
+    return;
+  }
+  if (isEphemeralRuntime()) throw new Error('Verification storage is not configured. Add MONGODB_URI to this deployment.');
+  if (isFirebaseAdminStoreConfigured()) {
+    if (submission) {
+      await writeFirestoreDocument('verifications', submission.id, submission as unknown as Record<string, unknown>);
+    }
+    if (creator) {
+      const docId = (creator.passportId || creator.slug || creator.username || creator.id).toLowerCase().replace(/^@/, '');
+      await writeFirestoreDocument('creators', docId, creator as unknown as Record<string, unknown>);
+    }
+  } else if (isEphemeralRuntime()) {
+    throw new Error('Verification storage is not configured. Add MONGODB_URI to this deployment.');
+  }
 }
 
 export function submitVerificationDB(submission: any): VerificationSubmission {
@@ -902,13 +1216,26 @@ export function getVerificationByIdDB(target: string): VerificationSubmission | 
 
 export async function deleteVerificationByCreatorSlugDB(slug: string): Promise<boolean> {
   const clean = slug.toLowerCase().replace(/^@/, '').trim();
+  if (isMongoConfigured()) {
+    const db = await getMongoDb();
+    const result = await db.collection<VerificationSubmission>('verifications').deleteMany({ creatorSlug: clean });
+    memoryVerifications = memoryVerifications.filter((verification) => verification.creatorSlug !== clean);
+    return result.deletedCount > 0;
+  }
+  if (isEphemeralRuntime()) throw new Error('Verification storage is not configured. Add MONGODB_URI to this deployment.');
   const all = await getAllVerificationsDBAsync();
   const filtered = all.filter((v) => v.creatorSlug.toLowerCase() !== clean);
   if (filtered.length !== all.length) {
     saveVerificationsToDisk(filtered);
+    if (isFirebaseAdminStoreConfigured()) {
+      const removed = all.filter((v) => v.creatorSlug.toLowerCase() === clean);
+      await Promise.all(removed.map((item) => deleteFirestoreDocument('verifications', item.id)));
+    } else if (isEphemeralRuntime()) {
+      throw new Error('Verification storage is not configured. Add MONGODB_URI to this deployment.');
+    }
     const cloudSaved = await pushVerificationsToCloudStore(filtered);
-    if (process.env.VERCEL && !cloudSaved && all.length > 0) {
-      throw new Error('Verification data was removed locally, but cloud storage could not save the deletion. Configure GITHUB_DATA_TOKEN or Firebase sync to keep it deleted.');
+    if (!isFirebaseAdminStoreConfigured() && isEphemeralRuntime() && !cloudSaved && all.length > 0) {
+      throw new Error('Verification data was removed locally, but cloud storage could not save the deletion. Add MONGODB_URI to this deployment.');
     }
     return true;
   }
@@ -1149,34 +1476,41 @@ export function updateVerificationStatusDB(
 // PROOF DOCUMENT STORAGE
 // ==========================================
 
-export function saveProofDocumentDB(
+export async function saveProofDocumentDB(
   creatorSlug: string,
   filename: string,
   base64Data: string,
   mimeType: string = 'image/png',
   platform?: string,
   notes?: string
-): ProofDocument | null {
+): Promise<ProofDocument | null> {
   try {
     ensureDataFile();
     const paths = getWritablePaths();
-    const creatorProofsDir = path.join(paths.proofsDir, creatorSlug);
-    if (!fs.existsSync(creatorProofsDir)) {
-      fs.mkdirSync(creatorProofsDir, { recursive: true });
-    }
+    const cleanSlug = creatorSlug.toLowerCase().replace(/[^a-z0-9_-]/g, '');
+    if (!cleanSlug) throw new Error('Invalid creator slug for proof storage.');
 
     const docId = `proof_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-    const ext = filename.split('.').pop() || 'png';
+    const ext = (filename.split('.').pop() || 'png').toLowerCase().replace(/[^a-z0-9]/g, '') || 'png';
     const storedFilename = `${docId}.${ext}`;
-    const storagePath = path.join(creatorProofsDir, storedFilename);
+    const objectPath = `creator-proofs/${cleanSlug}/${storedFilename}`;
 
     const cleanBase64 = base64Data.replace(/^data:[^;]+;base64,/, '');
     const buffer = Buffer.from(cleanBase64, 'base64');
-    fs.writeFileSync(storagePath, buffer);
+    if (isMongoConfigured()) {
+      await saveMongoProofFile(objectPath, buffer, mimeType);
+    } else if (isEphemeralRuntime()) {
+      throw new Error('Proof storage is not configured. Add MONGODB_URI to this deployment.');
+    } else {
+      const creatorProofsDir = path.join(paths.proofsDir, cleanSlug);
+      if (!fs.existsSync(creatorProofsDir)) fs.mkdirSync(creatorProofsDir, { recursive: true });
+      fs.writeFileSync(path.join(creatorProofsDir, storedFilename), buffer);
+    }
 
     const doc: ProofDocument = {
       id: docId,
-      url: `/api/verification/proof/${creatorSlug}/${storedFilename}`,
+      url: `/api/verification/proof/${cleanSlug}/${storedFilename}`,
+      storagePath: isMongoConfigured() ? objectPath : undefined,
       filename: filename,
       mimeType,
       fileSizeBytes: buffer.length,
@@ -1188,8 +1522,22 @@ export function saveProofDocumentDB(
     return doc;
   } catch (err) {
     console.error('[DB] Error saving proof document:', err);
+    if (isEphemeralRuntime()) throw err;
     return null;
   }
+}
+
+export async function getProofFileDB(creatorSlug: string, storedFilename: string): Promise<Buffer | null> {
+  const cleanSlug = creatorSlug.toLowerCase().replace(/[^a-z0-9_-]/g, '');
+  const cleanFilename = path.basename(storedFilename);
+  if (isMongoConfigured()) {
+    const proof = await readMongoProofFile(`creator-proofs/${cleanSlug}/${cleanFilename}`);
+    return proof?.buffer || null;
+  }
+  if (isEphemeralRuntime()) return null;
+  const localPath = getProofFilePath(cleanSlug, cleanFilename);
+  if (localPath && fs.existsSync(localPath)) return fs.readFileSync(localPath);
+  return null;
 }
 
 export function getProofFilePath(creatorSlug: string, storedFilename: string): string | null {

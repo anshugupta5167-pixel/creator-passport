@@ -11,11 +11,13 @@ import {
 import { 
   getUserByEmailPersistentDB,
   getUserByUsernamePersistentDB,
+  getAllCreatorsDBAsync,
   createSessionDB, 
   getCreatorByUserIdDB, 
-  addAuditLogDB 
+  addAuditLogPersistentDB
 } from '@/lib/db';
-import { isFirebaseAdminStoreConfigured } from '@/lib/firebaseAdminStore';
+import { isMongoConfigured } from '@/lib/mongoStore';
+import { isEphemeralRuntime } from '@/lib/runtime';
 import { Session } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -47,11 +49,11 @@ export async function POST(request: NextRequest) {
     const user = await getUserByEmailPersistentDB(cleanIdentifier) || await getUserByUsernamePersistentDB(cleanIdentifier);
 
     if (!user) {
-      if (process.env.VERCEL && !isFirebaseAdminStoreConfigured()) {
+      if (isEphemeralRuntime() && !isMongoConfigured()) {
         return NextResponse.json(
           {
             error: 'ACCOUNT_STORAGE_CONFIGURATION',
-            message: 'Creator accounts are not connected to persistent storage. Configure Firebase Admin credentials in Vercel.',
+            message: 'Creator accounts are not connected to persistent storage. Configure MONGODB_URI in your hosting settings.',
           },
           { status: 503 }
         );
@@ -70,12 +72,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (process.env.VERCEL && !hasSessionSigningSecret()) {
+    if (isEphemeralRuntime() && !hasSessionSigningSecret()) {
       console.error('[Auth] Sign-in is disabled because no shared session signing secret is configured.');
       return NextResponse.json(
         {
           error: 'SESSION_CONFIGURATION',
-          message: 'Sign-in is not configured on this deployment. The site administrator must add SESSION_SECRET in Vercel and redeploy.',
+          message: 'Sign-in is not configured on this deployment. The site administrator must add SESSION_SECRET and redeploy.',
         },
         { status: 503 }
       );
@@ -93,13 +95,14 @@ export async function POST(request: NextRequest) {
 
     createSessionDB(session);
 
-    addAuditLogDB({
+    await addAuditLogPersistentDB({
       userId: user.id,
       action: 'USER_SIGNED_IN',
       actor: user.email,
       details: { username: user.username, role: user.role },
     });
 
+    await getAllCreatorsDBAsync();
     const creator = getCreatorByUserIdDB(user.id);
 
     const response = NextResponse.json({

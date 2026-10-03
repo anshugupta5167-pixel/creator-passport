@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthenticatedUser, generateVerificationCode, sanitizeUser } from '@/lib/auth';
-import { updateUserPersistentDB, getUserByEmailPersistentDB, addAuditLogDB } from '@/lib/db';
+import { updateUserPersistentDB, getUserByEmailPersistentDB, addAuditLogPersistentDB } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
       verificationExpires: null,
     });
 
-    addAuditLogDB({
+    await addAuditLogPersistentDB({
       userId: targetUser.id,
       action: 'EMAIL_VERIFIED',
       actor: targetUser.email,

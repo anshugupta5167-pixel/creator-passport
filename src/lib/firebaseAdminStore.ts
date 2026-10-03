@@ -53,7 +53,7 @@ async function getAccessToken(): Promise<string> {
   const header = base64Url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
   const claims = base64Url(JSON.stringify({
     iss: account.client_email,
-    scope: 'https://www.googleapis.com/auth/datastore',
+    scope: 'https://www.googleapis.com/auth/cloud-platform',
     aud: 'https://oauth2.googleapis.com/token',
     iat: issuedAt,
     exp: issuedAt + 3600,
@@ -207,4 +207,44 @@ export async function deleteFirestoreDocument(collection: string, id: string): P
   if (response.status === 404) return false;
   if (!response.ok) throw new Error(`Firebase delete failed for ${collection}.`);
   return true;
+}
+
+function getStorageBucket(): string | null {
+  return process.env.FIREBASE_STORAGE_BUCKET || process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || null;
+}
+
+export function isFirebaseStorageConfigured(): boolean {
+  return Boolean(isFirebaseAdminStoreConfigured() && getStorageBucket());
+}
+
+export async function uploadFirebaseStorageObject(objectName: string, data: Buffer, contentType: string): Promise<void> {
+  const bucket = getStorageBucket();
+  if (!bucket || !isFirebaseAdminStoreConfigured()) throw new Error('Firebase Storage is not configured.');
+  const token = await getAccessToken();
+  const url = new URL(`https://storage.googleapis.com/upload/storage/v1/b/${encodeURIComponent(bucket)}/o`);
+  url.searchParams.set('uploadType', 'media');
+  url.searchParams.set('name', objectName);
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': contentType },
+    body: new Uint8Array(data),
+    cache: 'no-store',
+    signal: AbortSignal.timeout(15000),
+  });
+  if (!response.ok) throw new Error('Firebase Storage upload failed. Check the bucket and service-account permissions.');
+}
+
+export async function downloadFirebaseStorageObject(objectName: string): Promise<Buffer | null> {
+  const bucket = getStorageBucket();
+  if (!bucket || !isFirebaseAdminStoreConfigured()) return null;
+  const token = await getAccessToken();
+  const url = `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(bucket)}/o/${encodeURIComponent(objectName)}?alt=media`;
+  const response = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: 'no-store',
+    signal: AbortSignal.timeout(15000),
+  });
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error('Firebase Storage download failed.');
+  return Buffer.from(await response.arrayBuffer());
 }

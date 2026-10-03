@@ -14,9 +14,10 @@ import {
   getUserByEmailPersistentDB,
   getUserByUsernamePersistentDB,
   createSessionDB, 
-  addAuditLogDB 
+  addAuditLogPersistentDB
 } from '@/lib/db';
-import { isFirebaseAdminStoreConfigured } from '@/lib/firebaseAdminStore';
+import { isMongoConfigured } from '@/lib/mongoStore';
+import { isEphemeralRuntime } from '@/lib/runtime';
 import { User, Session } from '@/lib/types';
 import { SESSION_DURATION_MS } from '@/lib/auth';
 
@@ -68,21 +69,21 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    if (process.env.VERCEL && !hasSessionSigningSecret()) {
+    if (isEphemeralRuntime() && !hasSessionSigningSecret()) {
       return NextResponse.json(
         {
           error: 'SESSION_CONFIGURATION',
-          message: 'Sign-in is not configured on this deployment. The site administrator must add SESSION_SECRET in Vercel and redeploy.',
+          message: 'Sign-in is not configured on this deployment. The site administrator must add SESSION_SECRET and redeploy.',
         },
         { status: 503 }
       );
     }
 
-    if (process.env.VERCEL && !isFirebaseAdminStoreConfigured()) {
+    if (isEphemeralRuntime() && !isMongoConfigured()) {
       return NextResponse.json(
         {
           error: 'ACCOUNT_STORAGE_CONFIGURATION',
-          message: 'Creator account storage is not configured. The site administrator must add Firebase Admin credentials in Vercel.',
+          message: 'Creator account storage is not configured. The site administrator must add MONGODB_URI in the hosting settings.',
         },
         { status: 503 }
       );
@@ -138,7 +139,7 @@ export async function POST(request: NextRequest) {
 
     createSessionDB(newSession);
 
-    addAuditLogDB({
+    await addAuditLogPersistentDB({
       userId: newUser.id,
       action: 'USER_REGISTERED',
       actor: cleanEmail,

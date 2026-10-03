@@ -40,6 +40,7 @@ export interface AuditLog {
 export interface ProofDocument {
   id: string;
   url: string; // Secure admin-only URL (never exposed in public UI)
+  storagePath?: string;
   filename: string;
   mimeType?: string;
   fileSizeBytes?: number;

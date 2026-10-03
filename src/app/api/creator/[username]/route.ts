@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCreatorByIdDB, getCreatorByIdDBAsync, getCreatorByUsernameDB, addCreatorDB } from '@/lib/db';
+import { getAllCreatorsDBAsync, getCreatorByIdDB, getCreatorByIdDBAsync, getCreatorByUsernameDB, addCreatorDB } from '@/lib/db';
 import { getAuthenticatedUser } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
@@ -41,6 +41,7 @@ export async function PATCH(
 ) {
   const { username } = await context.params;
   const clean = username.replace(/^@/, '').toLowerCase().trim();
+  await getAllCreatorsDBAsync();
   const creator = getCreatorByIdDB(clean) || getCreatorByUsernameDB(clean);
 
   if (!creator) {

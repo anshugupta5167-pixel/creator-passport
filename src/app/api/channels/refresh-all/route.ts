@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchYouTubeChannel } from '@/lib/youtube';
 import { fetchDiscordServer } from '@/lib/discord';
-import { getCreatorByIdDB, addCreatorDB } from '@/lib/db';
+import { getAllCreatorsDBAsync, getCreatorByIdDB, addCreatorDB } from '@/lib/db';
 
 export async function POST(request: NextRequest) {
   try {
+    await getAllCreatorsDBAsync();
     const body = await request.json();
     const { passportId } = body;
 

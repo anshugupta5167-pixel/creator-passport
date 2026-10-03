@@ -6,7 +6,7 @@ import {
   deleteCreatorDB, 
   getCreatorByUserIdDB,
   deleteUserPersistentDB,
-  addAuditLogDB 
+  addAuditLogPersistentDB
 } from '@/lib/db';
 import { getAuthenticatedUser, requireAuth } from '@/lib/auth';
 import { CreatorProfile } from '@/lib/types';
@@ -95,6 +95,7 @@ export async function POST(request: NextRequest) {
   try {
     const { auth, response: authResponse } = await requireAuth(request);
     if (authResponse || !auth) return authResponse!;
+    await getAllCreatorsDBAsync();
 
     const user = auth.user;
     const body: CreatorProfile = await request.json();
@@ -231,7 +232,7 @@ export async function DELETE(request: NextRequest) {
       await deleteUserPersistentDB(targetCreator.userId);
     }
 
-    addAuditLogDB({
+    await addAuditLogPersistentDB({
       userId: user.id,
       action: 'CREATOR_DELETED_BY_ADMIN',
       actor: user.email,
