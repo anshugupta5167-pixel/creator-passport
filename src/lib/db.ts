@@ -546,7 +546,10 @@ export async function getAuditLogsPersistentDB(): Promise<AuditLog[]> {
     memoryAuditLogs = logs;
     return logs;
   }
-  if (isEphemeralRuntime()) throw new Error('Audit storage is not configured. Add MONGODB_URI to this deployment.');
+  if (isEphemeralRuntime()) {
+    console.warn('[DB] MongoDB not configured on ephemeral runtime — returning empty audit log list.');
+    return [];
+  }
   if (isFirebaseAdminStoreConfigured()) {
     const records = await listFirestoreDocuments<AuditLog>('auditLogs');
     return records.sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp)).slice(0, 500);
@@ -686,7 +689,10 @@ export async function getAllCreatorsDBAsync(): Promise<CreatorProfile[]> {
     areVerificationsLoaded = true;
     return memoryCreators.map((creator) => ({ ...creator, connections: creator.connections || {} }));
   }
-  if (isEphemeralRuntime()) throw new Error('Creator storage is not configured. Add MONGODB_URI to this deployment.');
+  if (isEphemeralRuntime()) {
+    console.warn('[DB] MongoDB not configured on ephemeral runtime — returning empty creator list.');
+    return [];
+  }
 
   // Firestore is authoritative on serverless hosting. Only import a legacy
   // GitHub snapshot when the Firestore collection is still empty; otherwise
@@ -805,7 +811,7 @@ export async function getCreatorByIdDBAsync(target: string): Promise<CreatorProf
     await getAllCreatorsDBAsync();
     return getCreatorByIdDB(target);
   }
-  if (isEphemeralRuntime()) throw new Error('Creator storage is not configured. Add MONGODB_URI to this deployment.');
+  if (isEphemeralRuntime()) return null;
   getAllCreatorsDB();
 
   try {
@@ -1095,7 +1101,10 @@ export async function getAllVerificationsDBAsync(): Promise<VerificationSubmissi
     areVerificationsLoaded = true;
     return memoryVerifications;
   }
-  if (isEphemeralRuntime()) throw new Error('Verification storage is not configured. Add MONGODB_URI to this deployment.');
+  if (isEphemeralRuntime()) {
+    console.warn('[DB] MongoDB not configured on ephemeral runtime — returning empty verification list.');
+    return [];
+  }
   if (isFirebaseAdminStoreConfigured()) {
     const firebaseVerifications = await listFirestoreDocuments<VerificationSubmission>('verifications');
     memoryVerifications = firebaseVerifications;
