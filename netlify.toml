@@ -1,0 +1,5 @@
+[build.environment]
+  # Turbopack's persistent build cache records environment variable values it
+  # observes during `next build`. The cache is never deployed, so exclude it
+  # from secrets scanning while still scanning the actual build output.
+  SECRETS_SCAN_OMIT_PATHS = ".netlify/.next/cache,.next/cache"
