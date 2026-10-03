@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getProofFilePath } from '@/lib/db';
+import { getAuthenticatedUser } from '@/lib/auth';
 import fs from 'fs';
 
-// GET: Serve a proof file securely (admin-only in production)
-// URL: /api/verification/proof/[slug]/[filename]
+export const dynamic = 'force-dynamic';
+
+// GET: Serve a proof file securely (Admin or Owner only)
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ path: string[] }> }
@@ -20,11 +22,31 @@ export async function GET(
 
     const [creatorSlug, storedFilename] = pathSegments;
 
-    // In production, validate admin session/token here
-    // For now we verify the file exists on disk
+    // Verify authentication: must be staff admin or the creator themselves
+    const auth = await getAuthenticatedUser(request);
+    if (!auth) {
+      return NextResponse.json(
+        { error: 'UNAUTHORIZED', message: 'Sign in required to view proof documents.' },
+        { status: 401 }
+      );
+    }
+
+    const isAdmin = auth.user.role === 'ADMIN';
+    const cleanSlug = creatorSlug.toLowerCase().replace(/^@/, '');
+    const isOwner =
+      auth.user.username.toLowerCase() === cleanSlug ||
+      (auth.creator && auth.creator.slug.toLowerCase() === cleanSlug);
+
+    if (!isAdmin && !isOwner) {
+      return NextResponse.json(
+        { error: 'FORBIDDEN', message: 'You do not have permission to view these proofs.' },
+        { status: 403 }
+      );
+    }
+
     const filePath = getProofFilePath(creatorSlug, storedFilename);
 
-    if (!filePath) {
+    if (!filePath || !fs.existsSync(filePath)) {
       return NextResponse.json(
         { error: 'Proof file not found' },
         { status: 404 }
@@ -33,7 +55,6 @@ export async function GET(
 
     const fileBuffer = fs.readFileSync(filePath);
 
-    // Determine content type from extension
     const ext = storedFilename.split('.').pop()?.toLowerCase() || 'png';
     const contentTypeMap: Record<string, string> = {
       png: 'image/png',

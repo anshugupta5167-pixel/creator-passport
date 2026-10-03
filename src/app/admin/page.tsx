@@ -480,12 +480,15 @@ export default function AdminPage() {
   const [inspectingApp, setInspectingApp] = useState<PassportApplication | null>(null);
   const [actionFeedback, setActionFeedback] = useState<string>('');
 
-  // Load live creators and verifications from DB
+  const [loginLoading, setLoginLoading] = useState(false);
+
+  // Load live creators, verifications, and audit logs from DB
   const loadLiveData = React.useCallback(async () => {
     try {
-      const [creatorsRes, verificationsRes] = await Promise.all([
+      const [creatorsRes, verificationsRes, logsRes] = await Promise.all([
         fetch('/api/creators', { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } }),
         fetch('/api/verification/submit', { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } }),
+        fetch('/api/admin/audit-logs', { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } }),
       ]);
 
       if (creatorsRes.ok) {
@@ -501,12 +504,33 @@ export default function AdminPage() {
           setVerifications(data.verifications);
         }
       }
+
+      if (logsRes.ok) {
+        const data = await logsRes.json();
+        if (data.logs && Array.isArray(data.logs)) {
+          setLogs(data.logs);
+        }
+      }
     } catch (e) {
       console.warn('Error loading data in admin:', e);
     }
   }, []);
 
+  // Check existing authenticated session on mount
   React.useEffect(() => {
+    fetch('/api/auth/me')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.user && data.user.role === 'ADMIN') {
+          setIsAuthenticated(true);
+          loadLiveData();
+        }
+      })
+      .catch(() => {});
+  }, [loadLiveData]);
+
+  React.useEffect(() => {
+    if (!isAuthenticated) return;
     loadLiveData();
 
     const unsubscribe = subscribeToCreatorSync(() => {
@@ -523,20 +547,52 @@ export default function AdminPage() {
       unsubscribe();
       clearInterval(interval);
     };
-  }, [loadLiveData]);
+  }, [isAuthenticated, loadLiveData]);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (
-      staffId.trim().toLowerCase() === 'admin' &&
-      staffPass === 'anshu@167'
-    ) {
+    setLoginLoading(true);
+    setLoginError('');
+
+    try {
+      const res = await fetch('/api/auth/signin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          emailOrUsername: staffId.trim(),
+          password: staffPass,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setLoginError(data.error || 'Authentication failed. Please verify credentials.');
+        setLoginLoading(false);
+        return;
+      }
+
+      if (data.user?.role !== 'ADMIN') {
+        setLoginError('Access denied: This account does not possess Administrator privileges.');
+        setLoginLoading(false);
+        return;
+      }
+
       setIsAuthenticated(true);
+      setStaffPass('');
       setLoginError('');
       loadLiveData();
-    } else {
-      setLoginError('Invalid Staff ID or Password. Access restricted to authorized personnel.');
+    } catch (err: any) {
+      setLoginError('Network or server error during sign in.');
+    } finally {
+      setLoginLoading(false);
     }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await fetch('/api/auth/signout', { method: 'POST' });
+    } catch (e) {}
+    setIsAuthenticated(false);
   };
 
   const handleDeleteCreator = async (slug: string, displayName: string) => {
@@ -976,10 +1032,17 @@ export default function AdminPage() {
 
             <button
               type="submit"
-              className="w-full h-11 rounded-lg btn-chq-primary text-sm font-semibold flex items-center justify-center gap-2 shadow-sm"
+              disabled={loginLoading}
+              className="w-full h-11 rounded-lg btn-chq-primary text-sm font-semibold flex items-center justify-center gap-2 shadow-sm disabled:opacity-60"
             >
-              <Lock className="w-4 h-4" />
-              <span>Sign In as Staff</span>
+              {loginLoading ? (
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <>
+                  <Lock className="w-4 h-4" />
+                  <span>Sign In as Staff</span>
+                </>
+              )}
             </button>
           </form>
         </div>
@@ -1025,7 +1088,7 @@ export default function AdminPage() {
           </Link>
 
           <button
-            onClick={() => setIsAuthenticated(false)}
+            onClick={handleSignOut}
             className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-red-400 px-3 py-1.5 rounded-lg border border-white/10 hover:border-red-500/40 transition-colors"
           >
             <LogOut className="w-3.5 h-3.5" />
@@ -1509,18 +1572,33 @@ export default function AdminPage() {
               {logs.length === 0 ? (
                 <p className="text-slate-400 text-center py-6">No audit logs recorded yet.</p>
               ) : (
-                logs.map((log) => (
-                  <div
-                    key={log.id}
-                    className="p-3 rounded-lg bg-[#0b0d11] border border-white/5 flex items-center justify-between text-slate-300"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="text-sky-400 font-semibold">[{log.action}]</span>
-                      <span>{log.actor}: {log.target}</span>
+                logs.map((log: any) => {
+                  const targetDisplay =
+                    log.target ||
+                    log.details?.target ||
+                    log.details?.creatorSlug ||
+                    log.details?.slug ||
+                    (log.details ? JSON.stringify(log.details) : '');
+                  return (
+                    <div
+                      key={log.id}
+                      className="p-3 rounded-lg bg-[#0b0d11] border border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-slate-300"
+                    >
+                      <div className="flex items-center gap-2.5 flex-wrap">
+                        <span className="px-2 py-0.5 rounded bg-sky-950/80 border border-sky-800/60 text-sky-400 font-semibold text-[11px]">
+                          {log.action}
+                        </span>
+                        <span className="text-white font-medium">{log.actor || 'System'}</span>
+                        {targetDisplay && (
+                          <span className="text-slate-400 truncate max-w-md">→ {targetDisplay}</span>
+                        )}
+                      </div>
+                      <span className="text-slate-500 text-[11px] shrink-0 font-mono">
+                        {log.timestamp ? new Date(log.timestamp).toLocaleString() : ''}
+                      </span>
                     </div>
-                    <span className="text-slate-500 text-[11px]">{log.timestamp}</span>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>

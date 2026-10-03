@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchDiscordServer } from '@/lib/discord';
 import { getCreatorByIdDB, addCreatorDB } from '@/lib/db';
+import { getAuthenticatedUser } from '@/lib/auth';
+
+export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
@@ -9,13 +12,23 @@ export async function POST(request: NextRequest) {
 
     if (!inviteUrl && !guildId) {
       return NextResponse.json(
-        { error: 'Discord invite link or code is required' },
+        { error: 'BAD_REQUEST', message: 'Discord invite link or server code is required' },
         { status: 400 }
       );
     }
 
-    const input = inviteUrl || guildId;
-    let existingCreator = passportId ? getCreatorByIdDB(passportId) : null;
+    const input = (inviteUrl || guildId).trim();
+    const auth = await getAuthenticatedUser(request);
+
+    let existingCreator = null;
+    if (auth?.creator) {
+      existingCreator = auth.creator;
+    } else if (passportId) {
+      const found = getCreatorByIdDB(passportId);
+      if (found && auth?.user.id === found.userId) {
+        existingCreator = found;
+      }
+    }
 
     const previousCount = existingCreator?.connections.discord?.rawCount;
     const previousGuildId = existingCreator?.connections.discord?.guildId || guildId;
@@ -25,8 +38,7 @@ export async function POST(request: NextRequest) {
       previousGuildId,
     });
 
-    // If passportId provided, persist to creator's record in DB
-    if (existingCreator) {
+    if (existingCreator && auth && (auth.user.id === existingCreator.userId || auth.user.role === 'ADMIN')) {
       existingCreator.connections = existingCreator.connections || {};
       existingCreator.connections.discord = {
         platform: 'DISCORD',
@@ -55,7 +67,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (err: any) {
     return NextResponse.json(
-      { error: err.message || 'Failed to detect Discord server' },
+      { error: 'DETECT_FAILED', message: err.message || 'Failed to detect Discord server' },
       { status: 400 }
     );
   }

@@ -1,13 +1,19 @@
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { CreatorProfile, VerificationSubmission, ProofDocument, VerificationStatus } from './types';
+import { 
+  CreatorProfile, 
+  VerificationSubmission, 
+  ProofDocument, 
+  VerificationStatus,
+  User,
+  Session,
+  AuditLog
+} from './types';
 import { 
   syncCreatorToFirebase, 
-  fetchCreatorsFromFirebase, 
   deleteCreatorFromFirebase,
   syncVerificationToFirebase,
-  fetchVerificationsFromFirebase 
 } from './firebase';
 import { 
   fetchFromCloudStore, 
@@ -17,17 +23,22 @@ import {
 import { resolveYouTubeUrl, resolveDiscordUrl, resolveInstagramUrl } from './urls';
 import { notifySubscribers } from './events';
 
-// Seed directory bundled with project (read-only in Vercel lambdas)
+// Data directory
 const SEED_DIR = path.join(process.cwd(), 'data');
 const SEED_DB_FILE = path.join(SEED_DIR, 'creators.json');
 const SEED_VERIFICATION_FILE = path.join(SEED_DIR, 'verifications.json');
+const SEED_USERS_FILE = path.join(SEED_DIR, 'users.json');
+const SEED_SESSIONS_FILE = path.join(SEED_DIR, 'sessions.json');
+const SEED_AUDIT_LOGS_FILE = path.join(SEED_DIR, 'audit_logs.json');
 
-// In-memory cache for ultra-fast access
+// In-memory caches for high-performance sub-millisecond access
 let memoryCreators: CreatorProfile[] = [];
 let memoryVerifications: VerificationSubmission[] = [];
+let memoryUsers: User[] = [];
+let memorySessions: Session[] = [];
+let memoryAuditLogs: AuditLog[] = [];
 let isLoaded = false;
 
-// Check if running on Vercel / serverless environment
 export function getWritablePaths() {
   const isServerless = Boolean(
     process.env.VERCEL || 
@@ -41,6 +52,9 @@ export function getWritablePaths() {
       dataDir: tmpDataDir,
       dbFile: path.join(tmpDataDir, 'creators.json'),
       verificationFile: path.join(tmpDataDir, 'verifications.json'),
+      usersFile: path.join(tmpDataDir, 'users.json'),
+      sessionsFile: path.join(tmpDataDir, 'sessions.json'),
+      auditLogsFile: path.join(tmpDataDir, 'audit_logs.json'),
       proofsDir: path.join(tmpDataDir, 'proofs'),
       isTmp: true,
     };
@@ -50,6 +64,9 @@ export function getWritablePaths() {
     dataDir: SEED_DIR,
     dbFile: SEED_DB_FILE,
     verificationFile: SEED_VERIFICATION_FILE,
+    usersFile: SEED_USERS_FILE,
+    sessionsFile: SEED_SESSIONS_FILE,
+    auditLogsFile: SEED_AUDIT_LOGS_FILE,
     proofsDir: path.join(SEED_DIR, 'proofs'),
     isTmp: false,
   };
@@ -62,27 +79,25 @@ function ensureDataFile() {
       fs.mkdirSync(paths.dataDir, { recursive: true });
     }
 
-    if (!fs.existsSync(paths.dbFile)) {
-      if (paths.isTmp && fs.existsSync(SEED_DB_FILE)) {
-        try {
-          fs.copyFileSync(SEED_DB_FILE, paths.dbFile);
-        } catch (e) {
-          fs.writeFileSync(paths.dbFile, JSON.stringify([], null, 2), 'utf8');
-        }
-      } else {
-        fs.writeFileSync(paths.dbFile, JSON.stringify([], null, 2), 'utf8');
-      }
-    }
+    const filesToInit: Array<{ file: string; seed: string; defaultVal: any }> = [
+      { file: paths.dbFile, seed: SEED_DB_FILE, defaultVal: [] },
+      { file: paths.verificationFile, seed: SEED_VERIFICATION_FILE, defaultVal: [] },
+      { file: paths.usersFile, seed: SEED_USERS_FILE, defaultVal: [] },
+      { file: paths.sessionsFile, seed: SEED_SESSIONS_FILE, defaultVal: [] },
+      { file: paths.auditLogsFile, seed: SEED_AUDIT_LOGS_FILE, defaultVal: [] },
+    ];
 
-    if (!fs.existsSync(paths.verificationFile)) {
-      if (paths.isTmp && fs.existsSync(SEED_VERIFICATION_FILE)) {
-        try {
-          fs.copyFileSync(SEED_VERIFICATION_FILE, paths.verificationFile);
-        } catch (e) {
-          fs.writeFileSync(paths.verificationFile, JSON.stringify([], null, 2), 'utf8');
+    for (const item of filesToInit) {
+      if (!fs.existsSync(item.file)) {
+        if (paths.isTmp && fs.existsSync(item.seed)) {
+          try {
+            fs.copyFileSync(item.seed, item.file);
+          } catch (e) {
+            fs.writeFileSync(item.file, JSON.stringify(item.defaultVal, null, 2), 'utf8');
+          }
+        } else {
+          fs.writeFileSync(item.file, JSON.stringify(item.defaultVal, null, 2), 'utf8');
         }
-      } else {
-        fs.writeFileSync(paths.verificationFile, JSON.stringify([], null, 2), 'utf8');
       }
     }
 
@@ -95,7 +110,220 @@ function ensureDataFile() {
 }
 
 // ==========================================
-// CREATOR DATABASE
+// USER ACCOUNTS
+// ==========================================
+
+export function getUsersDB(): User[] {
+  try {
+    ensureDataFile();
+    const paths = getWritablePaths();
+    let content = '';
+    if (fs.existsSync(paths.usersFile)) {
+      content = fs.readFileSync(paths.usersFile, 'utf8');
+    } else if (fs.existsSync(SEED_USERS_FILE)) {
+      content = fs.readFileSync(SEED_USERS_FILE, 'utf8');
+    }
+    if (content) {
+      memoryUsers = JSON.parse(content || '[]');
+    }
+  } catch (err) {
+    console.error('[DB] Error loading users:', err);
+  }
+  return memoryUsers;
+}
+
+export function saveUsersDB(users: User[]): boolean {
+  memoryUsers = users;
+  try {
+    ensureDataFile();
+    const paths = getWritablePaths();
+    fs.writeFileSync(paths.usersFile, JSON.stringify(users, null, 2), 'utf8');
+    if (!paths.isTmp || fs.existsSync(SEED_USERS_FILE)) {
+      try {
+        fs.writeFileSync(SEED_USERS_FILE, JSON.stringify(users, null, 2), 'utf8');
+      } catch (e) {}
+    }
+    return true;
+  } catch (err) {
+    console.error('[DB] Error saving users:', err);
+    return false;
+  }
+}
+
+export function getUserByIdDB(id: string): User | null {
+  const users = getUsersDB();
+  return users.find((u) => u.id === id) || null;
+}
+
+export function getUserByEmailDB(email: string): User | null {
+  if (!email) return null;
+  const clean = email.toLowerCase().trim();
+  const users = getUsersDB();
+  return users.find((u) => u.email.toLowerCase() === clean) || null;
+}
+
+export function getUserByUsernameDB(username: string): User | null {
+  if (!username) return null;
+  const clean = username.toLowerCase().replace(/^@/, '').trim();
+  const users = getUsersDB();
+  return users.find((u) => u.username.toLowerCase() === clean) || null;
+}
+
+export function createUserDB(user: User): User {
+  const users = getUsersDB();
+  // Ensure uniqueness
+  const emailTaken = users.some((u) => u.email.toLowerCase() === user.email.toLowerCase());
+  if (emailTaken) {
+    throw new Error('An account with this email address already exists.');
+  }
+  const userTaken = users.some((u) => u.username.toLowerCase() === user.username.toLowerCase());
+  if (userTaken) {
+    throw new Error('This username is already taken. Please choose another.');
+  }
+
+  const updated = [...users, user];
+  saveUsersDB(updated);
+  return user;
+}
+
+export function updateUserDB(id: string, updates: Partial<User>): User | null {
+  const users = getUsersDB();
+  const idx = users.findIndex((u) => u.id === id);
+  if (idx === -1) return null;
+
+  const current = users[idx];
+  const updatedUser: User = {
+    ...current,
+    ...updates,
+    updatedAt: new Date().toISOString(),
+  };
+
+  users[idx] = updatedUser;
+  saveUsersDB(users);
+  return updatedUser;
+}
+
+export function deleteUserDB(id: string): boolean {
+  const users = getUsersDB();
+  const filtered = users.filter((u) => u.id !== id);
+  if (filtered.length !== users.length) {
+    saveUsersDB(filtered);
+    deleteUserSessionsDB(id);
+    deleteCreatorByUserIdDB(id);
+    return true;
+  }
+  return false;
+}
+
+// ==========================================
+// SECURE SESSIONS
+// ==========================================
+
+export function getSessionsDB(): Session[] {
+  try {
+    ensureDataFile();
+    const paths = getWritablePaths();
+    let content = '';
+    if (fs.existsSync(paths.sessionsFile)) {
+      content = fs.readFileSync(paths.sessionsFile, 'utf8');
+    } else if (fs.existsSync(SEED_SESSIONS_FILE)) {
+      content = fs.readFileSync(SEED_SESSIONS_FILE, 'utf8');
+    }
+    if (content) {
+      memorySessions = JSON.parse(content || '[]');
+    }
+  } catch (err) {
+    console.error('[DB] Error loading sessions:', err);
+  }
+  return memorySessions;
+}
+
+export function saveSessionsDB(sessions: Session[]): boolean {
+  memorySessions = sessions;
+  try {
+    ensureDataFile();
+    const paths = getWritablePaths();
+    fs.writeFileSync(paths.sessionsFile, JSON.stringify(sessions, null, 2), 'utf8');
+    return true;
+  } catch (err) {
+    console.error('[DB] Error saving sessions:', err);
+    return false;
+  }
+}
+
+export function getSessionByTokenDB(token: string): Session | null {
+  if (!token) return null;
+  const sessions = getSessionsDB();
+  return sessions.find((s) => s && (s.token === token || s.id === token)) || null;
+}
+
+export const getSessionDB = getSessionByTokenDB;
+
+export function createSessionDB(session: Session): Session {
+  const sessions = getSessionsDB();
+  // Filter out expired sessions
+  const now = Date.now();
+  const valid = sessions.filter((s) => s && s.expiresAt && new Date(s.expiresAt).getTime() > now);
+  valid.push(session);
+  saveSessionsDB(valid);
+  return session;
+}
+
+export function deleteSessionDB(token: string): boolean {
+  const sessions = getSessionsDB();
+  const filtered = sessions.filter((s) => s && s.token !== token && s.id !== token);
+  saveSessionsDB(filtered);
+  return true;
+}
+
+export function deleteUserSessionsDB(userId: string): boolean {
+  const sessions = getSessionsDB();
+  const filtered = sessions.filter((s) => s.userId !== userId);
+  saveSessionsDB(filtered);
+  return true;
+}
+
+// ==========================================
+// AUDIT LOGS
+// ==========================================
+
+export function getAuditLogsDB(): AuditLog[] {
+  try {
+    ensureDataFile();
+    const paths = getWritablePaths();
+    let content = '';
+    if (fs.existsSync(paths.auditLogsFile)) {
+      content = fs.readFileSync(paths.auditLogsFile, 'utf8');
+    } else if (fs.existsSync(SEED_AUDIT_LOGS_FILE)) {
+      content = fs.readFileSync(SEED_AUDIT_LOGS_FILE, 'utf8');
+    }
+    if (content) {
+      memoryAuditLogs = JSON.parse(content || '[]');
+    }
+  } catch (e) {}
+  return memoryAuditLogs;
+}
+
+export function addAuditLogDB(log: { userId?: string | null; action: string; actor: string; details?: any }): AuditLog {
+  const logs = getAuditLogsDB();
+  const entry: AuditLog = {
+    id: `audit_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+    userId: log.userId || null,
+    action: log.action,
+    actor: log.actor,
+    details: log.details || null,
+    timestamp: new Date().toISOString(),
+  };
+  logs.unshift(entry);
+  try {
+    const paths = getWritablePaths();
+    fs.writeFileSync(paths.auditLogsFile, JSON.stringify(logs.slice(0, 500), null, 2), 'utf8');
+  } catch (e) {}
+  return entry;
+}
+
+// ==========================================
+// CREATOR PROFILES & CARDS
 // ==========================================
 
 function mergeIncomingCreators(incoming: CreatorProfile[]): boolean {
@@ -155,30 +383,12 @@ export function loadCreatorsFromDisk(): CreatorProfile[] {
         };
       });
 
-      if (memoryCreators.length === 0) {
-        memoryCreators = diskList;
-      } else {
-        mergeIncomingCreators(diskList);
-      }
+      memoryCreators = diskList;
       isLoaded = true;
     }
   } catch (err) {
     console.error('[DB] Error loading creators from disk:', err);
   }
-
-  // Non-blocking background sync with live cloud store
-  fetchFromCloudStore()
-    .then((cloud) => {
-      if (cloud.creators && cloud.creators.length > 0) {
-        if (mergeIncomingCreators(cloud.creators)) {
-          try {
-            const paths = getWritablePaths();
-            fs.writeFileSync(paths.dbFile, JSON.stringify(memoryCreators, null, 2), 'utf8');
-          } catch (e) {}
-        }
-      }
-    })
-    .catch(() => {});
 
   return memoryCreators;
 }
@@ -193,19 +403,16 @@ export function saveCreatorsToDisk(creators: CreatorProfile[]): boolean {
     const paths = getWritablePaths();
     fs.writeFileSync(paths.dbFile, JSON.stringify(memoryCreators, null, 2), 'utf8');
 
-    // Also attempt writing to local seed file if writable (local development)
     if (!paths.isTmp || fs.existsSync(SEED_DB_FILE)) {
       try {
         fs.writeFileSync(SEED_DB_FILE, JSON.stringify(memoryCreators, null, 2), 'utf8');
-      } catch (e) {
-        // Read-only filesystem on Vercel is expected and handled
-      }
+      } catch (e) {}
     }
   } catch (err) {
     console.error('[DB] Error saving creators to disk:', err);
   }
 
-  // Instantly push to persistent cloud database so all Vercel instances stay in sync
+  // Sync to persistent cloud database in background
   pushCreatorsToCloudStore(memoryCreators).catch((err) => {
     console.warn('[DB] Cloud sync notice:', err);
   });
@@ -229,6 +436,14 @@ export async function getAllCreatorsDBAsync(): Promise<CreatorProfile[]> {
     }
   } catch (e) {}
   return getAllCreatorsDB();
+}
+
+export function getCreatorByUserIdDB(userId: string): CreatorProfile | null {
+  if (!userId) return null;
+  const all = getAllCreatorsDB();
+  const found = all.find((c) => c.userId === userId);
+  if (!found) return null;
+  return { ...found, connections: found.connections || {} };
 }
 
 export function getCreatorBySlugDB(slug: string): CreatorProfile | null {
@@ -256,13 +471,15 @@ export function getCreatorByIdDB(target: string): CreatorProfile | null {
     const cUser = (c.username || '').toLowerCase();
     const cPass = (c.passportId || '').toLowerCase();
     const cId = (c.id || '').toLowerCase();
+    const cUserId = (c.userId || '').toLowerCase();
 
     return (
       cSlug === clean ||
       cHandle === clean ||
       cUser === clean ||
       cPass === clean ||
-      cId === raw
+      cId === raw ||
+      cUserId === raw
     );
   });
   if (!found) return null;
@@ -288,46 +505,6 @@ export function getCreatorByUsernameDB(username: string): CreatorProfile | null 
   return getCreatorByIdDB(username);
 }
 
-export function normalizeIp(ip?: string | null): string {
-  if (!ip) return '';
-  let clean = ip.trim().toLowerCase();
-  if (clean.startsWith('::ffff:')) {
-    clean = clean.replace('::ffff:', '');
-  }
-  return clean;
-}
-
-export function isSameIp(ip1?: string | null, ip2?: string | null): boolean {
-  const norm1 = normalizeIp(ip1);
-  const norm2 = normalizeIp(ip2);
-  if (!norm1 || !norm2) return false;
-  const isLoopback1 = norm1 === '127.0.0.1' || norm1 === '::1' || norm1 === 'localhost';
-  const isLoopback2 = norm2 === '127.0.0.1' || norm2 === '::1' || norm2 === 'localhost';
-  if (isLoopback1 || isLoopback2) return false;
-  if (norm1 === norm2) return true;
-  return false;
-}
-
-export function getCreatorByIpDB(ip: string): CreatorProfile | null {
-  if (!ip) return null;
-  const all = getAllCreatorsDB();
-  return (
-    all.find((c) => {
-      return isSameIp(c.registeredIp, ip) || isSameIp(c.clientIp, ip);
-    }) || null
-  );
-}
-
-export async function getCreatorByIpDBAsync(ip: string): Promise<CreatorProfile | null> {
-  if (!ip) return null;
-  const all = await getAllCreatorsDBAsync();
-  return (
-    all.find((c) => {
-      return isSameIp(c.registeredIp, ip) || isSameIp(c.clientIp, ip);
-    }) || null
-  );
-}
-
 export async function addCreatorDB(creator: CreatorProfile): Promise<CreatorProfile> {
   const current = getAllCreatorsDB();
 
@@ -337,7 +514,6 @@ export async function addCreatorDB(creator: CreatorProfile): Promise<CreatorProf
   creator.slug = cleanSlug;
   creator.username = creator.username ? creator.username.toLowerCase().replace(/^@/, '') : cleanSlug;
   creator.handle = creator.handle || `@${cleanSlug}`;
-  // Store slug as passportId for backwards compat — but never display it as CP-xxx
   creator.passportId = cleanSlug;
   creator.niche = creator.niche || creator.category || 'Creator';
   creator.category = creator.niche;
@@ -345,11 +521,13 @@ export async function addCreatorDB(creator: CreatorProfile): Promise<CreatorProf
     creator.id = `creator_${cleanSlug}`;
   }
 
+  // Find existing by userId or slug
   const existingIdx = current.findIndex(
     (c) =>
+      (creator.userId && c.userId && c.userId === creator.userId) ||
       (c.slug && c.slug.toLowerCase() === cleanSlug) ||
       (c.username && c.username.toLowerCase() === creator.username.toLowerCase()) ||
-      (c.id && c.id !== 'user_my_pass' && creator.id !== 'user_my_pass' && c.id.toLowerCase() === creator.id.toLowerCase())
+      (c.id && creator.id && c.id.toLowerCase() === creator.id.toLowerCase())
   );
 
   let updatedList: CreatorProfile[];
@@ -359,10 +537,10 @@ export async function addCreatorDB(creator: CreatorProfile): Promise<CreatorProf
       ...existing,
       ...creator,
       id: existing.id || `creator_${cleanSlug}`,
+      userId: existing.userId || creator.userId,
       slug: cleanSlug,
       handle: `@${cleanSlug}`,
       passportId: cleanSlug,
-      registeredIp: existing.registeredIp || creator.registeredIp,
       digitalSignature: existing.digitalSignature || creator.digitalSignature,
       category: creator.category || existing.category,
       niche: creator.niche || existing.niche || creator.category,
@@ -371,63 +549,6 @@ export async function addCreatorDB(creator: CreatorProfile): Promise<CreatorProf
       connections: {
         ...existing.connections,
         ...creator.connections,
-        youtube: {
-          platform: 'YOUTUBE' as const,
-          connected: true,
-          metricLabel: 'subscribers',
-          verified: true,
-          ...existing.connections?.youtube,
-          ...creator.connections?.youtube,
-          username: creator.connections?.youtube?.username || existing.connections?.youtube?.username || creator.username || 'creator',
-          channelId: (creator.connections?.youtube?.profileUrl && creator.connections.youtube.profileUrl !== existing.connections?.youtube?.profileUrl)
-            ? (creator.connections.youtube.channelId || '')
-            : (creator.connections?.youtube?.channelId || existing.connections?.youtube?.channelId || ''),
-          metricValue: creator.connections?.youtube?.metricValue || existing.connections?.youtube?.metricValue || '0',
-          rawCount: creator.connections?.youtube?.rawCount ?? existing.connections?.youtube?.rawCount,
-          profileUrl: resolveYouTubeUrl(
-            creator.connections?.youtube?.profileUrl || existing.connections?.youtube?.profileUrl,
-            creator.connections?.youtube?.username || existing.connections?.youtube?.username,
-            creator.connections?.youtube?.channelId || existing.connections?.youtube?.channelId,
-            creator.username || existing.username
-          ),
-        },
-        discord: {
-          platform: 'DISCORD' as const,
-          connected: true,
-          metricLabel: 'members',
-          verified: true,
-          ...existing.connections?.discord,
-          ...creator.connections?.discord,
-          username: creator.connections?.discord?.username || existing.connections?.discord?.username || creator.displayName || 'community',
-          guildId: (creator.connections?.discord?.profileUrl && creator.connections.discord.profileUrl !== existing.connections?.discord?.profileUrl)
-            ? (creator.connections.discord.guildId || '')
-            : (creator.connections?.discord?.guildId || existing.connections?.discord?.guildId || ''),
-          metricValue: creator.connections?.discord?.metricValue || existing.connections?.discord?.metricValue || '0',
-          rawCount: creator.connections?.discord?.rawCount ?? existing.connections?.discord?.rawCount,
-          profileUrl: resolveDiscordUrl(
-            creator.connections?.discord?.profileUrl || existing.connections?.discord?.profileUrl,
-            creator.connections?.discord?.guildName || creator.connections?.discord?.username || existing.connections?.discord?.guildName,
-            creator.connections?.discord?.guildId || existing.connections?.discord?.guildId,
-            creator.username || existing.username
-          ),
-        },
-        ...(creator.connections?.instagram ? {
-          instagram: {
-            ...existing.connections?.instagram,
-            ...creator.connections.instagram,
-            platform: 'INSTAGRAM' as const,
-            connected: true,
-            metricLabel: 'followers',
-            verified: true,
-            metricValue: creator.connections.instagram.metricValue || existing.connections?.instagram?.metricValue || '',
-            username: creator.connections.instagram.username || existing.connections?.instagram?.username || creator.username || '',
-            profileUrl: resolveInstagramUrl(
-              creator.connections.instagram.profileUrl || existing.connections?.instagram?.profileUrl,
-              creator.connections.instagram.username || existing.connections?.instagram?.username,
-              creator.username || existing.username
-            ),
-          }
-        } : (existing.connections?.instagram ? { instagram: existing.connections.instagram } : {})),
       },
       moreChannels: Array.isArray(creator.moreChannels)
         ? creator.moreChannels
@@ -442,124 +563,69 @@ export async function addCreatorDB(creator: CreatorProfile): Promise<CreatorProf
 
   saveCreatorsToDisk(updatedList);
 
-  // Automatically sync creator proof and verification entry to verifications database
+  // Automatically sync creator proof and verification entry
   try {
     syncCreatorToVerificationDB(existingIdx >= 0 ? current[existingIdx] : creator);
   } catch (e) {}
 
   // Sync to Firebase in background
   try {
-    await syncCreatorToFirebase(creator);
-  } catch (e) {
-    // Non-blocking
-  }
-
-  const savedRecord = existingIdx >= 0 ? current[existingIdx] : creator;
-  try {
-    notifySubscribers({
-      type: existingIdx >= 0 ? 'CREATOR_UPDATED' : 'CREATOR_CREATED',
-      slug: savedRecord.slug,
-      status: savedRecord.verification_status,
-      isVerified: savedRecord.isVerified,
-      creator: savedRecord,
-    });
+    syncCreatorToFirebase(existingIdx >= 0 ? current[existingIdx] : creator);
   } catch (e) {}
 
-  return savedRecord;
+  return existingIdx >= 0 ? current[existingIdx] : creator;
 }
 
-export function clearAllCreatorsDB(): boolean {
-  saveCreatorsToDisk([]);
-  memoryCreators = [];
-  return true;
-}
-
-export async function deleteCreatorDB(target: string | string[]): Promise<boolean> {
-  const rawList = Array.isArray(target) ? target : [target];
-  const targets = rawList
-    .filter(Boolean)
-    .map((t) => t.trim().toUpperCase().replace(/^@/, ''));
-
-  if (targets.includes('ALL') || targets.includes('CLEAR')) {
-    return clearAllCreatorsDB();
-  }
-
+export async function deleteCreatorDB(targets: string[]): Promise<boolean> {
   const current = getAllCreatorsDB();
-  const filtered = current.filter((c) => {
-    const cSlug = (c.slug || '').toUpperCase();
-    const cPass = (c.passportId || '').toUpperCase();
-    const cHandle = (c.handle || '').toUpperCase().replace(/^@/, '');
-    const cId = (c.id || '').toUpperCase();
-    const cUser = (c.username || '').toUpperCase();
-    const cName = (c.displayName || '').toUpperCase();
+  const cleanTargets = targets.map((t) => t.trim().toLowerCase().replace(/^@/, ''));
 
-    const matchesAny = targets.some(
+  const remaining = current.filter((c) => {
+    const cSlug = (c.slug || '').toLowerCase();
+    const cHandle = (c.handle || '').toLowerCase().replace(/^@/, '');
+    const cUser = (c.username || '').toLowerCase();
+    const cPass = (c.passportId || '').toLowerCase();
+    const cId = (c.id || '').toLowerCase();
+    const cUserId = (c.userId || '').toLowerCase();
+
+    const matches = cleanTargets.some(
       (t) =>
         t === cSlug ||
-        t === cPass ||
         t === cHandle ||
-        t === cId ||
         t === cUser ||
-        t === cName ||
-        isSameIp(c.registeredIp, t) ||
-        isSameIp(c.clientIp, t)
+        t === cPass ||
+        t === cId ||
+        t === cUserId
     );
-
-    return !matchesAny;
+    return !matches;
   });
 
-  saveCreatorsToDisk(filtered);
+  const changed = remaining.length !== current.length;
+  if (changed) {
+    saveCreatorsToDisk(remaining);
 
-  try {
-    loadVerificationsFromDisk();
-    const filteredVerifs = memoryVerifications.filter((v) => {
-      const vSlug = (v.creatorSlug || '').toUpperCase();
-      return !targets.includes(vSlug);
-    });
-    saveVerificationsToDisk(filteredVerifs);
-  } catch (e) {}
-
-  for (const t of targets) {
-    try {
-      await deleteCreatorFromFirebase(t);
-    } catch (e) {}
-    try {
-      notifySubscribers({
-        type: 'CREATOR_DELETED',
-        slug: t.toLowerCase(),
-      });
-    } catch (e) {}
-  }
-  return true;
-}
-
-// ==========================================
-// VERIFICATION SYSTEM
-// ==========================================
-
-function mergeIncomingVerifications(incoming: VerificationSubmission[]): boolean {
-  let changed = false;
-  for (const v of incoming) {
-    const cleanId = (v.id || '').toLowerCase().trim();
-    const cleanSlug = (v.creatorSlug || '').toLowerCase().replace(/^@/, '').trim();
-    if (!cleanId && !cleanSlug) continue;
-    const idx = memoryVerifications.findIndex(
-      (m) => (m.id || '').toLowerCase().trim() === cleanId || (m.creatorSlug || '').toLowerCase().replace(/^@/, '').trim() === cleanSlug
-    );
-    if (idx === -1) {
-      memoryVerifications.push(v);
-      changed = true;
-    } else {
-      memoryVerifications[idx] = {
-        ...memoryVerifications[idx],
-        ...v,
-      };
+    // Also clean up related verifications and proofs
+    for (const t of cleanTargets) {
+      deleteVerificationByCreatorSlugDB(t);
+      try {
+        deleteCreatorFromFirebase(t);
+      } catch (e) {}
     }
   }
+
   return changed;
 }
 
-function loadVerificationsFromDisk(): VerificationSubmission[] {
+export async function deleteCreatorByUserIdDB(userId: string): Promise<boolean> {
+  if (!userId) return false;
+  return deleteCreatorDB([userId]);
+}
+
+// ==========================================
+// VERIFICATION SUBMISSIONS DATABASE
+// ==========================================
+
+export function loadVerificationsFromDisk(): VerificationSubmission[] {
   try {
     ensureDataFile();
     const paths = getWritablePaths();
@@ -572,176 +638,40 @@ function loadVerificationsFromDisk(): VerificationSubmission[] {
     }
 
     if (content) {
-      const parsed: VerificationSubmission[] = JSON.parse(content || '[]');
-      if (memoryVerifications.length === 0) {
-        memoryVerifications = parsed;
-      } else {
-        mergeIncomingVerifications(parsed);
-      }
+      memoryVerifications = JSON.parse(content || '[]');
     }
   } catch (err) {
-    console.error('[DB] Error loading verifications:', err);
+    console.error('[DB] Error loading verifications from disk:', err);
   }
-
-  // Non-blocking background sync with live cloud store
-  fetchFromCloudStore()
-    .then((cloud) => {
-      if (cloud.verifications && cloud.verifications.length > 0) {
-        if (mergeIncomingVerifications(cloud.verifications)) {
-          try {
-            const paths = getWritablePaths();
-            fs.writeFileSync(paths.verificationFile, JSON.stringify(memoryVerifications, null, 2), 'utf8');
-          } catch (e) {}
-        }
-      }
-    })
-    .catch(() => {});
 
   return memoryVerifications;
 }
 
-function saveVerificationsToDisk(items: VerificationSubmission[]): boolean {
-  memoryVerifications = items;
+export function saveVerificationsToDisk(submissions: VerificationSubmission[]): boolean {
+  memoryVerifications = submissions;
   try {
     ensureDataFile();
     const paths = getWritablePaths();
-    fs.writeFileSync(paths.verificationFile, JSON.stringify(items, null, 2), 'utf8');
+    fs.writeFileSync(paths.verificationFile, JSON.stringify(submissions, null, 2), 'utf8');
 
     if (!paths.isTmp || fs.existsSync(SEED_VERIFICATION_FILE)) {
       try {
-        fs.writeFileSync(SEED_VERIFICATION_FILE, JSON.stringify(items, null, 2), 'utf8');
+        fs.writeFileSync(SEED_VERIFICATION_FILE, JSON.stringify(submissions, null, 2), 'utf8');
       } catch (e) {}
     }
   } catch (err) {
-    console.error('[DB] Error saving verifications:', err);
+    console.error('[DB] Error saving verifications to disk:', err);
   }
 
-  // Push to cloud store immediately
-  pushVerificationsToCloudStore(memoryVerifications).catch(() => {});
+  pushVerificationsToCloudStore(submissions).catch((err) => {
+    console.warn('[DB] Cloud sync notice (verifications):', err);
+  });
+
   return true;
-}
-
-/**
- * Syncs a creator profile's proof screenshot and channels into the verification database
- */
-export function syncCreatorToVerificationDB(creator: CreatorProfile): VerificationSubmission | null {
-  try {
-    const slug = (creator.slug || creator.username || '').toLowerCase().replace(/^@/, '').trim();
-    if (!slug) return null;
-
-    loadVerificationsFromDisk();
-    const all = memoryVerifications;
-
-    // Collect proof documents
-    const proofs: ProofDocument[] = [];
-    if (creator.connections?.youtube?.proofScreenshot) {
-      proofs.push({
-        id: `proof_yt_${creator.id || slug}`,
-        url: creator.connections.youtube.proofScreenshot,
-        filename: 'youtube_studio_proof.png',
-        mimeType: 'image/png',
-        platform: 'YOUTUBE',
-        uploadedAt: creator.issuedAt || new Date().toISOString(),
-        notes: `YouTube Channel Proof for ${creator.displayName} (${creator.connections?.youtube?.metricValue || 'Metrics'})`,
-      });
-    }
-    if (creator.connections?.discord?.proofScreenshot) {
-      proofs.push({
-        id: `proof_dc_${creator.id || slug}`,
-        url: creator.connections.discord.proofScreenshot,
-        filename: 'discord_server_proof.png',
-        mimeType: 'image/png',
-        platform: 'DISCORD',
-        uploadedAt: creator.issuedAt || new Date().toISOString(),
-        notes: `Discord Community Proof for ${creator.displayName} (${creator.connections?.discord?.metricValue || 'Metrics'})`,
-      });
-    }
-    if (Array.isArray(creator.proofDocuments)) {
-      for (const doc of creator.proofDocuments) {
-        if (!proofs.some((p) => p.url === doc.url)) {
-          proofs.push(doc);
-        }
-      }
-    }
-
-    const idx = all.findIndex(
-      (v) =>
-        (v.creatorSlug || '').toLowerCase() === slug ||
-        (v.id || '').toLowerCase() === `vrf_${slug}` ||
-        (v.creatorHandle || '').toLowerCase().replace(/^@/, '') === slug
-    );
-    const existing = idx >= 0 ? all[idx] : null;
-
-    let currentStatus: VerificationStatus = 'PENDING';
-    if (creator.isVerified || existing?.status === 'VERIFIED' || creator.verification_status === 'VERIFIED') {
-      currentStatus = 'VERIFIED';
-    } else if (creator.verification_status === 'REJECTED' || existing?.status === 'REJECTED') {
-      currentStatus = 'REJECTED';
-    } else if (creator.verification_status === 'UNDER_REVIEW' || existing?.status === 'UNDER_REVIEW') {
-      currentStatus = 'UNDER_REVIEW';
-    } else if (existing?.status) {
-      currentStatus = existing.status;
-    }
-
-    const submission: VerificationSubmission = {
-      id: existing?.id || `vrf_${Date.now()}_${slug}`,
-      creatorSlug: slug,
-      creatorName: creator.displayName,
-      creatorHandle: `@${slug}`,
-      creatorAvatar: creator.avatarUrl,
-      category: creator.category || 'Creator',
-      platforms: ['YOUTUBE', 'DISCORD'],
-      connectedPlatforms: creator.connections || {},
-      proofDocuments: proofs.length > 0 ? proofs : (existing?.proofDocuments || []),
-      status: currentStatus,
-      submittedAt: existing?.submittedAt || creator.issuedAt || new Date().toISOString(),
-      rejectionReason: creator.rejectionReason || existing?.rejectionReason,
-      reviewedAt: existing?.reviewedAt,
-      reviewedBy: existing?.reviewedBy,
-    };
-
-    if (idx >= 0) {
-      all[idx] = submission;
-    } else {
-      all.unshift(submission);
-    }
-
-    saveVerificationsToDisk(all);
-    return submission;
-  } catch (err) {
-    console.error('[DB] Error syncing creator to verifications:', err);
-    return null;
-  }
 }
 
 export function getAllVerificationsDB(): VerificationSubmission[] {
   loadVerificationsFromDisk();
-
-  // Auto-sync: Ensure every creator from creators.json is represented in verification reviews and kept in sync
-  try {
-    const creators = getAllCreatorsDB();
-    let hasChanges = false;
-    for (const c of creators) {
-      const slug = (c.slug || c.username || '').toLowerCase().replace(/^@/, '').trim();
-      if (!slug) continue;
-      const vIdx = memoryVerifications.findIndex((v) => (v.creatorSlug || '').toLowerCase() === slug);
-      if (vIdx === -1) {
-        syncCreatorToVerificationDB(c);
-        hasChanges = true;
-      } else {
-        const v = memoryVerifications[vIdx];
-        const cStatus = c.verification_status || (c.isVerified ? 'VERIFIED' : 'PENDING');
-        if (v.status !== cStatus) {
-          v.status = cStatus;
-          hasChanges = true;
-        }
-      }
-    }
-    if (hasChanges) {
-      saveVerificationsToDisk(memoryVerifications);
-    }
-  } catch (e) {}
-
   return memoryVerifications;
 }
 
@@ -749,204 +679,212 @@ export async function getAllVerificationsDBAsync(): Promise<VerificationSubmissi
   try {
     const cloud = await fetchFromCloudStore();
     if (cloud.verifications && cloud.verifications.length > 0) {
-      mergeIncomingVerifications(cloud.verifications);
+      for (const v of cloud.verifications) {
+        const idx = memoryVerifications.findIndex((m) => m.id === v.id || m.creatorSlug === v.creatorSlug);
+        if (idx === -1) memoryVerifications.push(v);
+        else memoryVerifications[idx] = { ...memoryVerifications[idx], ...v };
+      }
     }
   } catch (e) {}
   return getAllVerificationsDB();
 }
 
-export function getVerificationByIdDB(id: string): VerificationSubmission | null {
+export function submitVerificationDB(submission: any): VerificationSubmission {
   const all = getAllVerificationsDB();
-  const cleanId = id.trim().toLowerCase();
-  const cleanSlug = cleanId.replace(/^vrf_creator_/, '').replace(/^vrf_/, '');
-  return all.find((v) => v.id.toLowerCase() === cleanId || v.creatorSlug.toLowerCase() === cleanSlug) || null;
-}
-
-export function getVerificationsBySlugDB(slug: string): VerificationSubmission[] {
-  const all = getAllVerificationsDB();
-  const clean = slug.replace(/^@/, '').toLowerCase().trim();
-  return all.filter((v) => v.creatorSlug.toLowerCase() === clean);
-}
-
-export function submitVerificationDB(submission: Omit<VerificationSubmission, 'id' | 'status' | 'submittedAt'>): VerificationSubmission {
-  const all = getAllVerificationsDB();
-  
-  const newSubmission: VerificationSubmission = {
+  const sub: VerificationSubmission = {
     ...submission,
-    id: `vrf_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
-    status: 'PENDING',
-    submittedAt: new Date().toISOString(),
+    id: submission.id || `vrf_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+    status: submission.status || 'PENDING',
+    submittedAt: submission.submittedAt || new Date().toISOString(),
+    proofDocuments: submission.proofDocuments || [],
   };
+  all.unshift(sub);
+  saveVerificationsToDisk(all);
+  return sub;
+}
 
-  all.unshift(newSubmission);
+
+export function getVerificationByIdDB(target: string): VerificationSubmission | null {
+  const all = getAllVerificationsDB();
+  const clean = target.trim().toLowerCase().replace(/^@/, '');
+  return (
+    all.find(
+      (v) =>
+        v.id.toLowerCase() === clean ||
+        v.creatorSlug.toLowerCase() === clean ||
+        v.creatorHandle.toLowerCase().replace(/^@/, '') === clean ||
+        (v.creatorId && v.creatorId.toLowerCase() === clean) ||
+        (v.userId && v.userId.toLowerCase() === clean)
+    ) || null
+  );
+}
+
+export function deleteVerificationByCreatorSlugDB(slug: string): boolean {
+  const clean = slug.toLowerCase().replace(/^@/, '').trim();
+  const all = getAllVerificationsDB();
+  const filtered = all.filter((v) => v.creatorSlug.toLowerCase() !== clean);
+  if (filtered.length !== all.length) {
+    saveVerificationsToDisk(filtered);
+    return true;
+  }
+  return false;
+}
+
+export function addVerificationDB(submission: VerificationSubmission): VerificationSubmission {
+  const all = getAllVerificationsDB();
+  const cleanSlug = submission.creatorSlug.toLowerCase().replace(/^@/, '');
+  submission.creatorSlug = cleanSlug;
+  submission.id = submission.id || `vrf_${cleanSlug}`;
+
+  const idx = all.findIndex(
+    (v) => v.id === submission.id || v.creatorSlug.toLowerCase() === cleanSlug
+  );
+
+  if (idx >= 0) {
+    all[idx] = { ...all[idx], ...submission };
+  } else {
+    all.unshift(submission);
+  }
+
   saveVerificationsToDisk(all);
 
   try {
-    syncVerificationToFirebase(newSubmission);
+    syncVerificationToFirebase(submission);
   } catch (e) {}
 
-  // Update the creator's verification_status
-  const creator = getCreatorBySlugDB(submission.creatorSlug);
-  if (creator) {
-    creator.verification_status = 'PENDING';
-    const allCreators = getAllCreatorsDB();
-    const idx = allCreators.findIndex((c) => c.slug === creator.slug);
-    if (idx >= 0) {
-      allCreators[idx] = creator;
-      saveCreatorsToDisk(allCreators);
-    }
+  return submission;
+}
+
+export function syncCreatorToVerificationDB(creator: CreatorProfile): VerificationSubmission | null {
+  if (!creator) return null;
+  const cleanSlug = (creator.slug || creator.username || '').toLowerCase().replace(/^@/, '').trim();
+  if (!cleanSlug) return null;
+
+  const allVerifs = getAllVerificationsDB();
+  const existingIdx = allVerifs.findIndex((v) => v.creatorSlug.toLowerCase() === cleanSlug);
+
+  const existingSub = existingIdx >= 0 ? allVerifs[existingIdx] : null;
+
+  const submission: VerificationSubmission = {
+    id: existingSub?.id || `vrf_${cleanSlug}`,
+    creatorId: creator.id,
+    userId: creator.userId,
+    creatorSlug: cleanSlug,
+    creatorName: creator.displayName || cleanSlug,
+    creatorHandle: creator.handle || `@${cleanSlug}`,
+    creatorAvatar: creator.avatarUrl,
+    category: creator.category || creator.niche || 'Creator',
+    platforms: Object.keys(creator.connections || {}).filter(
+      (k) => (creator.connections as any)[k]?.connected
+    ),
+    connectedPlatforms: {
+      youtube: creator.connections?.youtube?.connected
+        ? {
+            connected: true,
+            metricValue: creator.connections.youtube.metricValue,
+            username: creator.connections.youtube.username,
+            proofScreenshot: creator.connections.youtube.proofScreenshot,
+          }
+        : undefined,
+      discord: creator.connections?.discord?.connected
+        ? {
+            connected: true,
+            metricValue: creator.connections.discord.metricValue,
+            username: creator.connections.discord.username,
+            proofScreenshot: creator.connections.discord.proofScreenshot,
+          }
+        : undefined,
+      instagram: creator.connections?.instagram?.connected
+        ? {
+            connected: true,
+            username: creator.connections.instagram.username,
+          }
+        : undefined,
+      x: creator.connections?.x?.connected
+        ? {
+            connected: true,
+            username: creator.connections.x.username,
+          }
+        : undefined,
+    },
+    proofDocuments: creator.proofDocuments || existingSub?.proofDocuments || [],
+    status: creator.verification_status || existingSub?.status || 'PENDING',
+    submittedAt: existingSub?.submittedAt || creator.issuedAt || new Date().toISOString(),
+    reviewedAt: existingSub?.reviewedAt,
+    reviewedBy: existingSub?.reviewedBy,
+    rejectionReason: creator.rejectionReason || existingSub?.rejectionReason,
+  };
+
+  if (existingIdx >= 0) {
+    allVerifs[existingIdx] = submission;
+  } else {
+    allVerifs.unshift(submission);
   }
 
-  return newSubmission;
+  saveVerificationsToDisk(allVerifs);
+  return submission;
 }
 
 export function updateVerificationStatusDB(
-  idOrSlug: string,
-  status: 'PENDING' | 'UNDER_REVIEW' | 'VERIFIED' | 'REJECTED',
-  reviewedBy?: string,
+  targetIdentifier: string,
+  status: VerificationStatus,
+  reviewedBy: string = 'Admin',
   rejectionReason?: string,
-  extraCreatorData?: Partial<CreatorProfile>
+  extraCreatorInfo?: Partial<CreatorProfile>
 ): { verification: VerificationSubmission | null; creator: CreatorProfile | null } {
-  loadCreatorsFromDisk();
-  loadVerificationsFromDisk();
-
-  const cleanTarget = (idOrSlug || '').trim().toLowerCase();
-  const rawClean = cleanTarget
-    .replace(/^@/, '')
-    .replace(/^vrf_/, '')
-    .replace(/^creator_/, '');
-
-  // Extract possible slug from timestamped id e.g. vrf_1741234567890_someuser
-  let timestampExtractedSlug = '';
-  const parts = cleanTarget.split('_');
-  if (parts.length >= 3 && parts[0] === 'vrf') {
-    timestampExtractedSlug = parts.slice(2).join('_');
+  if (!targetIdentifier) {
+    return { verification: null, creator: null };
   }
-
-  const candidateKeys = [
-    cleanTarget,
-    rawClean,
-    timestampExtractedSlug,
-    extraCreatorData?.slug?.toLowerCase(),
-    extraCreatorData?.username?.toLowerCase(),
-    extraCreatorData?.passportId?.toLowerCase(),
-    extraCreatorData?.id?.toLowerCase(),
-    extraCreatorData?.displayName?.toLowerCase(),
-  ].filter(Boolean) as string[];
-
-  // 1. Resolve verification submission
+  const clean = targetIdentifier.trim().toLowerCase().replace(/^@/, '');
   const allVerifs = getAllVerificationsDB();
-  let vIdx = allVerifs.findIndex((v) => {
-    const vId = (v.id || '').toLowerCase();
-    const vSlug = (v.creatorSlug || '').toLowerCase();
-    const vHandle = (v.creatorHandle || '').toLowerCase().replace(/^@/, '');
-    const vName = (v.creatorName || '').toLowerCase();
-
-    return candidateKeys.some(
-      (k) =>
-        vId === k ||
-        vSlug === k ||
-        vHandle === k ||
-        vName === k ||
-        vId.endsWith(`_${k}`) ||
-        vId.replace(/^vrf_/, '') === k
-    );
-  });
-
-  let canonicalSlug =
-    (vIdx >= 0 ? allVerifs[vIdx].creatorSlug : null) ||
-    timestampExtractedSlug ||
-    extraCreatorData?.slug ||
-    extraCreatorData?.username ||
-    rawClean ||
-    'creator';
-  canonicalSlug = canonicalSlug.toLowerCase().replace(/^@/, '');
-
-  // 2. Find and update the creator in creators.json
   const allCreators = getAllCreatorsDB();
-  let cIdx = allCreators.findIndex((c) => {
-    const s = (c.slug || '').toLowerCase();
-    const u = (c.username || '').toLowerCase();
-    const p = (c.passportId || '').toLowerCase();
-    const h = (c.handle || '').toLowerCase().replace(/^@/, '');
-    const id = (c.id || '').toLowerCase();
-    const name = (c.displayName || '').toLowerCase();
 
-    return candidateKeys.concat([canonicalSlug]).some(
-      (k) =>
-        s === k ||
-        u === k ||
-        p === k ||
-        h === k ||
-        id === k ||
-        id === `creator_${k}` ||
-        id.replace(/^creator_/, '') === k ||
-        name === k ||
-        name.replace(/[^a-z0-9]/g, '') === k.replace(/[^a-z0-9]/g, '')
-    );
-  });
+  let vIdx = allVerifs.findIndex(
+    (v) =>
+      v.id.toLowerCase() === clean ||
+      v.creatorSlug.toLowerCase() === clean ||
+      v.creatorHandle.toLowerCase().replace(/^@/, '') === clean ||
+      (v.creatorId && v.creatorId.toLowerCase() === clean) ||
+      (v.userId && v.userId.toLowerCase() === clean)
+  );
 
-  let updatedCreator: CreatorProfile | null = null;
+  let cIdx = allCreators.findIndex(
+    (c) =>
+      c.id.toLowerCase() === clean ||
+      (c.slug && c.slug.toLowerCase() === clean) ||
+      (c.username && c.username.toLowerCase() === clean) ||
+      (c.passportId && c.passportId.toLowerCase() === clean) ||
+      (c.handle && c.handle.toLowerCase().replace(/^@/, '') === clean) ||
+      (c.userId && c.userId.toLowerCase() === clean)
+  );
+
+  const canonicalSlug =
+    (cIdx >= 0 ? allCreators[cIdx].slug : null) ||
+    (vIdx >= 0 ? allVerifs[vIdx].creatorSlug : null) ||
+    clean;
+
   const isVerified = status === 'VERIFIED';
+  let updatedCreator: CreatorProfile | null = null;
 
   if (cIdx >= 0) {
-    allCreators[cIdx] = {
-      ...allCreators[cIdx],
-      isVerified,
-      verification_status: status,
-      tierName: isVerified
-        ? (allCreators[cIdx].tierName && allCreators[cIdx].tierName !== 'Candidate Member'
-            ? allCreators[cIdx].tierName
-            : 'Founding Member Tier I')
-        : 'Candidate Member',
-      lastVerifiedAt: isVerified ? new Date().toISOString().split('T')[0] : allCreators[cIdx].lastVerifiedAt,
-      rejectionReason: status === 'REJECTED' ? (rejectionReason || 'Proof inconclusive') : undefined,
-    };
+    if (extraCreatorInfo) {
+      allCreators[cIdx] = { ...allCreators[cIdx], ...extraCreatorInfo };
+    }
+    allCreators[cIdx].verification_status = status;
+    allCreators[cIdx].isVerified = isVerified;
+    allCreators[cIdx].lastVerifiedAt = new Date().toISOString().split('T')[0];
+    if (status === 'REJECTED') {
+      allCreators[cIdx].rejectionReason = rejectionReason || 'Proof inconclusive';
+    } else {
+      allCreators[cIdx].rejectionReason = undefined;
+    }
+    saveCreatorsToDisk(allCreators);
     updatedCreator = allCreators[cIdx];
-    saveCreatorsToDisk(allCreators);
-
-    try {
-      syncCreatorToFirebase(updatedCreator);
-    } catch (e) {}
-  } else if (extraCreatorData && (extraCreatorData.displayName || extraCreatorData.username || extraCreatorData.slug)) {
-    // If not found in creators array, synthesize/upsert it directly
-    const synthesized: CreatorProfile = {
-      id: extraCreatorData.id || `creator_${canonicalSlug}`,
-      passportId: extraCreatorData.passportId || canonicalSlug,
-      slug: extraCreatorData.slug || canonicalSlug,
-      handle: extraCreatorData.handle || `@${canonicalSlug}`,
-      username: extraCreatorData.username || canonicalSlug,
-      displayName: extraCreatorData.displayName || canonicalSlug,
-      avatarUrl: extraCreatorData.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
-      bio: extraCreatorData.bio || 'Creator on CreatorHQ',
-      category: extraCreatorData.category || 'Creator',
-      country: extraCreatorData.country || 'Global',
-      location: extraCreatorData.location || 'Global',
-      contactEmail: extraCreatorData.contactEmail || `${canonicalSlug}@creatorhq.fun`,
-      issuedAt: extraCreatorData.issuedAt || new Date().toISOString(),
-      lastVerifiedAt: (isVerified ? new Date().toISOString().split('T')[0] : extraCreatorData.lastVerifiedAt) || new Date().toISOString().split('T')[0],
-      digitalSignature: extraCreatorData.digitalSignature || `0x${Date.now().toString(16)}`,
-      isSuspended: extraCreatorData.isSuspended ?? false,
-      isVerified,
-      verification_status: status,
-      tierName: isVerified ? 'Founding Member Tier I' : 'Candidate Member',
-      profileCompletion: extraCreatorData.profileCompletion ?? 100,
-      skills: extraCreatorData.skills || ['Content Creator'],
-      achievements: extraCreatorData.achievements || [],
-      collaborations: extraCreatorData.collaborations || [],
-      portfolio: extraCreatorData.portfolio || [],
-      connections: (extraCreatorData.connections as any) || {},
-      ...extraCreatorData,
-    };
-    allCreators.push(synthesized);
-    saveCreatorsToDisk(allCreators);
-    updatedCreator = synthesized;
-    cIdx = allCreators.length - 1;
   } else if (vIdx >= 0) {
-    // Reconstruct creator from existing verification record
     const v = allVerifs[vIdx];
     const synthesized: CreatorProfile = {
-      id: `creator_${v.creatorSlug || canonicalSlug}`,
+      id: v.creatorId || `creator_${canonicalSlug}`,
+      userId: v.userId || `usr_${canonicalSlug}`,
       passportId: v.creatorSlug || canonicalSlug,
       slug: v.creatorSlug || canonicalSlug,
       handle: v.creatorHandle || `@${canonicalSlug}`,
@@ -975,12 +913,9 @@ export function updateVerificationStatusDB(
     allCreators.push(synthesized);
     saveCreatorsToDisk(allCreators);
     updatedCreator = synthesized;
-    cIdx = allCreators.length - 1;
   }
 
-  // 3. Update the corresponding verification in verifications.json
   let updatedSubmission: VerificationSubmission | null = null;
-
   if (vIdx >= 0) {
     allVerifs[vIdx].status = status;
     allVerifs[vIdx].reviewedAt = new Date().toISOString();
@@ -1006,7 +941,7 @@ export function updateVerificationStatusDB(
     }
   }
 
-  // 4. Notify real-time SSE stream across all clients
+  // Notify real-time SSE stream
   try {
     notifySubscribers({
       type: 'VERIFICATION_UPDATED',
@@ -1016,12 +951,6 @@ export function updateVerificationStatusDB(
       creator: updatedCreator,
       verification: updatedSubmission,
     });
-  } catch (e) {}
-
-  // Sync both to Firebase in background
-  try {
-    if (updatedCreator) syncCreatorToFirebase(updatedCreator);
-    if (updatedSubmission) syncVerificationToFirebase(updatedSubmission);
   } catch (e) {}
 
   return { verification: updatedSubmission, creator: updatedCreator };
@@ -1041,7 +970,6 @@ export function saveProofDocumentDB(
 ): ProofDocument | null {
   try {
     ensureDataFile();
-
     const paths = getWritablePaths();
     const creatorProofsDir = path.join(paths.proofsDir, creatorSlug);
     if (!fs.existsSync(creatorProofsDir)) {
@@ -1053,7 +981,6 @@ export function saveProofDocumentDB(
     const storedFilename = `${docId}.${ext}`;
     const storagePath = path.join(creatorProofsDir, storedFilename);
 
-    // Strip base64 prefix if present
     const cleanBase64 = base64Data.replace(/^data:[^;]+;base64,/, '');
     const buffer = Buffer.from(cleanBase64, 'base64');
     fs.writeFileSync(storagePath, buffer);
@@ -1093,4 +1020,6 @@ export function getProofFilePath(creatorSlug: string, storedFilename: string): s
 if (typeof window === 'undefined') {
   loadCreatorsFromDisk();
   loadVerificationsFromDisk();
+  getUsersDB();
+  getSessionsDB();
 }

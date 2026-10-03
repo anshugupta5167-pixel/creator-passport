@@ -1,6 +1,41 @@
 // Creator Passport System Types
 
 export type VerificationStatus = 'UNVERIFIED' | 'PENDING' | 'UNDER_REVIEW' | 'VERIFIED' | 'REJECTED';
+export type UserRole = 'CREATOR' | 'ADMIN';
+
+export interface User {
+  id: string;
+  email: string;
+  username: string;
+  displayName: string;
+  role: UserRole;
+  passwordHash: string;
+  passwordSalt: string;
+  emailVerified: boolean;
+  verificationToken?: string | null;
+  verificationExpires?: string | null;
+  resetToken?: string | null;
+  resetExpires?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Session {
+  id: string;
+  userId: string;
+  token: string;
+  createdAt: string;
+  expiresAt: string;
+}
+
+export interface AuditLog {
+  id: string;
+  userId?: string | null;
+  action: string;
+  actor: string;
+  details?: any;
+  timestamp: string;
+}
 
 export interface ProofDocument {
   id: string;
@@ -26,11 +61,13 @@ export interface PlatformConnection {
   // Official YouTube tracking
   channelId?: string;
   rawCount?: number;
+  avatarUrl?: string;
   proofScreenshot?: string;
   // Official Discord sync
   guildId?: string;
   guildName?: string;
   guildIcon?: string;
+  inviteCode?: string;
   approximatePresenceCount?: number;
   syncStatus?: 'VERIFIED' | 'SYNCING' | 'FALLBACK' | 'ERROR';
   syncError?: string;
@@ -41,7 +78,7 @@ export interface ChannelItem {
   name: string;
   handle: string;
   url: string;
-  subscribers: string; // e.g. "2.4M subscribers"
+  subscribers: string;
   numericSubscribers?: number;
   verified: boolean;
   lastSynced?: string;
@@ -90,7 +127,8 @@ export interface PortfolioItem {
 }
 
 export interface CreatorProfile {
-  id: string;
+  id: string; // creator_xxx
+  userId?: string; // references User.id
   slug: string; // e.g. "itsuniqueplayz" — the primary public identifier
   handle: string; // e.g. "@itsuniqueplayz"
   username: string; // e.g. "itsuniqueplayz"
@@ -113,12 +151,12 @@ export interface CreatorProfile {
   issuedAt: string;
   lastVerifiedAt: string;
   digitalSignature: string; // SHA-256 hash
-  creatorSecret?: string; // Private creator token
   isSuspended: boolean;
   suspensionReason?: string;
-  registeredIp?: string;
-  clientIp?: string;
   
+  cardTheme?: string;
+  cardColor?: string;
+
   connections: {
     youtube?: PlatformConnection;
     discord?: PlatformConnection;
@@ -137,12 +175,14 @@ export interface CreatorProfile {
   collaborations: CollabItem[];
   portfolio: PortfolioItem[];
 
-  // Internal backwards-compat field — NEVER shown in public UI
+  // Internal backwards-compat field
   passportId?: string;
 }
 
 export interface VerificationSubmission {
   id: string;
+  creatorId?: string;
+  userId?: string;
   creatorSlug: string;
   creatorName: string;
   creatorHandle: string;

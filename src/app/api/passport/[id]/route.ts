@@ -9,7 +9,7 @@ export async function GET(
   context: { params: Promise<{ id: string }> }
 ) {
   const { id } = await context.params;
-  const clean = (id || '').replace(/^@/, '');
+  const clean = (id || '').replace(/^@/, '').toLowerCase().trim();
   const creator = getCreatorByIdDB(clean) || getCreatorByUsernameDB(clean);
 
   if (!creator) {
@@ -19,30 +19,51 @@ export async function GET(
     );
   }
 
-  // Return public passport card payload
+  // Return public passport card payload with strictly authentic stats
   return NextResponse.json({
-    passportId: creator.passportId,
+    passportId: creator.passportId || creator.slug,
+    slug: creator.slug,
     displayName: creator.displayName,
     username: creator.username,
-    category: creator.category,
-    status: creator.isVerified ? 'VERIFIED' : 'PENDING',
+    avatarUrl: creator.avatarUrl,
+    category: creator.category || creator.niche,
+    status: creator.verification_status,
+    isVerified: creator.isVerified,
     isFounding: creator.isFounding,
     tierName: creator.tierName,
     digitalSignature: creator.digitalSignature,
     issuedAt: creator.issuedAt,
     connectedAccounts: {
-      youtube: {
-        connected: !!creator.connections.youtube?.connected,
-        subscribers: creator.connections.youtube?.metricValue || null,
-        verified: !!creator.connections.youtube?.verified,
-      },
-      discord: {
-        connected: !!creator.connections.discord?.connected,
-        members: creator.connections.discord?.metricValue || null,
-        verified: !!creator.connections.discord?.verified,
-      },
+      youtube: creator.connections?.youtube?.connected
+        ? {
+            connected: true,
+            username: creator.connections.youtube.username,
+            subscribers: creator.connections.youtube.metricValue,
+            verified: creator.connections.youtube.verified,
+            profileUrl: creator.connections.youtube.profileUrl,
+          }
+        : null,
+      discord: creator.connections?.discord?.connected
+        ? {
+            connected: true,
+            guildName: creator.connections.discord.guildName || creator.connections.discord.username,
+            members: creator.connections.discord.metricValue,
+            verified: creator.connections.discord.verified,
+            profileUrl: creator.connections.discord.profileUrl,
+          }
+        : null,
+      instagram: creator.connections?.instagram?.connected
+        ? {
+            connected: true,
+            username: creator.connections.instagram.username,
+            followers: creator.connections.instagram.metricValue,
+            verified: creator.connections.instagram.verified,
+            profileUrl: creator.connections.instagram.profileUrl,
+          }
+        : null,
     },
-    qrCodeUrl: `${request.nextUrl.origin}/creator/${creator.passportId}`,
+    moreChannels: creator.moreChannels || [],
+    qrCodeUrl: `${request.nextUrl.origin}/${creator.slug}`,
     isSuspended: creator.isSuspended,
   });
 }

@@ -102,17 +102,18 @@ export default function CreatorProfileView({ creator, targetId }: CreatorProfile
 
     const currentSlug = (creator?.slug || creator?.username || targetId || '').toLowerCase().replace(/^@/, '');
 
-    // Check if viewer owns this card
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('creatorhq_user_card');
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          const parsedSlug = (parsed.slug || parsed.username || '').toLowerCase().replace(/^@/, '');
-          setIsMyOwnPass(Boolean(parsedSlug && currentSlug && parsedSlug === currentSlug));
+    // Secure server-side identity check for ownership
+    fetch('/api/auth/me')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.user) {
+          const authUserSlug = (data.creator?.slug || data.creator?.username || data.user.username || '').toLowerCase().replace(/^@/, '');
+          if (authUserSlug && currentSlug && authUserSlug === currentSlug) {
+            setIsMyOwnPass(true);
+          }
         }
-      } catch (e) {}
-    }
+      })
+      .catch(() => {});
 
     // If no server creator was provided, fetch from /api/creators
     if (!creator && targetId) {
@@ -482,17 +483,11 @@ export default function CreatorProfileView({ creator, targetId }: CreatorProfile
             <MoreChannelsCard
               passportId={activeCreator.slug || activeCreator.username}
               channels={activeCreator.moreChannels || []}
-              allowAdd={true}
+              allowAdd={isMyOwnPass}
               onChannelsUpdated={(updatedChannels) => {
                 setActiveCreator((prev) => {
                   if (!prev) return prev;
-                  const updated = { ...prev, moreChannels: updatedChannels };
-                  if (typeof window !== 'undefined') {
-                    try {
-                      localStorage.setItem('creatorhq_user_card', JSON.stringify(updated));
-                    } catch (e) {}
-                  }
-                  return updated;
+                  return { ...prev, moreChannels: updatedChannels };
                 });
               }}
             />
@@ -521,7 +516,7 @@ export default function CreatorProfileView({ creator, targetId }: CreatorProfile
                 Contact {activeCreator.displayName}
               </h3>
               <p className="text-xs text-slate-400 mt-1">
-                Your proposal will be sent directly to {activeCreator.contactEmail}.
+                Your proposal will be delivered securely to {activeCreator.displayName}&apos;s verified creator inbox.
               </p>
             </div>
 

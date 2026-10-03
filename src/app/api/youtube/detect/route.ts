@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchYouTubeChannel } from '@/lib/youtube';
 import { getCreatorByIdDB, addCreatorDB } from '@/lib/db';
+import { getAuthenticatedUser } from '@/lib/auth';
+
+export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
@@ -9,13 +12,24 @@ export async function POST(request: NextRequest) {
 
     if (!url && !channelId) {
       return NextResponse.json(
-        { error: 'YouTube channel URL or handle is required' },
+        { error: 'BAD_REQUEST', message: 'YouTube channel URL or handle is required' },
         { status: 400 }
       );
     }
 
-    const input = url || channelId;
-    let existingCreator = passportId ? getCreatorByIdDB(passportId) : null;
+    const input = (url || channelId).trim();
+    const auth = await getAuthenticatedUser(request);
+
+    let existingCreator = null;
+    if (auth?.creator) {
+      existingCreator = auth.creator;
+    } else if (passportId) {
+      const found = getCreatorByIdDB(passportId);
+      // ONLY allow updating if caller is the owner
+      if (found && auth?.user.id === found.userId) {
+        existingCreator = found;
+      }
+    }
 
     const previousCount = existingCreator?.connections.youtube?.rawCount;
     const previousChannelId = existingCreator?.connections.youtube?.channelId || channelId;
@@ -25,8 +39,8 @@ export async function POST(request: NextRequest) {
       previousChannelId,
     });
 
-    // If passportId provided, persist to creator's record in DB
-    if (existingCreator) {
+    // If caller owns the creator card, persist update
+    if (existingCreator && auth && (auth.user.id === existingCreator.userId || auth.user.role === 'ADMIN')) {
       existingCreator.connections = existingCreator.connections || {};
       existingCreator.connections.youtube = {
         platform: 'YOUTUBE',
@@ -38,10 +52,16 @@ export async function POST(request: NextRequest) {
         profileUrl: channelResult.url,
         channelId: channelResult.channelId,
         rawCount: channelResult.subscriberCount,
+        avatarUrl: channelResult.avatarUrl,
         lastSynced: channelResult.lastUpdated,
         lastSyncedTimestamp: channelResult.lastSyncedTimestamp,
         syncStatus: channelResult.status,
       };
+
+      // Also update creator avatar if not customized
+      if (!existingCreator.avatarUrl && channelResult.avatarUrl) {
+        existingCreator.avatarUrl = channelResult.avatarUrl;
+      }
 
       await addCreatorDB(existingCreator);
     }
@@ -52,7 +72,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (err: any) {
     return NextResponse.json(
-      { error: err.message || 'Failed to detect YouTube channel' },
+      { error: 'DETECT_FAILED', message: err.message || 'Failed to detect YouTube channel' },
       { status: 400 }
     );
   }

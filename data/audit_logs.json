@@ -1,0 +1,35 @@
+[
+  {
+    "id": "audit_1791010326942_n4kt",
+    "userId": "usr_admin_system_001",
+    "action": "TEST_ADMIN_ACTION",
+    "actor": "admin@creatorhq.fun",
+    "details": {
+      "targetSlug": "creator_mus1b0om",
+      "status": "VERIFIED"
+    },
+    "timestamp": "2026-10-03T06:52:06.942Z"
+  },
+  {
+    "id": "audit_1791010307354_1oe7",
+    "userId": "usr_admin_system_001",
+    "action": "TEST_ADMIN_ACTION",
+    "actor": "admin@creatorhq.fun",
+    "details": {
+      "targetSlug": "creator_mus1alko",
+      "status": "VERIFIED"
+    },
+    "timestamp": "2026-10-03T06:51:47.354Z"
+  },
+  {
+    "id": "audit_1791008881201",
+    "action": "DATABASE_CLEAN_RESET",
+    "actor": "System Initialization",
+    "details": {
+      "backedUpCreators": 2,
+      "backedUpVerifications": 4,
+      "backupLocation": "C:\\Users\\opfal\\.gemini\\antigravity-ide\\scratch\\creator-passport\\data\\backups\\backup_pre_reset_2026-10-03T06-28-01-148Z.json"
+    },
+    "timestamp": "2026-10-03T06:28:01.201Z"
+  }
+]

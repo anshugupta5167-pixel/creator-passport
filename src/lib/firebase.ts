@@ -25,20 +25,16 @@ try {
 export const db = firestoreInstance;
 
 export function isFirebaseConfigured(): boolean {
-  return Boolean(
-    db && (
-      Boolean(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID) ||
-      Boolean(process.env.FIREBASE_PROJECT_ID) ||
-      Boolean(process.env.NEXT_PUBLIC_FIREBASE_API_KEY)
-    )
-  );
+  const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY || process.env.FIREBASE_API_KEY || '';
+  if (!apiKey || apiKey.startsWith('AIzaSyDummy') || apiKey.includes('Dummy')) return false;
+  return Boolean(db && (process.env.FIREBASE_SYNC_ENABLED === 'true' || process.env.ENABLE_FIREBASE_SYNC === 'true'));
 }
 
 /**
  * Save creator profile to Firebase Firestore (if online & configured)
  */
 export async function syncCreatorToFirebase(creator: CreatorProfile): Promise<boolean> {
-  if (!db) return false;
+  if (!isFirebaseConfigured() || !db) return false;
   const docId = (creator.passportId || creator.slug || creator.username || creator.id || '').toLowerCase().replace(/^@/, '');
   if (!docId) return false;
   try {
@@ -55,7 +51,7 @@ export async function syncCreatorToFirebase(creator: CreatorProfile): Promise<bo
  * Delete creator from Firebase Firestore
  */
 export async function deleteCreatorFromFirebase(passportId: string): Promise<boolean> {
-  if (!db) return false;
+  if (!isFirebaseConfigured() || !db) return false;
   const docId = passportId.toLowerCase().replace(/^@/, '');
   try {
     const creatorRef = doc(db, 'creators', docId);

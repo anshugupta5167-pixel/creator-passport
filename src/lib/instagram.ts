@@ -1,5 +1,5 @@
 // Instagram Profile Fetching & Synchronization Service
-// Implements handle/URL parsing, OpenGraph scraping, rate-limit caching, and fallback resolution
+// Implements handle/URL parsing, OpenGraph scraping, and rate-limit caching
 
 export interface InstagramProfileResult {
   username: string;
@@ -27,12 +27,12 @@ interface CacheEntry {
 }
 
 const instagramCache = new Map<string, CacheEntry>();
-const CACHE_TTL_MS = 3 * 60 * 1000; // 3 minutes cache
+const CACHE_TTL_MS = 3 * 60 * 1000;
 const pendingInstagramRequests = new Map<string, Promise<InstagramProfileResult>>();
 
 export function formatFollowersCount(count: number): { full: string; compact: string } {
-  if (isNaN(count) || count < 0) {
-    return { full: '0 Followers', compact: '0' };
+  if (isNaN(count) || count <= 0) {
+    return { full: '', compact: '' };
   }
 
   const full = `${count.toLocaleString('en-US')} Followers`;
@@ -76,65 +76,26 @@ export function parseInstagramInput(input: string): {
     .replace(/\/.*$/, '')
     .trim();
 
-  const safe = clean || 'creator';
   return {
-    cleanHandle: safe,
-    canonicalUrl: `https://www.instagram.com/${safe}`,
+    cleanHandle: clean || 'creator',
+    canonicalUrl: `https://www.instagram.com/${clean || 'creator'}`,
   };
 }
 
-const KNOWN_INSTAGRAM: Record<string, { fullName: string; followers: number; avatar: string; bio?: string }> = {
-  mrbeast: {
-    fullName: 'MrBeast',
-    followers: 61800000,
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
-    bio: 'I want to make the world a better place before I die.',
-  },
-  senpaispider: {
-    fullName: 'SenpaiSpider',
-    followers: 184000,
-    avatar: 'https://yt3.googleusercontent.com/rIXKfzvMc6d-qmjfUHYqQnQooxkgoWgOrFUTwgy6DJKH5LJpDoKeNuI2AEeV9TH_g92nP9gB=s900-c-k-c0x00ffffff-no-rj',
-    bio: 'Gaming creator & entertainer. Official CreatorHQ Verified.',
-  },
-  mkbhd: {
-    fullName: 'Marques Brownlee',
-    followers: 4900000,
-    avatar: 'https://yt3.googleusercontent.com/lkH37D712tiyphnu0Id0D5MwwQ7IRuwgQLVD05iMXlDWO-aDHqqd836BWSdThQw2GmKmAvd2vpE=s900-c-k-c0x00ffffff-no-rj',
-    bio: 'Quality Tech Videos | YouTuber | Geek',
-  },
-  pewdiepie: {
-    fullName: 'PewDiePie',
-    followers: 21500000,
-    avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=400&q=80',
-    bio: 'Pewds',
-  },
-};
-
 function decodeHtmlEntities(str: string): string {
   return str
-    .replace(/&#064;/g, '@')
-    .replace(/&#x2022;/g, '•')
     .replace(/&amp;/g, '&')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
-    .replace(/&#x([0-9a-fA-F]+);/g, (_, code) => {
-      try {
-        return String.fromCodePoint(parseInt(code, 16));
-      } catch (e) {
-        return '';
-      }
-    })
-    .replace(/&#([0-9]+);/g, (_, code) => {
-      try {
-        return String.fromCodePoint(parseInt(code, 10));
-      } catch (e) {
-        return '';
-      }
-    });
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&mdash;/g, '—')
+    .replace(/&ndash;/g, '–');
 }
 
+/**
+ * Fetch Instagram profile information
+ */
 export async function fetchInstagramProfile(
   rawInput: string,
   options?: { forceRefresh?: boolean; previousCount?: number }
@@ -142,7 +103,11 @@ export async function fetchInstagramProfile(
   const { cleanHandle, canonicalUrl } = parseInstagramInput(rawInput);
   const cacheKey = cleanHandle.toLowerCase();
 
-  // 1. Check in-memory cache
+  if (!cleanHandle) {
+    throw new Error('Please enter a valid Instagram handle or profile URL.');
+  }
+
+  // 1. In-memory cache
   if (!options?.forceRefresh) {
     const cached = instagramCache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
@@ -160,141 +125,77 @@ export async function fetchInstagramProfile(
 
   const promise: Promise<InstagramProfileResult> = (async (): Promise<InstagramProfileResult> => {
     try {
+      let scrapedFollowers: number | null = null;
       let scrapedName = '';
       let scrapedAvatar = '';
-      let scrapedFollowers: number | null = null;
-      let scrapedFollowing: number | null = null;
-      let scrapedPosts: number | null = null;
       let scrapedBio = '';
 
-      // 3. Social crawler user agents that Instagram serves full OpenGraph tags to without login walls
-      const userAgents = [
-        'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.html)',
-        'Twitterbot/1.0',
-        'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
-      ];
+      // Try fetching public open graph metadata
+      try {
+        const res = await fetch(`https://www.instagram.com/${encodeURIComponent(cleanHandle)}/`, {
+          headers: {
+            'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          },
+          signal: AbortSignal.timeout(4500),
+        });
 
-      for (const ua of userAgents) {
-        if (scrapedFollowers !== null) break;
+        if (res.ok) {
+          const html = await res.text();
 
-        try {
-          const res = await fetch(canonicalUrl, {
-            headers: {
-              'User-Agent': ua,
-              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-              'Accept-Language': 'en-US,en;q=0.9',
-              'Cache-Control': 'no-cache',
-            },
-            signal: AbortSignal.timeout(6000),
-          });
+          const descMatch =
+            html.match(/<meta\s+property=["']og:description["']\s+content=["']([^"']+)["']/i) ||
+            html.match(/<meta\s+name=["']description["']\s+content=["']([^"']+)["']/i);
 
-          if (res.ok) {
-            const html = await res.text();
-
-            // Extract Description: e.g. "679M Followers, 649 Following, 4,138 Posts - See Instagram photos and videos from Cristiano Ronaldo (@cristiano)"
-            const descMatch =
-              html.match(/<meta[^>]+(?:property|name)=["'](?:og:description|description)["'][^>]+content=["']([^"']+)["']/i) ||
-              html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["'](?:og:description|description)["']/i);
-
-            if (descMatch) {
-              const rawDesc = decodeHtmlEntities(descMatch[1]);
-
-              // Followers match
-              const followersMatch = rawDesc.match(/([0-9.,]+)\s*([KMBkmb])?\s+Followers/i);
-              if (followersMatch) {
-                const num = parseFloat(followersMatch[1].replace(/,/g, ''));
-                const mult = (followersMatch[2] || '').toUpperCase();
-                if (mult === 'B') {
-                  scrapedFollowers = Math.round(num * 1_000_000_000);
-                } else if (mult === 'M') {
-                  scrapedFollowers = Math.round(num * 1_000_000);
-                } else if (mult === 'K') {
-                  scrapedFollowers = Math.round(num * 1_000);
-                } else {
-                  scrapedFollowers = Math.round(num);
-                }
-              }
-
-              // Following match
-              const followingMatch = rawDesc.match(/([0-9.,]+)\s*([KMBkmb])?\s+Following/i);
-              if (followingMatch) {
-                const num = parseFloat(followingMatch[1].replace(/,/g, ''));
-                const mult = (followingMatch[2] || '').toUpperCase();
-                if (mult === 'B') scrapedFollowing = Math.round(num * 1_000_000_000);
-                else if (mult === 'M') scrapedFollowing = Math.round(num * 1_000_000);
-                else if (mult === 'K') scrapedFollowing = Math.round(num * 1_000);
-                else scrapedFollowing = Math.round(num);
-              }
-
-              // Posts match
-              const postsMatch = rawDesc.match(/([0-9.,]+)\s*([KMBkmb])?\s+Posts/i);
-              if (postsMatch) {
-                scrapedPosts = parseInt(postsMatch[1].replace(/,/g, ''), 10) || 0;
-              }
-            }
-
-            // Extract Title: e.g. "Cristiano Ronaldo (@cristiano) • Instagram photos and videos"
-            const titleMatch =
-              html.match(/<meta[^>]+(?:property|name)=["']og:title["'][^>]+content=["']([^"']+)["']/i) ||
-              html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']og:title["']/i);
-
-            if (titleMatch) {
-              const rawTitle = decodeHtmlEntities(titleMatch[1]);
-              const nameMatch = rawTitle.match(/^([^(]+)\s*\(@/);
-              if (nameMatch && nameMatch[1].trim()) {
-                scrapedName = nameMatch[1].trim();
-              }
-            }
-
-            // Extract Image
-            const imgMatch =
-              html.match(/<meta[^>]+(?:property|name)=["']og:image["'][^>]+content=["']([^"']+)["']/i) ||
-              html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']og:image["']/i);
-
-            if (imgMatch) {
-              scrapedAvatar = imgMatch[1].replace(/\\u0026/g, '&').replace(/\\/g, '');
+          if (descMatch) {
+            const rawDesc = decodeHtmlEntities(descMatch[1]);
+            const followersMatch = rawDesc.match(/([0-9.,]+)\s*([KMBkmb])?\s+Followers/i);
+            if (followersMatch) {
+              const num = parseFloat(followersMatch[1].replace(/,/g, ''));
+              const mult = (followersMatch[2] || '').toUpperCase();
+              if (mult === 'B') scrapedFollowers = Math.round(num * 1_000_000_000);
+              else if (mult === 'M') scrapedFollowers = Math.round(num * 1_000_000);
+              else if (mult === 'K') scrapedFollowers = Math.round(num * 1_000);
+              else scrapedFollowers = Math.round(num);
             }
           }
-        } catch (e) {
-          // Continue to next crawler fallback
+
+          const titleMatch = html.match(/<meta\s+property=["']og:title["']\s+content=["']([^"']+)["']/i);
+          if (titleMatch) {
+            const rawTitle = decodeHtmlEntities(titleMatch[1]);
+            const nameMatch = rawTitle.match(/^([^(]+)\s*\(@/);
+            if (nameMatch && nameMatch[1].trim()) {
+              scrapedName = nameMatch[1].trim();
+            }
+          }
+
+          const imgMatch = html.match(/<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']/i);
+          if (imgMatch) {
+            scrapedAvatar = imgMatch[1].replace(/\\u0026/g, '&').replace(/\\/g, '');
+          }
         }
-      }
+      } catch (e) {}
 
-      // Check known profiles or previous count
-      const known = KNOWN_INSTAGRAM[cacheKey];
-      let followers: number;
-      if (scrapedFollowers !== null && !isNaN(scrapedFollowers)) {
-        followers = scrapedFollowers;
-      } else if (typeof options?.previousCount === 'number' && options.previousCount > 0) {
-        followers = options.previousCount;
-      } else if (known) {
-        followers = known.followers;
-      } else {
-        followers = 0;
-      }
-
-      let fullName = scrapedName || (known ? known.fullName : cleanHandle);
-      let avatar =
-        scrapedAvatar ||
-        (known ? known.avatar : `https://ui-avatars.com/api/?name=${encodeURIComponent(fullName)}&background=E1306C&color=fff&size=512&bold=true`);
-      let bio = scrapedBio || (known ? known.bio : `Official verified Instagram profile for @${cleanHandle}`);
-
+      const followers = scrapedFollowers !== null ? scrapedFollowers : (options?.previousCount || 0);
       const formatted = followers > 0 ? formatFollowersCount(followers) : { full: '', compact: '' };
+      const fullName = scrapedName || cleanHandle;
 
       const result: InstagramProfileResult = {
         username: cleanHandle,
         handle: `@${cleanHandle}`,
         fullName,
-        avatarUrl: avatar,
+        avatarUrl: scrapedAvatar || '',
         followersCount: followers,
         followersFormatted: formatted.full,
         compactFollowers: formatted.compact,
-        bio,
+        bio: scrapedBio || undefined,
         url: canonicalUrl,
         verified: true,
         lastUpdated: new Date().toISOString(),
         lastSyncedTimestamp: Date.now(),
-        status: followers > 0 ? 'VERIFIED' : 'FALLBACK',
+        status: followers > 0 ? 'VERIFIED' : 'SYNCING',
       };
 
       instagramCache.set(cacheKey, { data: result, timestamp: Date.now() });

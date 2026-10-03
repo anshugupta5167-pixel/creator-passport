@@ -1,26 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchYouTubeChannel } from '@/lib/youtube';
-import { getCreatorByIdDB, addCreatorDB } from '@/lib/db';
+import { getCreatorByUserIdDB, addCreatorDB } from '@/lib/db';
+import { getAuthenticatedUser } from '@/lib/auth';
 import { ChannelItem } from '@/lib/types';
-
 import { resolveYouTubeUrl } from '@/lib/urls';
+
+export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await getAuthenticatedUser(request);
+    if (!auth) {
+      return NextResponse.json(
+        { error: 'UNAUTHORIZED', message: 'You must be signed in to add channels to your account.' },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
-    const { passportId, url } = body;
+    const { url } = body;
 
-    if (!url) {
-      return NextResponse.json({ error: 'YouTube channel URL is required' }, { status: 400 });
+    if (!url || typeof url !== 'string' || !url.trim()) {
+      return NextResponse.json({ error: 'BAD_REQUEST', message: 'YouTube channel URL or handle is required' }, { status: 400 });
     }
 
-    const creator = passportId ? getCreatorByIdDB(passportId) : null;
-    if (!creator) {
-      return NextResponse.json({ error: 'Creator not found' }, { status: 404 });
+    const cleanInput = url.trim();
+
+    // 1. Detect channel via YouTube integration with timeout & error handling
+    const yt = await fetchYouTubeChannel(cleanInput);
+    if (!yt || !yt.channelId) {
+      return NextResponse.json(
+        { error: 'DETECT_FAILED', message: 'Could not resolve a valid YouTube channel from the provided link.' },
+        { status: 400 }
+      );
     }
 
-    // Detect channel via official YouTube Data API or live scraper
-    const yt = await fetchYouTubeChannel(url);
     const cleanUrl = resolveYouTubeUrl(yt.url, yt.handle, yt.channelId, yt.title);
 
     const newChannel: ChannelItem = {
@@ -35,14 +49,29 @@ export async function POST(request: NextRequest) {
       avatarUrl: yt.avatarUrl,
     };
 
+    // 2. Fetch authenticated user's card
+    let creator = auth.creator || getCreatorByUserIdDB(auth.user.id);
+    if (!creator) {
+      // User hasn't finished full card, return the channel item so frontend can store in draft state
+      return NextResponse.json({
+        success: true,
+        channel: newChannel,
+        moreChannels: [newChannel],
+        message: 'Channel detected successfully.',
+      });
+    }
+
     creator.moreChannels = creator.moreChannels || [];
-    
-    // Remove if already exists to update
+
+    // Duplicate prevention
     const existingIndex = creator.moreChannels.findIndex(
-      (c) => c.id === newChannel.id || c.handle.toLowerCase() === newChannel.handle.toLowerCase()
+      (c) =>
+        (c.id && c.id === newChannel.id) ||
+        (c.handle && c.handle.toLowerCase() === newChannel.handle.toLowerCase())
     );
 
     if (existingIndex >= 0) {
+      // Update existing entry
       creator.moreChannels[existingIndex] = newChannel;
     } else {
       creator.moreChannels.push(newChannel);
@@ -54,10 +83,11 @@ export async function POST(request: NextRequest) {
       success: true,
       channel: newChannel,
       moreChannels: creator.moreChannels,
+      message: `Channel "${newChannel.name}" linked successfully.`,
     });
   } catch (err: any) {
     return NextResponse.json(
-      { error: err.message || 'Failed to add YouTube channel' },
+      { error: 'ADD_CHANNEL_ERROR', message: err.message || 'Failed to add YouTube channel' },
       { status: 400 }
     );
   }

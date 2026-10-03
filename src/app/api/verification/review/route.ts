@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { updateVerificationStatusDB } from '@/lib/db';
+import { updateVerificationStatusDB, addAuditLogDB } from '@/lib/db';
+import { requireAdmin } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -7,6 +8,10 @@ export const revalidate = 0;
 // POST: Admin approves, revokes, or rejects a verification submission or creator
 export async function POST(request: NextRequest) {
   try {
+    const { auth, response: adminResponse } = await requireAdmin(request);
+    if (adminResponse || !auth) return adminResponse!;
+
+    const adminUser = auth.user;
     const body = await request.json();
     const {
       verificationId,
@@ -17,7 +22,6 @@ export async function POST(request: NextRequest) {
       id,
       action,
       rejectionReason,
-      reviewedBy,
       creator,
       submission,
     } = body;
@@ -31,14 +35,13 @@ export async function POST(request: NextRequest) {
       id ||
       creator?.slug ||
       creator?.username ||
-      creator?.passportId ||
       creator?.id ||
       submission?.creatorSlug ||
       submission?.id;
 
     if (!target || !action) {
       return NextResponse.json(
-        { error: 'verificationId (or creatorSlug) and action are required' },
+        { error: 'BAD_REQUEST', message: 'verificationId (or creatorSlug) and action are required' },
         { status: 400 }
       );
     }
@@ -47,7 +50,7 @@ export async function POST(request: NextRequest) {
     const validActions = ['APPROVE', 'VERIFY', 'REJECT', 'REVOKE', 'UNDER_REVIEW'];
     if (!validActions.includes(actionUpper)) {
       return NextResponse.json(
-        { error: `Invalid action. Must be one of: ${validActions.join(', ')}` },
+        { error: 'BAD_REQUEST', message: `Invalid action. Must be one of: ${validActions.join(', ')}` },
         { status: 400 }
       );
     }
@@ -63,50 +66,45 @@ export async function POST(request: NextRequest) {
       newStatus = 'UNDER_REVIEW';
     }
 
-    const extraCreator = creator || (submission ? {
-      slug: submission.creatorSlug,
-      username: submission.creatorSlug,
-      displayName: submission.creatorName,
-      avatarUrl: submission.creatorAvatar,
-      category: submission.category,
-      connections: submission.connectedPlatforms || {},
-    } : undefined);
+    const reviewerNote = rejectionReason || (newStatus === 'VERIFIED' ? 'Approved by staff admin' : undefined);
 
     const result = updateVerificationStatusDB(
       target,
       newStatus,
-      reviewedBy || 'Admin',
-      newStatus === 'REJECTED' ? (rejectionReason || 'Proof inconclusive') : undefined,
-      extraCreator
+      adminUser.username || adminUser.email || 'Admin',
+      reviewerNote,
+      creator
     );
 
     if (!result.verification && !result.creator) {
       return NextResponse.json(
-        { error: 'Verification submission or Creator record not found' },
+        { error: 'NOT_FOUND', message: 'Verification submission or Creator record not found' },
         { status: 404 }
       );
     }
 
-    try {
-      const { revalidatePath } = await import('next/cache');
-      revalidatePath('/', 'layout');
-      revalidatePath('/creators');
-      revalidatePath('/talents');
-      if (result.creator?.slug) {
-        revalidatePath(`/${result.creator.slug}`);
-        revalidatePath(`/creator/${result.creator.slug}`);
-      }
-    } catch (e) {}
+    addAuditLogDB({
+      userId: adminUser.id,
+      action: `VERIFICATION_${newStatus}`,
+      actor: adminUser.email,
+      details: {
+        target,
+        status: newStatus,
+        reason: reviewerNote,
+        reviewedAt: new Date().toISOString(),
+      },
+    });
 
     return NextResponse.json({
       success: true,
       status: newStatus,
       verification: result.verification,
       creator: result.creator,
+      message: `Creator verification status updated to ${newStatus}.`,
     });
   } catch (err: any) {
     return NextResponse.json(
-      { error: err.message || 'Error processing review' },
+      { error: 'SERVER_ERROR', message: err.message || 'Error processing review' },
       { status: 500 }
     );
   }

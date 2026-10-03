@@ -1,0 +1,393 @@
+{
+  "timestamp": "2026-10-03T06:28:01.152Z",
+  "creators": [
+    {
+      "id": "creator_unrulek",
+      "passportId": "unrulek",
+      "slug": "unrulek",
+      "handle": "@unrulek",
+      "username": "unrulek",
+      "displayName": "Unrulek",
+      "avatarUrl": "https://yt3.googleusercontent.com/fsTkU4pgO2Xyjf7IfshXvFE5wf7aQ1PJjrfwmON3vgPfKgZmb0DXGqGDypWjcDRmVWjvlGZQwA=s800-c-k-c0x00ffffff-no-rj",
+      "bio": "Welcome to Unrulek – your go-to place for tech content, tutorials, hosting guides, cloud projects, gaming servers, bots, websites, panels, VPS setups, troubleshooting, and the latest online tools.",
+      "category": "Gaming & Tech",
+      "niche": "Gaming & Tech",
+      "country": "India",
+      "location": "India",
+      "contactEmail": "unrulek@creatorhq.fun",
+      "issuedAt": "2026-09-30T14:15:00.000Z",
+      "lastVerifiedAt": "2026-10-02",
+      "digitalSignature": "0x4a9fb2d31c0e",
+      "isSuspended": false,
+      "isVerified": true,
+      "verification_status": "VERIFIED",
+      "isFounding": true,
+      "tierName": "Founding Member Tier I",
+      "profileCompletion": 100,
+      "connections": {
+        "youtube": {
+          "platform": "YOUTUBE",
+          "connected": true,
+          "username": "Unrulek",
+          "metricLabel": "subscribers",
+          "metricValue": "59 Subscribers",
+          "rawCount": 59,
+          "verified": true,
+          "profileUrl": "https://youtube.com/@unrulek",
+          "channelId": "UC_unrulek"
+        },
+        "discord": {
+          "platform": "DISCORD",
+          "connected": true,
+          "username": "Unrulek",
+          "metricLabel": "members",
+          "metricValue": "578 Members",
+          "rawCount": 578,
+          "verified": true,
+          "profileUrl": "https://discord.gg/unrulek",
+          "guildId": "unrulek_community"
+        },
+        "instagram": {
+          "platform": "INSTAGRAM",
+          "connected": true,
+          "username": "anshu_gupta_official",
+          "metricLabel": "followers",
+          "metricValue": "482 Followers",
+          "rawCount": 482,
+          "verified": true,
+          "profileUrl": "https://instagram.com/anshu_gupta_official"
+        }
+      },
+      "moreChannels": [],
+      "skills": [
+        "Content Creation",
+        "Livestreaming",
+        "Brand Partnerships",
+        "Video Production",
+        "Cloud & Server Hosting"
+      ],
+      "achievements": [
+        {
+          "id": "ach_founding",
+          "slug": "founding-creator",
+          "name": "Founding Member",
+          "description": "Verified creator on CreatorHQ Talent Network.",
+          "badgeIcon": "shield-check",
+          "unlockedAt": "2026-09-30"
+        },
+        {
+          "id": "ach_verified",
+          "slug": "verified-creator",
+          "name": "Dual Platform Verified",
+          "description": "Confirmed audience across video and community platforms.",
+          "badgeIcon": "badge-check",
+          "unlockedAt": "2026-09-30"
+        }
+      ],
+      "collaborations": [],
+      "portfolio": [],
+      "registeredIp": "49.36.192.210",
+      "clientIp": "49.36.192.210",
+      "proofDocuments": []
+    },
+    {
+      "id": "creator_sugamd3v_",
+      "passportId": "sugamd3v_",
+      "slug": "sugamd3v_",
+      "handle": "@sugamd3v_",
+      "username": "sugamd3v_",
+      "displayName": "Sugam Dev",
+      "avatarUrl": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=400&q=80",
+      "bio": "Developer, tech creator, and digital innovator building open-source projects, modern web experiences, and community tools.",
+      "category": "Tech & Development",
+      "niche": "Tech & Development",
+      "country": "India",
+      "location": "India",
+      "contactEmail": "sugamdev@creatorhq.fun",
+      "issuedAt": "2026-10-02T14:39:48.234Z",
+      "lastVerifiedAt": "2026-10-02",
+      "digitalSignature": "0x7b2fa109c48e",
+      "isSuspended": false,
+      "isVerified": true,
+      "verification_status": "VERIFIED",
+      "isFounding": true,
+      "tierName": "Founding Member Tier I",
+      "profileCompletion": 100,
+      "connections": {
+        "youtube": {
+          "platform": "YOUTUBE",
+          "connected": true,
+          "username": "Sugam Dev",
+          "metricLabel": "subscribers",
+          "metricValue": "1.2K Subscribers",
+          "rawCount": 1200,
+          "verified": true,
+          "profileUrl": "https://youtube.com/@sugamd3v_",
+          "channelId": "UC_sugamd3v_"
+        },
+        "discord": {
+          "platform": "DISCORD",
+          "connected": true,
+          "username": "sugamd3v_",
+          "metricLabel": "members",
+          "metricValue": "350 Members",
+          "rawCount": 350,
+          "verified": true,
+          "profileUrl": "https://discord.gg/creatorhq",
+          "guildId": "sugam_community"
+        },
+        "instagram": {
+          "platform": "INSTAGRAM",
+          "connected": true,
+          "username": "sugamd3v_",
+          "metricLabel": "followers",
+          "metricValue": "890 Followers",
+          "rawCount": 890,
+          "verified": true,
+          "profileUrl": "https://instagram.com/sugamd3v_"
+        }
+      },
+      "moreChannels": [],
+      "skills": [
+        "Web Development",
+        "Software Engineering",
+        "Tech Tutorials",
+        "Cloud Architecture"
+      ],
+      "achievements": [
+        {
+          "id": "ach_founding",
+          "slug": "founding-creator",
+          "name": "Founding Member",
+          "description": "Verified creator on CreatorHQ Talent Network.",
+          "badgeIcon": "shield-check",
+          "unlockedAt": "2026-10-02"
+        },
+        {
+          "id": "ach_verified",
+          "slug": "verified-creator",
+          "name": "Multi-Platform Verified",
+          "description": "Authenticated audience across creator channels.",
+          "badgeIcon": "badge-check",
+          "unlockedAt": "2026-10-02"
+        }
+      ],
+      "collaborations": [],
+      "portfolio": [],
+      "registeredIp": "127.0.0.1",
+      "clientIp": "127.0.0.1",
+      "proofDocuments": []
+    }
+  ],
+  "verifications": [
+    {
+      "id": "vrf_unrulek",
+      "creatorSlug": "unrulek",
+      "creatorName": "Unrulek",
+      "passportId": "unrulek",
+      "registeredIp": "49.36.192.210",
+      "clientIp": "49.36.192.210",
+      "platform": "YOUTUBE",
+      "accountUsername": "Unrulek",
+      "metricAudience": "59 Subscribers",
+      "connectedPlatforms": {
+        "youtube": {
+          "platform": "YOUTUBE",
+          "connected": true,
+          "username": "Unrulek",
+          "metricLabel": "subscribers",
+          "metricValue": "59 Subscribers",
+          "verified": true,
+          "profileUrl": "https://youtube.com/@unrulek"
+        },
+        "discord": {
+          "platform": "DISCORD",
+          "connected": true,
+          "username": "Unrulek",
+          "metricLabel": "members",
+          "metricValue": "578 Members",
+          "verified": true,
+          "profileUrl": "https://discord.gg/unrulek"
+        }
+      },
+      "proofDocuments": [
+        {
+          "id": "proof_yt_unrulek",
+          "url": "/api/verification/proof/unrulek/youtube_proof.png",
+          "filename": "youtube_studio_proof.png",
+          "mimeType": "image/png",
+          "platform": "YOUTUBE",
+          "uploadedAt": "2026-09-30",
+          "notes": "YouTube Channel Proof for Unrulek (59 Subscribers)"
+        }
+      ],
+      "status": "VERIFIED",
+      "submittedAt": "2026-09-30",
+      "reviewedAt": "2026-10-02T12:40:00.000Z",
+      "reviewedBy": "Admin"
+    },
+    {
+      "id": "vrf_1790997111357_soumitroo",
+      "creatorSlug": "soumitroo",
+      "creatorName": "Soumitroo",
+      "creatorHandle": "@soumitroo",
+      "creatorAvatar": "/api/avatar-proxy?url=https%3A%2F%2Fyt3.googleusercontent.com%2FIoV-wBbeY_ovPrOsthadxxcWdXznQwBw1MQo6T8JWpVojS9W-mS9mJn7rZ9WML7C2L8T6HEBLA%3Ds800-c-k-c0x00ffffff-no-rj",
+      "category": "Gaming Creator",
+      "platforms": [
+        "YOUTUBE",
+        "DISCORD"
+      ],
+      "connectedPlatforms": {
+        "youtube": {
+          "platform": "YOUTUBE",
+          "connected": true,
+          "metricLabel": "subscribers",
+          "verified": true,
+          "metricValue": "72 Subscribers",
+          "profileUrl": "https://www.youtube.com/@soumitroo",
+          "username": "soumitroo",
+          "channelId": "UCdQNvf0ruNeIx-w5z7ZaD1g"
+        },
+        "discord": {
+          "platform": "DISCORD",
+          "connected": false,
+          "metricLabel": "members",
+          "verified": true,
+          "metricValue": "0",
+          "profileUrl": "https://discord.gg/soumitroo",
+          "username": "Soumitroo",
+          "guildId": ""
+        },
+        "instagram": {
+          "platform": "INSTAGRAM",
+          "connected": true,
+          "metricLabel": "followers",
+          "metricValue": "",
+          "verified": true,
+          "profileUrl": "https://instagram.com/soumitroo",
+          "username": "soumitroo"
+        },
+        "x": {
+          "platform": "X",
+          "connected": false,
+          "username": "",
+          "metricLabel": "followers",
+          "metricValue": "",
+          "verified": false
+        }
+      },
+      "proofDocuments": [],
+      "status": "PENDING",
+      "submittedAt": "2026-09-30"
+    },
+    {
+      "id": "vrf_1790955447784_noirripper03",
+      "creatorSlug": "noirripper03",
+      "creatorName": "RipperSensei",
+      "creatorHandle": "@noirripper03",
+      "creatorAvatar": "/api/avatar-proxy?url=https%3A%2F%2Fyt3.googleusercontent.com%2FPXi9hF3IC5DZb-QlDy6GYfhyzM0RonRdCautNi4qCfTZTSoFl4a0P7j-Vu_Gj6tEBNzzA_7ZDg%3Ds800-c-k-c0x00ffffff-no-rj",
+      "category": "Gaming Creator",
+      "platforms": [
+        "YOUTUBE",
+        "DISCORD"
+      ],
+      "connectedPlatforms": {
+        "youtube": {
+          "platform": "YOUTUBE",
+          "connected": true,
+          "metricLabel": "subscribers",
+          "verified": true,
+          "metricValue": "652 Subscribers",
+          "profileUrl": "https://www.youtube.com/@noirripper03",
+          "username": "noirripper03",
+          "channelId": "UCYCxwTHE0B6GG-FNT7OHicA"
+        },
+        "discord": {
+          "platform": "DISCORD",
+          "connected": true,
+          "metricLabel": "members",
+          "verified": true,
+          "metricValue": "279 Members",
+          "profileUrl": "https://discord.gg/kwBc3BqFfC",
+          "username": "Ripper's Dojo",
+          "guildId": "1506355041328562206"
+        },
+        "instagram": {
+          "platform": "INSTAGRAM",
+          "connected": true,
+          "metricLabel": "followers",
+          "metricValue": "7",
+          "verified": true,
+          "profileUrl": "https://www.instagram.com/rippersensei",
+          "username": "rippersensei"
+        },
+        "x": {
+          "platform": "X",
+          "connected": false,
+          "username": "",
+          "metricLabel": "followers",
+          "metricValue": "",
+          "verified": false
+        }
+      },
+      "proofDocuments": [],
+      "status": "VERIFIED",
+      "submittedAt": "2026-09-30"
+    },
+    {
+      "id": "vrf_1790954662542_sugamd3v_",
+      "creatorSlug": "sugamd3v_",
+      "creatorName": "Sugam Dev",
+      "creatorHandle": "@sugamd3v_",
+      "creatorAvatar": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=400&q=80",
+      "category": "Tech & Development",
+      "platforms": [
+        "YOUTUBE",
+        "DISCORD"
+      ],
+      "connectedPlatforms": {
+        "youtube": {
+          "platform": "YOUTUBE",
+          "connected": true,
+          "metricLabel": "subscribers",
+          "verified": true,
+          "username": "Sugam Dev",
+          "metricValue": "1.2K Subscribers",
+          "rawCount": 1200,
+          "profileUrl": "https://youtube.com/@sugamd3v_",
+          "channelId": "UC_sugamd3v_"
+        },
+        "discord": {
+          "platform": "DISCORD",
+          "connected": true,
+          "metricLabel": "members",
+          "verified": true,
+          "username": "SS Studio - Free MC Drops",
+          "metricValue": "1,292 Members",
+          "rawCount": 1292,
+          "profileUrl": "https://discord.gg/VueawevUE9",
+          "guildId": "1501210652012843162",
+          "guildName": "SS Studio - Free MC Drops",
+          "guildIcon": "https://cdn.discordapp.com/icons/1501210652012843162/1198448f4034535ef94fcb0983e54588.png",
+          "approximatePresenceCount": 273,
+          "lastSynced": "2026-10-02T15:44:34.925Z",
+          "lastSyncedTimestamp": 1790955874925,
+          "syncStatus": "VERIFIED"
+        },
+        "instagram": {
+          "platform": "INSTAGRAM",
+          "connected": true,
+          "username": "sugamd3v_",
+          "metricLabel": "followers",
+          "metricValue": "890 Followers",
+          "rawCount": 890,
+          "verified": true,
+          "profileUrl": "https://instagram.com/sugamd3v_"
+        }
+      },
+      "proofDocuments": [],
+      "status": "VERIFIED",
+      "submittedAt": "2026-10-02T14:39:48.234Z"
+    }
+  ]
+}

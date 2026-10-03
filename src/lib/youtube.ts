@@ -9,8 +9,8 @@ export interface YouTubeChannelResult {
   avatarUrl: string;
   description?: string;
   subscriberCount: number;
-  subscriberCountFormatted: string; // e.g. "125,430 Subscribers"
-  compactSubscribers: string; // e.g. "125.4K"
+  subscriberCountFormatted: string; // e.g. "125,430 Subscribers" or "Subscribers Hidden"
+  compactSubscribers: string; // e.g. "125.4K" or "Hidden"
   videoCount?: number;
   viewCount?: number;
   verified: boolean;
@@ -27,21 +27,19 @@ interface CacheEntry {
   timestamp: number;
 }
 
-// In-memory cache to respect YouTube API quota (10,000 units/day)
+// In-memory cache to respect quota
 const channelCache = new Map<string, CacheEntry>();
 const CACHE_TTL_MS = 3 * 60 * 1000; // 3 minutes cache
 
-// In-flight deduplication to avoid redundant simultaneous requests
+// In-flight deduplication
 const pendingRequests = new Map<string, Promise<YouTubeChannelResult>>();
 
 /**
- * Format subscriber count to standard strings:
- * full: "125,430 Subscribers"
- * compact: "125.4K" or "2.4M"
+ * Format subscriber count
  */
 export function formatSubscriberCount(count: number): { full: string; compact: string } {
   if (isNaN(count) || count < 0) {
-    return { full: 'Hidden Subscribers', compact: 'Hidden' };
+    return { full: 'Subscribers Hidden', compact: 'Hidden' };
   }
 
   const full = `${count.toLocaleString('en-US')} Subscribers`;
@@ -61,7 +59,7 @@ export function formatSubscriberCount(count: number): { full: string; compact: s
 }
 
 export function parseSubscriberString(subStr: string): { count: number; compact: string; full: string } {
-  const clean = subStr.replace(/subscribers/i, '').trim();
+  const clean = subStr.replace(/subscribers?/i, '').trim();
   let count = 0;
   if (/([0-9.]+)M/i.test(clean)) {
     const val = parseFloat(clean.match(/([0-9.]+)M/i)![1]);
@@ -83,32 +81,24 @@ export function parseSubscriberString(subStr: string): { count: number; compact:
   };
 }
 
-
-/**
- * Parses user input for YouTube URLs or handles:
- * - https://youtube.com/@example
- * - https://www.youtube.com/channel/UC_x5XG1OV2P6uZZ5FSM9Ttw
- * - https://youtube.com/c/example
- * - @example
- * - UC_x5XG1OV2P6uZZ5FSM9Ttw
- */
-/**
- * Parses user input for YouTube URLs or handles or search terms:
- * - https://youtube.com/@example
- * - https://www.youtube.com/channel/UC_x5XG1OV2P6uZZ5FSM9Ttw
- * - https://youtube.com/c/example
- * - @example
- * - UC_x5XG1OV2P6uZZ5FSM9Ttw
- * - example / "total gaming"
- */
-export function parseYouTubeInput(input: string): {
-  type: 'handle' | 'channelId' | 'username' | 'custom' | 'search';
+export function parseYouTubeInput(rawInput: string): {
+  type: 'handle' | 'channelId' | 'custom' | 'search';
   cleanValue: string;
   canonicalUrl: string;
 } {
-  const trimmed = input.trim();
+  const trimmed = rawInput.trim();
 
-  // If already a Channel ID starting with UC and 24 chars
+  // 1. Direct handle: @username
+  if (trimmed.startsWith('@')) {
+    const handle = trimmed.replace(/^@/, '');
+    return {
+      type: 'handle',
+      cleanValue: handle,
+      canonicalUrl: `https://www.youtube.com/@${handle}`,
+    };
+  }
+
+  // 2. Channel ID: UC... (24 characters starting with UC)
   if (/^UC[a-zA-Z0-9_-]{22}$/.test(trimmed)) {
     return {
       type: 'channelId',
@@ -117,219 +107,60 @@ export function parseYouTubeInput(input: string): {
     };
   }
 
-  // Handle @handle directly
-  if (trimmed.startsWith('@')) {
-    const handle = trimmed.substring(1).replace(/\/.*$/, '').trim();
-    return {
-      type: 'handle',
-      cleanValue: handle,
-      canonicalUrl: `https://www.youtube.com/@${handle}`,
-    };
-  }
-
-  // If input contains spaces or search query words
-  if (trimmed.includes(' ') && !trimmed.startsWith('http')) {
-    return {
-      type: 'search',
-      cleanValue: trimmed,
-      canonicalUrl: `https://www.youtube.com/results?search_query=${encodeURIComponent(trimmed)}`,
-    };
-  }
-
-  // Parse URLs
+  // 3. YouTube URL parsing
   try {
     const urlObj = new URL(trimmed.startsWith('http') ? trimmed : `https://${trimmed}`);
-    const pathname = urlObj.pathname.replace(/\/$/, '');
+    const pathname = urlObj.pathname.replace(/^\//, '').replace(/\/$/, '');
+    const parts = pathname.split('/');
 
-    // Pattern 1: /@handle
-    const handleMatch = pathname.match(/\/@([a-zA-Z0-9_.-]+)/);
-    if (handleMatch) {
+    // Handle youtube.com/@handle
+    if (parts[0] && parts[0].startsWith('@')) {
+      const handle = parts[0].replace(/^@/, '');
       return {
         type: 'handle',
-        cleanValue: handleMatch[1],
-        canonicalUrl: `https://www.youtube.com/@${handleMatch[1]}`,
+        cleanValue: handle,
+        canonicalUrl: `https://www.youtube.com/@${handle}`,
       };
     }
 
-    // Pattern 2: /channel/UC...
-    const channelMatch = pathname.match(/\/channel\/(UC[a-zA-Z0-9_-]{22})/);
-    if (channelMatch) {
+    // Handle youtube.com/channel/UC...
+    if (parts[0] === 'channel' && parts[1]) {
       return {
         type: 'channelId',
-        cleanValue: channelMatch[1],
-        canonicalUrl: `https://www.youtube.com/channel/${channelMatch[1]}`,
+        cleanValue: parts[1],
+        canonicalUrl: `https://www.youtube.com/channel/${parts[1]}`,
       };
     }
 
-    // Pattern 3: /c/customName
-    const customMatch = pathname.match(/\/c\/([a-zA-Z0-9_.-]+)/);
-    if (customMatch) {
+    // Handle youtube.com/c/name or youtube.com/user/name
+    if ((parts[0] === 'c' || parts[0] === 'user') && parts[1]) {
       return {
         type: 'custom',
-        cleanValue: customMatch[1],
-        canonicalUrl: `https://www.youtube.com/c/${customMatch[1]}`,
+        cleanValue: parts[1],
+        canonicalUrl: `https://www.youtube.com/${parts[0]}/${parts[1]}`,
       };
     }
 
-    // Pattern 4: /user/userName
-    const userMatch = pathname.match(/\/user\/([a-zA-Z0-9_.-]+)/);
-    if (userMatch) {
+    if (parts[0]) {
       return {
-        type: 'username',
-        cleanValue: userMatch[1],
-        canonicalUrl: `https://www.youtube.com/user/${userMatch[1]}`,
+        type: 'handle',
+        cleanValue: parts[0].replace(/^@/, ''),
+        canonicalUrl: `https://www.youtube.com/@${parts[0].replace(/^@/, '')}`,
       };
     }
+  } catch (e) {}
 
-    // Default fallback to first path segment as handle
-    const firstSegment = pathname.replace(/^\//, '').split('/')[0];
-    if (firstSegment && firstSegment !== '@' && firstSegment.length > 0) {
-      const cleanSeg = firstSegment.replace(/^@/, '');
-      if (cleanSeg) {
-        return {
-          type: 'handle',
-          cleanValue: cleanSeg,
-          canonicalUrl: `https://www.youtube.com/@${cleanSeg}`,
-        };
-      }
-    }
-  } catch (e) {
-    // If not a valid URL, treat as handle or username
-  }
-
-  const clean = trimmed.replace(/^@/, '').replace(/^https?:\/\/(www\.)?youtube\.com\/(@)?/i, '').trim();
-  const safeClean = clean || 'channel';
+  // Fallback
+  const safeName = trimmed.replace(/[^a-zA-Z0-9_-]/g, '');
   return {
     type: 'handle',
-    cleanValue: safeClean,
-    canonicalUrl: safeClean !== 'channel' ? `https://www.youtube.com/@${safeClean}` : 'https://www.youtube.com',
+    cleanValue: safeName || 'creator',
+    canonicalUrl: `https://www.youtube.com/@${safeName || 'creator'}`,
   };
 }
 
 /**
- * Generate a consistent deterministic Channel ID for mock/simulator channels
- */
-function generateDeterministicChannelId(handleOrName: string): string {
-  let hash = 0;
-  for (let i = 0; i < handleOrName.length; i++) {
-    hash = (hash << 5) - hash + handleOrName.charCodeAt(i);
-    hash |= 0;
-  }
-  const hex = Math.abs(hash).toString(16).padStart(8, '0');
-  const tail = Buffer.from(handleOrName).toString('base64').replace(/[^a-zA-Z0-9]/g, '').padEnd(14, 'x').substring(0, 14);
-  return `UC${hex}${tail}`;
-}
-
-/**
- * Baseline creator subscriber counts and verified avatars
- */
-const KNOWN_CHANNELS: Record<string, { title: string; count: number; avatar: string; channelId?: string }> = {
-  senpaispider: {
-    title: 'SenpaiSpider',
-    count: 2400000,
-    avatar: 'https://yt3.googleusercontent.com/rIXKfzvMc6d-qmjfUHYqQnQooxkgoWgOrFUTwgy6DJKH5LJpDoKeNuI2AEeV9TH_g92nP9gB=s900-c-k-c0x00ffffff-no-rj',
-    channelId: 'UCe_VbLgZgZ9rZ7P5yJ_3W2Q',
-  },
-  senpaiextra: {
-    title: 'SenpaiExtra',
-    count: 2400000,
-    avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=400&q=80',
-    channelId: 'UCf8Y0V1oW7GZ9X5uN2qL5eP',
-  },
-  senpailive: {
-    title: 'SenpaiLive',
-    count: 511000,
-    avatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&w=400&q=80',
-    channelId: 'UC3jLq9k7h6F8V0Y1t9R4oMw',
-  },
-  mrbeast: {
-    title: 'MrBeast',
-    count: 318000000,
-    avatar: 'https://yt3.googleusercontent.com/nxYrc_1_2f77DoBadyxMTmv7ZpRZapHR5jbuYe7PlPd5cIRJxtNNEYyOC0ZsxaDyJJzXrnJiuDE=s900-c-k-c0x00ffffff-no-rj',
-    channelId: 'UCX6OQ3DkcsbYNE6H8uQQuVA',
-  },
-  mkbhd: {
-    title: 'Marques Brownlee',
-    count: 19400000,
-    avatar: 'https://yt3.googleusercontent.com/qu4TmIaYUlS41-dJ9gZ7DUR3nilvmB5_11i6OKSdvNnBNiyOusZP1bMN6ICnuxtjFBb6ioKgRQ=s900-c-k-c0x00ffffff-no-rj',
-    channelId: 'UCBJycsmduvYEL83R_U4JriQ',
-  },
-  pewdiepie: {
-    title: 'PewDiePie',
-    count: 111000000,
-    avatar: 'https://yt3.googleusercontent.com/vik8mAiwHQbXiFyKfZ3__p55_VBdGvwxPpuPJBBwdbF0PjJxikXhrP-C3nLQAMAxGNd_-xQCIg=s900-c-k-c0x00ffffff-no-rj',
-    channelId: 'UC-lHJZR3Gqxm24_Vd_AJ5Yw',
-  },
-  ishowspeed: {
-    title: 'IShowSpeed',
-    count: 31000000,
-    avatar: 'https://yt3.googleusercontent.com/ieK0j0sDqI_AHDwYxZ2Wly07-R7PG4S3YMtxOWCEe1QH-I0FgimJ92tlydQa6M78YD0VaywCaw=s900-c-k-c0x00ffffff-no-rj',
-    channelId: 'UCWsDFcIhY2DBi3GB5uykGXA',
-  },
-  carryminati: {
-    title: 'CarryMinati',
-    count: 44000000,
-    avatar: 'https://yt3.googleusercontent.com/cxE8FStJktJ2oiuv1f-7OHMfJI7ZlMby4NgPDkfJTyV3sOsvdo5pmsAb8TAcJVNor6gNT2h_0w=s900-c-k-c0x00ffffff-no-rj',
-    channelId: 'UCj22tfcQrWG7EMEKS0qLeEg',
-  },
-  veritasium: {
-    title: 'Veritasium',
-    count: 16500000,
-    avatar: 'https://yt3.googleusercontent.com/7vCbvtCqtjQ3YLgsJt7Y952MQV1sBvhllSCSxHP8_sVZdcPCBrITfhkN2RdyCuwPnsByq-1GoA=s900-c-k-c0x00ffffff-no-rj',
-    channelId: 'UCHnyfMqiRRG1u-2MsSQLbXA',
-  },
-  totalgaming: {
-    title: 'Total Gaming',
-    count: 42000000,
-    avatar: 'https://yt3.googleusercontent.com/ytc/AIdro_l7o9hDEiDVLvAW00YMnnYKzf4UpyJWhREfNWD3V33mBhM=s900-c-k-c0x00ffffff-no-rj',
-    channelId: 'UC5c9VlYTSvBSCaoMu_GI6gQ',
-  },
-  fukrainsaan: {
-    title: 'Fukra Insaan',
-    count: 12500000,
-    avatar: 'https://yt3.googleusercontent.com/ytc/AIdro_mkP-MzZw5-avYam6zDBxD9ORmyJ-AaXSBHuZxoO9G5dK0=s900-c-k-c0x00ffffff-no-rj',
-    channelId: 'UClfos9f7uDdoun8ZyE9jYFg',
-  },
-  sidemen: {
-    title: 'Sidemen',
-    count: 21500000,
-    avatar: 'https://yt3.ggpht.com/xVXPh2t4Z7pYetsrxf_paFtTQ7SOGHmx1WlRzZVTJ5S2cPAsUOtZRLisFFlnvQPnKAoIur0X=s900-c-k-c0x00ffffff-no-rj',
-    channelId: 'UCDogdKl7t7NHzQ95aEwkdMw',
-  },
-  linustechtips: {
-    title: 'Linus Tech Tips',
-    count: 15800000,
-    avatar: 'https://yt3.googleusercontent.com/Vy6c74LBgZ3xX6xY-L4c0Gg88u2v3b1n9-5e7g-8=s900-c-k-c0x00ffffff-no-rj',
-    channelId: 'UCXuqSBlHAE6Xw-yeJA0Tunw',
-  },
-  markiplier: {
-    title: 'Markiplier',
-    count: 36700000,
-    avatar: 'https://yt3.googleusercontent.com/ytc/AIdro_k68-q8K62B16q-mG852B=s900-c-k-c0x00ffffff-no-rj',
-    channelId: 'UC7_YxT-KID8PE85v053OfGw',
-  },
-  kaicenat: {
-    title: 'Kai Cenat',
-    count: 10500000,
-    avatar: 'https://yt3.googleusercontent.com/B942_g87qZ_6M1_l8q=s900-c-k-c0x00ffffff-no-rj',
-    channelId: 'UCxq_gX8BqG5_hX0=s900-c-k-c0x00ffffff-no-rj',
-  },
-  itsuniqueplayz: {
-    title: 'ItsUniquePlayz',
-    count: 40000,
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
-    channelId: 'UC45620713aXRzdW5pcXVlcG',
-  },
-  example: {
-    title: 'Example Creator',
-    count: 125430,
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
-    channelId: 'UC125430x98124718293847',
-  },
-};
-
-/**
- * Fetch channel statistics from official YouTube Data API v3 or resilient live scraper
+ * Fetch channel statistics from official YouTube Data API v3 or live scraper
  */
 export async function fetchYouTubeChannel(
   rawInput: string,
@@ -338,7 +169,11 @@ export async function fetchYouTubeChannel(
   const parsed = parseYouTubeInput(rawInput);
   const cacheKey = parsed.cleanValue.toLowerCase().replace(/[^a-z0-9_]/g, '');
 
-  // 1. Check in-memory cache if not force refreshing
+  if (!cacheKey) {
+    throw new Error('Please enter a valid YouTube channel URL or handle.');
+  }
+
+  // 1. In-memory cache
   if (!options?.forceRefresh) {
     const cached = channelCache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
@@ -349,7 +184,7 @@ export async function fetchYouTubeChannel(
     }
   }
 
-  // 2. In-flight request deduplication
+  // 2. Deduplicate simultaneous requests
   if (pendingRequests.has(cacheKey)) {
     return pendingRequests.get(cacheKey)!;
   }
@@ -358,7 +193,7 @@ export async function fetchYouTubeChannel(
     try {
       const apiKey = process.env.YOUTUBE_API_KEY || process.env.GOOGLE_API_KEY;
 
-      // 3. Try official YouTube Data API v3 if API key configured
+      // 3. Official YouTube Data API v3 if API key configured
       if (apiKey && !apiKey.startsWith('your_') && !apiKey.startsWith('mock_')) {
         let apiUrl = `https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&key=${apiKey}`;
 
@@ -373,31 +208,36 @@ export async function fetchYouTubeChannel(
         try {
           const ytResponse = await fetch(apiUrl, {
             headers: { Accept: 'application/json' },
-            next: { revalidate: 180 },
+            signal: AbortSignal.timeout(5000),
           });
 
           if (ytResponse.ok) {
             const ytData = await ytResponse.json();
             if (ytData.items && ytData.items.length > 0) {
               const item = ytData.items[0];
-              const rawSubs = parseInt(item.statistics.subscriberCount, 10) || 0;
-              const formatted = formatSubscriberCount(rawSubs);
+              const subCount = item.statistics?.hiddenSubscriberCount
+                ? -1
+                : parseInt(item.statistics?.subscriberCount || '0', 10);
+
+              const formatted = formatSubscriberCount(subCount);
+              const avatar =
+                item.snippet?.thumbnails?.high?.url ||
+                item.snippet?.thumbnails?.medium?.url ||
+                item.snippet?.thumbnails?.default?.url ||
+                '';
 
               const result: YouTubeChannelResult = {
                 channelId: item.id,
-                title: item.snippet.title,
-                handle: item.snippet.customUrl || `@${parsed.cleanValue}`,
-                url: `https://www.youtube.com/channel/${item.id}`,
-                avatarUrl:
-                  item.snippet.thumbnails?.high?.url ||
-                  item.snippet.thumbnails?.medium?.url ||
-                  item.snippet.thumbnails?.default?.url ||
-                  '',
-                subscriberCount: rawSubs,
+                title: item.snippet?.title || parsed.cleanValue,
+                handle: item.snippet?.customUrl ? (item.snippet.customUrl.startsWith('@') ? item.snippet.customUrl : `@${item.snippet.customUrl}`) : `@${parsed.cleanValue}`,
+                url: item.snippet?.customUrl ? `https://www.youtube.com/${item.snippet.customUrl}` : `https://www.youtube.com/channel/${item.id}`,
+                avatarUrl: avatar,
+                description: item.snippet?.description,
+                subscriberCount: Math.max(0, subCount),
                 subscriberCountFormatted: formatted.full,
                 compactSubscribers: formatted.compact,
-                videoCount: parseInt(item.statistics.videoCount, 10) || 0,
-                viewCount: parseInt(item.statistics.viewCount, 10) || 0,
+                videoCount: parseInt(item.statistics?.videoCount || '0', 10),
+                viewCount: parseInt(item.statistics?.viewCount || '0', 10),
                 verified: true,
                 lastUpdated: new Date().toISOString(),
                 lastSyncedTimestamp: Date.now(),
@@ -408,53 +248,29 @@ export async function fetchYouTubeChannel(
               return result;
             }
           }
-        } catch (apiErr) {
-          // Fall through to resilient live scraper
+        } catch (e) {
+          // Fall through to resilient scraper
         }
       }
 
-      // 4. Resilient Live Scrape from YouTube Channel Page
+      // 4. Live Scraper with AbortSignal timeout
+      let targetUrl = parsed.canonicalUrl;
       let verifiedTitle = '';
       let verifiedAvatar = '';
       let verifiedDescription = '';
-      let scrapedSubCount: number | null = null;
       let scrapedChannelId = '';
-      let targetUrl = parsed.canonicalUrl;
-
-      // Handle search terms or unformatted creator names
-      if (parsed.type === 'search') {
-        try {
-          const searchRes = await fetch(`https://www.youtube.com/results?search_query=${encodeURIComponent(parsed.cleanValue)}`, {
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
-              'Accept-Language': 'en-US,en;q=0.9',
-              'Cookie': 'SOCS=CAESEwgDEgk0ODE3Nzk3MjQaAmVuIAEaBgiA_LyaBg;',
-            },
-            signal: AbortSignal.timeout(8500),
-          });
-          if (searchRes.ok) {
-            const searchHtml = await searchRes.text();
-            const chRenderer = searchHtml.match(/"channelRenderer":\{"channelId":"(UC[a-zA-Z0-9_-]{22})".*?"title":\{"simpleText":"([^"]+)"\}.*?"thumbnails":\[\{"url":"([^"]+)"/);
-            if (chRenderer) {
-              scrapedChannelId = chRenderer[1];
-              verifiedTitle = chRenderer[2];
-              verifiedAvatar = chRenderer[3].replace(/\\u0026/g, '&').replace(/\\/g, '');
-              if (verifiedAvatar.startsWith('//')) verifiedAvatar = 'https:' + verifiedAvatar;
-              verifiedAvatar = verifiedAvatar.replace(/=s\d+-/, '=s900-');
-              targetUrl = `https://www.youtube.com/channel/${scrapedChannelId}`;
-            }
-          }
-        } catch (sErr) {}
-      }
+      let scrapedSubCount: number | null = null;
 
       try {
         const scrapeRes = await fetch(targetUrl, {
           headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+            'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
             'Accept-Language': 'en-US,en;q=0.9',
-            'Cookie': 'SOCS=CAESEwgDEgk0ODE3Nzk3MjQaAmVuIAEaBgiA_LyaBg;',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Cache-Control': 'no-cache',
           },
-          signal: AbortSignal.timeout(8500),
+          signal: AbortSignal.timeout(6000),
         });
 
         if (scrapeRes.ok) {
@@ -464,101 +280,72 @@ export async function fetchYouTubeChannel(
           const titleMatch =
             html.match(/<meta\s+property=["']og:title["']\s+content=["']([^"']+)["']/i) ||
             html.match(/<title>([^<]+)<\/title>/i);
-          if (titleMatch && !titleMatch[1].includes('404')) {
-            verifiedTitle = titleMatch[1].replace(/ - YouTube$/, '').trim();
+          if (titleMatch) {
+            verifiedTitle = titleMatch[1].replace(/\s*-\s*YouTube$/i, '').trim();
           }
 
-          // Channel Description / Bio
+          // Channel ID
+          const extIdMatch =
+            html.match(/<meta\s+itemprop=["']channelId["']\s+content=["'](UC[a-zA-Z0-9_-]{22})["']/i) ||
+            html.match(/"channelId":"(UC[a-zA-Z0-9_-]{22})"/i) ||
+            html.match(/"externalId":"(UC[a-zA-Z0-9_-]{22})"/i);
+          if (extIdMatch) scrapedChannelId = extIdMatch[1];
+
+          // Avatar
+          const imgMatch =
+            html.match(/<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']/i) ||
+            html.match(/<link\s+rel=["']image_src["']\s+href=["']([^"']+)["']/i);
+          if (imgMatch) {
+            verifiedAvatar = imgMatch[1];
+          }
+
+          // Description
           const descMatch =
             html.match(/<meta\s+property=["']og:description["']\s+content=["']([^"']+)["']/i) ||
             html.match(/<meta\s+name=["']description["']\s+content=["']([^"']+)["']/i);
-          if (descMatch && descMatch[1] && !descMatch[1].includes('Enjoy the videos and music you love')) {
-            verifiedDescription = descMatch[1].trim();
-          }
+          if (descMatch) verifiedDescription = descMatch[1].trim();
 
-          // Avatar (Multiple resilient patterns for 2026 YouTube layout & small channels)
-          const rawAvatarUrl =
-            html.match(/<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']/i)?.[1] ||
-            html.match(/<meta\s+name=["']twitter:image["']\s+content=["']([^"']+)["']/i)?.[1] ||
-            html.match(/"pageHeaderRenderer":\s*\{[\s\S]*?"image":\s*\{[\s\S]*?"url":\s*"([^"]+)"/)?.[1] ||
-            html.match(/"avatar":\s*\{\s*"thumbnails":\s*\[\s*\{\s*"url":\s*"([^"]+)"/)?.[1] ||
-            html.match(/"channelHeaderRenderer":\s*\{[\s\S]*?"avatar":\s*\{\s*"thumbnails":\s*\[\s*\{\s*"url":\s*"([^"]+)"/)?.[1] ||
-            html.match(/(https:\/\/yt3\.(?:googleusercontent|ggpht)\.com\/[a-zA-Z0-9_\-\/]+=[a-zA-Z0-9_\-]+)/)?.[1];
+          // Subscribers
+          const subMatch1 = html.match(/"subscriberCountText":\s*\{[^}]*"simpleText":\s*"([^"]+)"/);
+          const subMatch2 = html.match(/"text":\s*\{"content":\s*"([0-9.]+[MK]?\s+subscribers?)"\}/i);
+          const subMatch3 = html.match(/([0-9.]+[KM]?\s+subscribers?)/i);
 
-          if (rawAvatarUrl) {
-            let cleanAvatar = rawAvatarUrl.replace(/\\u0026/g, '&').replace(/\\/g, '').trim();
-            if (cleanAvatar.startsWith('//')) cleanAvatar = 'https:' + cleanAvatar;
-            // Upgrade resolution if low-res thumbnail
-            if (/=s\d+/.test(cleanAvatar)) {
-              cleanAvatar = cleanAvatar.replace(/=s\d+-/, '=s800-');
-            }
-            verifiedAvatar = cleanAvatar;
-          }
-
-          // ChannelId
-          const extIdMatch =
-            html.match(/"externalId":"(UC[a-zA-Z0-9_-]{22})"/) ||
-            html.match(/<link\s+rel=["']alternate["']\s+type=["']application\/rss\+xml["']\s+title=["']RSS["']\s+href=["']https:\/\/www\.youtube\.com\/feeds\/videos\.xml\?channel_id=(UC[a-zA-Z0-9_-]{22})["']/i) ||
-            html.match(/"channelId":"(UC[a-zA-Z0-9_-]{22})"/);
-          if (extIdMatch) scrapedChannelId = extIdMatch[1];
-
-          // Subscriber Count
-          const subMatch1 = html.match(/"text":\{"content":"([0-9.]+[MK]?\s+subscribers)"\}/i);
-          const subMatch2 = html.match(/"content":"([0-9.]+[MK]?\s+subscribers)"/i);
-          const subMatch3 = html.match(/"subscriberCountText":\{.*?"simpleText":"([^"]+)"/);
-          const subMatch4 = html.match(/([0-9.]+[KM]?\s+subscribers)/i);
-
-          const subText = (subMatch1 && subMatch1[1]) || (subMatch2 && subMatch2[1]) || (subMatch3 && subMatch3[1]) || (subMatch4 && subMatch4[1]);
+          const subText = (subMatch1 && subMatch1[1]) || (subMatch2 && subMatch2[1]) || (subMatch3 && subMatch3[1]);
           if (subText) {
             const parsedSubs = parseSubscriberString(subText);
             scrapedSubCount = parsedSubs.count;
           }
         }
-      } catch (e) {
-        // Scraper fallback continues below
+      } catch (e) {}
+
+      // If scraping resolved title or avatar
+      if (verifiedTitle || scrapedChannelId || scrapedSubCount !== null) {
+        const subCount = scrapedSubCount !== null ? scrapedSubCount : (options?.previousCount || 0);
+        const formatted = formatSubscriberCount(subCount);
+        const channelId = scrapedChannelId || options?.previousChannelId || `UC_${cacheKey}`;
+
+        const result: YouTubeChannelResult = {
+          channelId,
+          title: verifiedTitle || parsed.cleanValue,
+          handle: `@${parsed.cleanValue}`,
+          url: targetUrl,
+          avatarUrl: verifiedAvatar,
+          description: verifiedDescription || undefined,
+          subscriberCount: subCount,
+          subscriberCountFormatted: formatted.full,
+          compactSubscribers: formatted.compact,
+          verified: true,
+          lastUpdated: new Date().toISOString(),
+          lastSyncedTimestamp: Date.now(),
+          status: 'VERIFIED',
+        };
+
+        channelCache.set(cacheKey, { data: result, timestamp: Date.now() });
+        return result;
       }
 
-      // Check known channels
-      const known = KNOWN_CHANNELS[cacheKey];
-      let subCount = scrapedSubCount !== null ? scrapedSubCount : (options?.previousCount || 0);
-      let title = verifiedTitle || (known ? known.title : parsed.cleanValue);
-      let avatar = verifiedAvatar || (known ? known.avatar : '');
-
-      if (!subCount) {
-        if (known) {
-          subCount = known.count;
-        } else {
-          subCount = 10000;
-        }
-      }
-
-      const formatted = formatSubscriberCount(subCount);
-      const channelId = scrapedChannelId || (known?.channelId) || options?.previousChannelId || generateDeterministicChannelId(cacheKey);
-
-      const finalAvatar =
-        avatar ||
-        `https://ui-avatars.com/api/?name=${encodeURIComponent(title)}&background=ff0000&color=fff&size=512&bold=true`;
-
-      const result: YouTubeChannelResult = {
-        channelId,
-        title,
-        handle: `@${parsed.cleanValue.replace(/\s+/g, '')}`,
-        url: targetUrl.startsWith('http') ? targetUrl : parsed.canonicalUrl,
-        avatarUrl: finalAvatar,
-        description: verifiedDescription || undefined,
-        subscriberCount: subCount,
-        subscriberCountFormatted: formatted.full,
-        compactSubscribers: formatted.compact,
-        verified: true,
-        lastUpdated: new Date().toISOString(),
-        lastSyncedTimestamp: Date.now(),
-        status: 'VERIFIED',
-      };
-
-      channelCache.set(cacheKey, { data: result, timestamp: Date.now() });
-      return result;
-    } catch (err: any) {
-      if (options?.previousCount && options?.previousChannelId) {
+      // If previous verified count is available, retain it
+      if (options?.previousCount !== undefined && options?.previousChannelId) {
         const formatted = formatSubscriberCount(options.previousCount);
         return {
           channelId: options.previousChannelId,
@@ -573,13 +360,13 @@ export async function fetchYouTubeChannel(
           lastUpdated: new Date().toISOString(),
           lastSyncedTimestamp: Date.now(),
           isFallback: true,
-          status: 'FALLBACK' as const,
-          error: 'YouTube API temporarily unavailable. Retaining verified count.',
+          status: 'FALLBACK',
+          error: 'YouTube channel data could not be refreshed. Retaining previously verified count.',
         };
       }
 
       throw new Error(
-        `Could not detect YouTube channel for "${rawInput}". Please check the channel link or handle.`
+        `Could not resolve YouTube channel for "${rawInput}". Please check the channel handle or URL and try again.`
       );
     } finally {
       pendingRequests.delete(cacheKey);
@@ -590,26 +377,14 @@ export async function fetchYouTubeChannel(
   return promise;
 }
 
-/**
- * Relative time formatter for "Last updated: X minutes ago"
- */
-export function formatTimeAgo(isoOrTimestamp: string | number): string {
-  const ts = typeof isoOrTimestamp === 'string' ? new Date(isoOrTimestamp).getTime() : isoOrTimestamp;
-  if (!ts || isNaN(ts)) return 'Recently';
-
-  const diffSec = Math.floor((Date.now() - ts) / 1000);
-  if (diffSec < 30) return 'Just now';
-  if (diffSec < 60) return `${diffSec} seconds ago`;
-
+export function formatTimeAgo(timestamp: number | string | Date): string {
+  const time = typeof timestamp === 'number' ? timestamp : new Date(timestamp).getTime();
+  const diffSec = Math.max(0, Math.floor((Date.now() - time) / 1000));
+  if (diffSec < 60) return 'Updated just now';
   const diffMin = Math.floor(diffSec / 60);
-  if (diffMin === 1) return '1 minute ago';
-  if (diffMin < 60) return `${diffMin} minutes ago`;
-
+  if (diffMin < 60) return `Updated ${diffMin}m ago`;
   const diffHours = Math.floor(diffMin / 60);
-  if (diffHours === 1) return '1 hour ago';
-  if (diffHours < 24) return `${diffHours} hours ago`;
-
+  if (diffHours < 24) return `Updated ${diffHours}h ago`;
   const diffDays = Math.floor(diffHours / 24);
-  if (diffDays === 1) return '1 day ago';
-  return `${diffDays} days ago`;
+  return `Updated ${diffDays}d ago`;
 }

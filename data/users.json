@@ -1,0 +1,14 @@
+[
+  {
+    "id": "usr_admin_system_001",
+    "email": "admin@creatorhq.fun",
+    "username": "admin",
+    "displayName": "CreatorHQ Staff Admin",
+    "role": "ADMIN",
+    "passwordHash": "0ff92e94598606100f9b61907b634ee6bb3351d602907128a8212d2893ea6f2bb5bbfedd34bf84b496a1b47e8575433b54c57995f35286add189ae471ae69904",
+    "passwordSalt": "09c8fa8ee78d9b93b44d1ff97d41cdcb",
+    "emailVerified": true,
+    "createdAt": "2026-10-03T06:28:01.200Z",
+    "updatedAt": "2026-10-03T06:28:01.200Z"
+  }
+]

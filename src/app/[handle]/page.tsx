@@ -84,6 +84,15 @@ export default async function HandlePage({ params }: PageProps) {
     ) || null;
   }
 
-  // Gracefully render CreatorProfileView: client checks localStorage and live API before showing empty state
-  return <CreatorProfileView creator={creator} targetId={cleanHandle} />;
+  if (!creator) {
+    notFound();
+  }
+
+  // Sanitize public creator profile to prevent exposing private system IDs or sensitive data
+  const publicCreator: CreatorProfile = {
+    ...creator,
+    userId: undefined,
+  };
+
+  return <CreatorProfileView creator={publicCreator} targetId={cleanHandle} />;
 }

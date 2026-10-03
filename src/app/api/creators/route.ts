@@ -1,296 +1,248 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAllCreatorsDB, getAllCreatorsDBAsync, addCreatorDB, deleteCreatorDB, getCreatorByIpDB, getCreatorByIdDB, normalizeIp, isSameIp } from '@/lib/db';
+import { 
+  getAllCreatorsDB, 
+  getAllCreatorsDBAsync, 
+  addCreatorDB, 
+  deleteCreatorDB, 
+  getCreatorByIdDB,
+  getCreatorByUserIdDB,
+  addAuditLogDB 
+} from '@/lib/db';
+import { getAuthenticatedUser, requireAuth } from '@/lib/auth';
 import { CreatorProfile } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
+// GET: Public directory listing & search (with sanitized sensitive fields)
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const category = searchParams.get('category');
   const platform = searchParams.get('platform');
   const query = searchParams.get('q');
-
-  let creators = await getAllCreatorsDBAsync();
-
   const checkParam = searchParams.get('check');
+
+  const creators = await getAllCreatorsDBAsync();
+
+  // Availability check for card creation
   if (checkParam) {
     const cleanCheck = checkParam.toLowerCase().trim().replace(/^@/, '');
-    const ytCheck = searchParams.get('yt');
     const existing = creators.find(
       (c) =>
         (c.slug && c.slug.toLowerCase() === cleanCheck) ||
         (c.username && c.username.toLowerCase() === cleanCheck) ||
-        (c.displayName && c.displayName.toLowerCase() === cleanCheck) ||
-        (c.handle && c.handle.toLowerCase().replace(/^@/, '') === cleanCheck) ||
-        (ytCheck && c.connections?.youtube?.channelId && c.connections.youtube.channelId === ytCheck && ytCheck !== 'UC_demo_channel_id')
+        (c.handle && c.handle.toLowerCase().replace(/^@/, '') === cleanCheck)
     );
+
+    const auth = await getAuthenticatedUser(request);
+    const isCurrentUser = auth?.creator && (
+      auth.creator.slug.toLowerCase() === cleanCheck || 
+      auth.creator.username.toLowerCase() === cleanCheck
+    );
+
     return NextResponse.json({
-      available: !existing,
-      claimed: !!existing,
-      message: existing ? `Already taken by @${existing.username}` : 'Available',
+      available: !existing || isCurrentUser,
+      claimed: !!existing && !isCurrentUser,
+      message: existing && !isCurrentUser ? `Already claimed by @${existing.username}` : 'Available',
     });
   }
 
+  let filtered = creators;
+
   if (query) {
     const q = query.toLowerCase().trim().replace(/^@/, '');
-    creators = creators.filter(
+    filtered = filtered.filter(
       (c) =>
         (c.displayName || '').toLowerCase().includes(q) ||
         (c.username || '').toLowerCase().includes(q) ||
         (c.slug && c.slug.toLowerCase().includes(q)) ||
-        (c.passportId && c.passportId.toLowerCase().includes(q)) ||
         (c.handle && c.handle.toLowerCase().replace(/^@/, '').includes(q)) ||
-        (c.id && c.id.toLowerCase().includes(q)) ||
         (c.category && c.category.toLowerCase().includes(q)) ||
         (c.niche && c.niche.toLowerCase().includes(q))
     );
   }
 
   if (category && category !== 'ALL') {
-    creators = creators.filter((c) => c.category === category);
+    filtered = filtered.filter((c) => c.category === category || c.niche === category);
   }
 
   if (platform) {
     const p = platform.toUpperCase();
     if (p === 'YOUTUBE') {
-      creators = creators.filter((c) => c.connections?.youtube?.connected);
+      filtered = filtered.filter((c) => c.connections?.youtube?.connected);
     } else if (p === 'DISCORD') {
-      creators = creators.filter((c) => c.connections?.discord?.connected);
+      filtered = filtered.filter((c) => c.connections?.discord?.connected);
     } else if (p === 'INSTAGRAM') {
-      creators = creators.filter((c) => c.connections?.instagram?.connected);
+      filtered = filtered.filter((c) => c.connections?.instagram?.connected);
     }
   }
 
   return NextResponse.json(
     {
-      count: creators.length,
-      creators: creators,
+      count: filtered.length,
+      creators: filtered,
     },
     {
       headers: {
         'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-        'CDN-Cache-Control': 'no-store',
-        'Vercel-CDN-Cache-Control': 'no-store',
       },
     }
   );
 }
 
+// POST: Create or Update creator card. STRICT REQUIREMENT: Caller MUST be authenticated!
 export async function POST(request: NextRequest) {
   try {
+    const { auth, response: authResponse } = await requireAuth(request);
+    if (authResponse || !auth) return authResponse!;
+
+    const user = auth.user;
     const body: CreatorProfile = await request.json();
 
-    // 1. Resolve client IP from request headers
-    const forwarded = request.headers.get('x-forwarded-for');
-    const realIp = request.headers.get('x-real-ip');
-    const cfIp = request.headers.get('cf-connecting-ip');
-    const clientIpHeader = request.headers.get('x-client-ip');
-    const trueClientIp = request.headers.get('true-client-ip');
+    const targetSlug = (body.slug || body.username || user.username || '').toLowerCase().replace(/^@/, '').trim();
+    const cleanSlug = targetSlug.replace(/[^a-z0-9_-]/g, '') || user.username;
 
-    let detectedIp = forwarded
-      ? forwarded.split(',')[0].trim()
-      : (realIp || cfIp || clientIpHeader || trueClientIp || '');
-    detectedIp = normalizeIp(detectedIp);
-
-    if ((!detectedIp || isSameIp(detectedIp, '127.0.0.1')) && body.clientIp && !isSameIp(body.clientIp, '127.0.0.1')) {
-      detectedIp = normalizeIp(body.clientIp);
-    }
-
-    if (!detectedIp) {
-      detectedIp = '127.0.0.1';
-    }
-
-    const isAdminRequest = request.headers.get('x-admin-request') === 'true' || (body as any).isAdmin === true;
-    const targetSlug = (body.slug || body.username || body.passportId || '').toLowerCase().replace(/^@/, '').trim();
-    const targetUsername = (body.username || body.slug || '').toLowerCase().replace(/^@/, '').trim();
-    const targetDisplayName = (body.displayName || '').toLowerCase().trim();
+    // Check conflict: does another user own this slug?
     const allCreators = getAllCreatorsDB();
-
-    // 2. CHECK IF CARD NAME / SLUG / HANDLE IS ALREADY TAKEN BY ANOTHER PERSON
-    const existingByName = allCreators.find(
+    const existingConflict = allCreators.find(
       (c) =>
-        (c.slug && c.slug.toLowerCase() === targetSlug) ||
-        (c.username && c.username.toLowerCase() === targetUsername) ||
-        (c.handle && c.handle.toLowerCase().replace(/^@/, '') === targetSlug) ||
-        (c.displayName && c.displayName.toLowerCase() === targetDisplayName)
+        c.userId !== user.id &&
+        ((c.slug && c.slug.toLowerCase() === cleanSlug) ||
+         (c.username && c.username.toLowerCase() === cleanSlug))
     );
 
-    if (existingByName) {
-      // Validate whether requester is the legitimate owner
-      const isOwner =
-        isAdminRequest ||
-        (existingByName.digitalSignature && body.digitalSignature && existingByName.digitalSignature === body.digitalSignature) ||
-        (existingByName.creatorSecret && (body as any).creatorSecret && existingByName.creatorSecret === (body as any).creatorSecret) ||
-        (isSameIp(existingByName.registeredIp, detectedIp) && !isSameIp(detectedIp, '127.0.0.1') && body.id === existingByName.id && existingByName.id !== 'user_my_pass');
-
-      if (!isOwner) {
-        return NextResponse.json(
-          {
-            error: 'ALREADY_TAKEN',
-            message: `Already taken! The Creator ID or channel handle "@${existingByName.username}" (${existingByName.displayName}) is already claimed by another creator. Another person cannot create or claim this card.`,
-            existingCard: {
-              username: existingByName.username,
-              displayName: existingByName.displayName,
-            },
-          },
-          { status: 409 }
-        );
-      }
+    if (existingConflict) {
+      return NextResponse.json(
+        {
+          error: 'SLUG_TAKEN',
+          message: `The Creator handle "@${cleanSlug}" is already claimed by another account.`,
+        },
+        { status: 409 }
+      );
     }
 
-    // 3. CHECK IF YOUTUBE CHANNEL IS ALREADY CLAIMED BY ANOTHER CREATOR
-    const targetChannelId = body.connections?.youtube?.channelId?.trim();
-    const targetYtUrl = body.connections?.youtube?.profileUrl?.toLowerCase().trim();
-    const targetYtUsername = body.connections?.youtube?.username?.toLowerCase().trim().replace(/^@/, '');
+    // Find existing card for THIS authenticated user
+    const existingUserCard = getCreatorByUserIdDB(user.id);
 
-    const channelConflict = allCreators.find((c) => {
-      if (!c.connections?.youtube?.connected) return false;
-      if (c.slug.toLowerCase() === targetSlug) return false;
+    const safeCreator: CreatorProfile = {
+      ...body,
+      id: existingUserCard?.id || `creator_${user.id}`,
+      userId: user.id,
+      username: user.username,
+      slug: cleanSlug,
+      handle: `@${cleanSlug}`,
+      passportId: cleanSlug,
+      displayName: body.displayName?.trim() || user.displayName || user.username,
+      avatarUrl: body.avatarUrl || existingUserCard?.avatarUrl || '',
+      bio: body.bio || existingUserCard?.bio || '',
+      category: body.category || body.niche || existingUserCard?.category || 'Creator',
+      niche: body.category || body.niche || existingUserCard?.category || 'Creator',
+      country: body.country || existingUserCard?.country || 'Global',
+      location: body.location || existingUserCard?.location || 'Global',
+      contactEmail: body.contactEmail || user.email,
+      cardTheme: body.cardTheme || existingUserCard?.cardTheme || 'dark',
+      cardColor: body.cardColor || existingUserCard?.cardColor || '#0284c7',
+      isVerified: existingUserCard?.isVerified || false,
+      verification_status: existingUserCard?.verification_status || 'PENDING',
+      isFounding: existingUserCard?.isFounding ?? true,
+      tierName: existingUserCard?.tierName || 'Founding Member Tier I',
+      profileCompletion: body.profileCompletion || existingUserCard?.profileCompletion || 85,
+      digitalSignature: existingUserCard?.digitalSignature || `0x${Date.now().toString(16)}`,
+      issuedAt: existingUserCard?.issuedAt || new Date().toISOString(),
+      lastVerifiedAt: existingUserCard?.lastVerifiedAt || new Date().toISOString().split('T')[0],
+      isSuspended: existingUserCard?.isSuspended || false,
+      connections: {
+        youtube: body.connections?.youtube?.connected ? body.connections.youtube : existingUserCard?.connections?.youtube,
+        discord: body.connections?.discord?.connected ? body.connections.discord : existingUserCard?.connections?.discord,
+        instagram: body.connections?.instagram?.connected ? body.connections.instagram : existingUserCard?.connections?.instagram,
+        x: body.connections?.x?.connected ? body.connections.x : existingUserCard?.connections?.x,
+      },
+      moreChannels: Array.isArray(body.moreChannels) ? body.moreChannels : (existingUserCard?.moreChannels || []),
+      skills: Array.isArray(body.skills) ? body.skills : (existingUserCard?.skills || ['Content Creator']),
+      achievements: Array.isArray(body.achievements) ? body.achievements : (existingUserCard?.achievements || []),
+      collaborations: Array.isArray(body.collaborations) ? body.collaborations : (existingUserCard?.collaborations || []),
+      portfolio: Array.isArray(body.portfolio) ? body.portfolio : (existingUserCard?.portfolio || []),
+      proofDocuments: Array.isArray(body.proofDocuments) ? body.proofDocuments : (existingUserCard?.proofDocuments || []),
+    };
 
-      const cId = c.connections.youtube.channelId;
-      if (cId && targetChannelId && cId === targetChannelId && targetChannelId !== 'UC_demo_channel_id') {
-        return true;
-      }
-      const cUrl = c.connections.youtube.profileUrl?.toLowerCase().trim();
-      if (cUrl && targetYtUrl && cUrl === targetYtUrl && !targetYtUrl.includes('yourchannel')) {
-        return true;
-      }
-      const cUser = c.connections.youtube.username?.toLowerCase().trim().replace(/^@/, '');
-      if (cUser && targetYtUsername && cUser === targetYtUsername && targetYtUsername !== 'yourchannel' && targetYtUsername !== 'channel') {
-        return true;
-      }
-      return false;
+    const saved = await addCreatorDB(safeCreator);
+
+    return NextResponse.json({
+      success: true,
+      creator: saved,
+      message: 'Creator Card successfully saved.',
     });
-
-    if (channelConflict) {
-      const isOwner =
-        isAdminRequest ||
-        (channelConflict.digitalSignature && body.digitalSignature && channelConflict.digitalSignature === body.digitalSignature);
-
-      if (!isOwner) {
-        return NextResponse.json(
-          {
-            error: 'ALREADY_TAKEN',
-            message: `Already taken! This YouTube channel (@${channelConflict.connections?.youtube?.username || channelConflict.username}) is already connected and claimed by verified Creator Pass @${channelConflict.username}. Another person cannot claim this channel.`,
-            existingCard: {
-              username: channelConflict.username,
-              displayName: channelConflict.displayName,
-            },
-          },
-          { status: 409 }
-        );
-      }
-    }
-
-    // 4. Enforce ONE PERSON, ONE CARD PER IP POLICY (prevent spamming multiple cards)
-    const existingInDb = targetSlug ? getCreatorByIdDB(targetSlug) : null;
-    const isExistingCardUpdate = !!existingInDb;
-
-    const isLoopback = !detectedIp || detectedIp === '127.0.0.1' || detectedIp === '::1' || detectedIp === 'localhost';
-
-    if (!isAdminRequest && !isExistingCardUpdate && !isLoopback) {
-      const existingByIp = getCreatorByIpDB(detectedIp);
-
-      if (existingByIp) {
-        const existingSlug = (existingByIp.slug || existingByIp.username || existingByIp.passportId || '').toLowerCase().replace(/^@/, '');
-        const isSameCreator =
-          (body.id && body.id === existingByIp.id) ||
-          (targetSlug && targetSlug === existingSlug) ||
-          (body.passportId && body.passportId.toLowerCase() === (existingByIp.passportId || '').toLowerCase());
-
-        if (!isSameCreator) {
-          return NextResponse.json(
-            {
-              error: 'ONE_CARD_PER_IP',
-              message: `One Person, One Card Policy: A Creator Pass is already registered to your IP address (${detectedIp}) for @${existingByIp.username} (${existingByIp.displayName}). Only one card per IP is allowed.`,
-              clientIp: detectedIp,
-              existingCard: {
-                id: existingByIp.id,
-                displayName: existingByIp.displayName,
-                username: existingByIp.username,
-                slug: existingByIp.slug,
-                passportId: existingByIp.passportId,
-                avatarUrl: existingByIp.avatarUrl,
-              },
-            },
-            { status: 409 }
-          );
-        }
-      }
-    }
-
-    // 5. Bind IP to card
-    if (existingInDb) {
-      body.registeredIp = existingInDb.registeredIp || body.registeredIp || detectedIp;
-      body.clientIp = existingInDb.clientIp || body.clientIp || detectedIp;
-    } else {
-      if (!body.registeredIp) {
-        body.registeredIp = detectedIp;
-      }
-      body.clientIp = detectedIp;
-    }
-
-    const saved = await addCreatorDB(body);
-    const response = NextResponse.json({ success: true, creator: saved, clientIp: detectedIp });
-    response.cookies.set('chq_user', saved.username, {
-      path: '/',
-      maxAge: 60 * 60 * 24 * 365, // 1 year
-      sameSite: 'lax',
-    });
-    return response;
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || 'Error saving creator' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'SERVER_ERROR', message: err.message || 'Failed to save creator' },
+      { status: 500 }
+    );
   }
 }
 
+// DELETE: Require authentication! User can only delete their OWN card; Admin can delete any.
 export async function DELETE(request: NextRequest) {
   try {
+    const { auth, response: authResponse } = await requireAuth(request);
+    if (authResponse || !auth) return authResponse!;
+
+    const user = auth.user;
     const searchParams = request.nextUrl.searchParams;
-    const forwarded = request.headers.get('x-forwarded-for');
-    const realIp = request.headers.get('x-real-ip');
-    const cfIp = request.headers.get('cf-connecting-ip');
-    const clientIpHeader = request.headers.get('x-client-ip');
-    const trueClientIp = request.headers.get('true-client-ip');
+    const targetSlug = searchParams.get('slug') || searchParams.get('id') || searchParams.get('username');
 
-    let detectedIp = forwarded
-      ? forwarded.split(',')[0].trim()
-      : (realIp || cfIp || clientIpHeader || trueClientIp || '');
-    detectedIp = normalizeIp(detectedIp);
+    // If regular creator, they can ONLY delete their own card
+    if (user.role !== 'ADMIN') {
+      const userCard = getCreatorByUserIdDB(user.id);
+      if (!userCard) {
+        return NextResponse.json({ error: 'NOT_FOUND', message: 'No creator card found to delete.' }, { status: 404 });
+      }
 
-    const targets: string[] = [];
-    const pSlug = searchParams.get('slug');
-    const pUsername = searchParams.get('username');
-    const pPassportId = searchParams.get('passportId');
-    const pHandle = searchParams.get('handle');
-    const pId = searchParams.get('id');
-
-    if (pSlug) targets.push(pSlug);
-    if (pUsername) targets.push(pUsername);
-    if (pPassportId) targets.push(pPassportId);
-    if (pHandle) targets.push(pHandle);
-    if (pId) targets.push(pId);
-
-    try {
-      const body = await request.json();
-      if (body.slug) targets.push(body.slug);
-      if (body.username) targets.push(body.username);
-      if (body.passportId) targets.push(body.passportId);
-      if (body.handle) targets.push(body.handle);
-      if (body.id) targets.push(body.id);
-    } catch (e) {}
-
-    if (targets.length === 0 && detectedIp && !isSameIp(detectedIp, '127.0.0.1')) {
-      targets.push(detectedIp);
+      await deleteCreatorDB([userCard.id, userCard.userId || '', userCard.slug]);
+      return NextResponse.json({
+        success: true,
+        message: 'Your Creator Card has been permanently deleted.',
+        deletedSlug: userCard.slug,
+      });
     }
 
-    if (targets.length === 0) {
-      return NextResponse.json({ error: 'Creator identifier required for deletion' }, { status: 400 });
+    // Admin can delete specified target
+    if (!targetSlug) {
+      return NextResponse.json({ error: 'BAD_REQUEST', message: 'Target creator slug or ID required.' }, { status: 400 });
     }
 
-    const deleted = await deleteCreatorDB(targets);
-    return NextResponse.json({ success: true, deleted, targets });
+    const targetCreator = getCreatorByIdDB(targetSlug);
+    if (!targetCreator) {
+      return NextResponse.json({ error: 'NOT_FOUND', message: 'Creator not found.' }, { status: 404 });
+    }
+
+    await deleteCreatorDB([
+      targetCreator.id,
+      targetCreator.slug || '',
+      targetCreator.username || '',
+      targetCreator.userId || '',
+      targetCreator.passportId || '',
+    ]);
+
+    addAuditLogDB({
+      userId: user.id,
+      action: 'CREATOR_DELETED_BY_ADMIN',
+      actor: user.email,
+      details: {
+        slug: targetCreator.slug,
+        displayName: targetCreator.displayName,
+        id: targetCreator.id,
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: `Creator @${targetCreator.slug} permanently deleted by admin.`,
+      deletedSlug: targetCreator.slug,
+    });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || 'Error deleting creator' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'SERVER_ERROR', message: err.message || 'Failed to delete creator' },
+      { status: 500 }
+    );
   }
 }

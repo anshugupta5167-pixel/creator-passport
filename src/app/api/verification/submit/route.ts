@@ -1,17 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
   submitVerificationDB,
-  getAllVerificationsDB,
   getAllVerificationsDBAsync,
   saveProofDocumentDB,
   getCreatorBySlugDB,
+  getCreatorByUserIdDB,
+  addAuditLogDB,
 } from '@/lib/db';
+import { getAuthenticatedUser, requireAuth, requireAdmin } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-// GET: List all verification submissions (admin only)
+// GET: List all verification submissions (Staff Admin Only)
 export async function GET(request: NextRequest) {
+  const { auth, response: adminResponse } = await requireAdmin(request);
+  if (adminResponse || !auth) return adminResponse!;
+
   const searchParams = request.nextUrl.searchParams;
   const slug = searchParams.get('slug');
   const status = searchParams.get('status');
@@ -35,16 +40,18 @@ export async function GET(request: NextRequest) {
     {
       headers: {
         'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-        'CDN-Cache-Control': 'no-store',
-        'Vercel-CDN-Cache-Control': 'no-store',
       },
     }
   );
 }
 
-// POST: Submit a new verification request with proof documents
+// POST: Submit a new verification request with proof documents (Authenticated Creators)
 export async function POST(request: NextRequest) {
   try {
+    const { auth, response: authResponse } = await requireAuth(request);
+    if (authResponse || !auth) return authResponse!;
+
+    const user = auth.user;
     const body = await request.json();
     const {
       creatorSlug,
@@ -54,21 +61,25 @@ export async function POST(request: NextRequest) {
       category,
       platforms,
       connectedPlatforms,
-      proofFiles, // Array of { filename, base64, mimeType, platform, notes }
+      proofFiles,
     } = body;
 
-    if (!creatorSlug || !creatorName) {
+    // Get user's creator card
+    const userCard = auth.creator || getCreatorByUserIdDB(user.id);
+    const targetSlug = (creatorSlug || userCard?.slug || user.username).toLowerCase().replace(/^@/, '');
+
+    // Strict ownership verification: cannot submit proofs for another user's profile
+    if (userCard && userCard.slug.toLowerCase() !== targetSlug && user.role !== 'ADMIN') {
       return NextResponse.json(
-        { error: 'creatorSlug and creatorName are required' },
-        { status: 400 }
+        { error: 'FORBIDDEN', message: 'You can only submit verification for your own Creator Card.' },
+        { status: 403 }
       );
     }
 
-    // Verify the creator exists
-    const creator = getCreatorBySlugDB(creatorSlug);
+    const creator = userCard || getCreatorBySlugDB(targetSlug);
     if (!creator) {
       return NextResponse.json(
-        { error: 'Creator not found' },
+        { error: 'NOT_FOUND', message: 'Creator profile not found. Please create your card first.' },
         { status: 404 }
       );
     }
@@ -78,7 +89,7 @@ export async function POST(request: NextRequest) {
     if (Array.isArray(proofFiles)) {
       for (const file of proofFiles) {
         const doc = saveProofDocumentDB(
-          creatorSlug,
+          targetSlug,
           file.filename || 'proof.png',
           file.base64 || '',
           file.mimeType || 'image/png',
@@ -93,26 +104,37 @@ export async function POST(request: NextRequest) {
 
     // Create the verification submission
     const submission = submitVerificationDB({
-      creatorSlug,
-      creatorName,
-      creatorHandle: creatorHandle || `@${creatorSlug}`,
+      creatorId: creator.id,
+      userId: user.id,
+      creatorSlug: targetSlug,
+      creatorName: creatorName || creator.displayName,
+      creatorHandle: creatorHandle || creator.handle || `@${targetSlug}`,
       creatorAvatar: creatorAvatar || creator.avatarUrl,
       category: category || creator.category,
       platforms: platforms || [],
-      connectedPlatforms: connectedPlatforms || {},
+      connectedPlatforms: connectedPlatforms || creator.connections || {},
       proofDocuments: savedProofs,
+      status: 'PENDING',
       rejectionReason: undefined,
       reviewedAt: undefined,
       reviewedBy: undefined,
     });
 
+    addAuditLogDB({
+      userId: user.id,
+      action: 'VERIFICATION_SUBMITTED',
+      actor: user.email,
+      details: { slug: targetSlug, proofsCount: savedProofs.length },
+    });
+
     return NextResponse.json({
       success: true,
       verification: submission,
+      message: 'Verification request submitted successfully. Staff will review your proofs.',
     });
   } catch (err: any) {
     return NextResponse.json(
-      { error: err.message || 'Error submitting verification' },
+      { error: 'SERVER_ERROR', message: err.message || 'Error submitting verification' },
       { status: 500 }
     );
   }
