@@ -26,7 +26,7 @@ async function handleRefresh(request: NextRequest) {
       } catch (e) {}
     }
 
-    const creator = passportId ? getCreatorByIdDB(passportId) : null;
+    const creator = passportId ? await getCreatorByIdDB(passportId) : null;
     const target = inviteUrl || guildId || creator?.connections.discord?.profileUrl || creator?.connections.discord?.guildId || 'example';
 
     const previousCount = creator?.connections.discord?.rawCount;

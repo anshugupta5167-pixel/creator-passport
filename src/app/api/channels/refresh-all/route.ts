@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'passportId is required' }, { status: 400 });
     }
 
-    const creator = getCreatorByIdDB(passportId);
+    const creator = await getCreatorByIdDB(passportId);
     if (!creator) {
       return NextResponse.json({ error: 'Creator not found' }, { status: 404 });
     }

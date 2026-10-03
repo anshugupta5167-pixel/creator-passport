@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
 
     const reviewerNote = rejectionReason || (newStatus === 'VERIFIED' ? 'Approved by staff admin' : undefined);
 
-    const result = updateVerificationStatusDB(
+    const result = await updateVerificationStatusDB(
       target,
       newStatus,
       adminUser.username || adminUser.email || 'Admin',

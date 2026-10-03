@@ -1,6 +1,8 @@
 import { MetadataRoute } from 'next';
 import { getAllCreatorsDB } from '@/lib/db';
 
+export const dynamic = 'force-dynamic';
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = 'https://creatorhq.fun';
   const currentDate = new Date().toISOString();
@@ -64,7 +66,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ];
 
   // Dynamic creator pass profile routes from DB
-  const creators = getAllCreatorsDB();
+  const creators = await getAllCreatorsDB().catch(() => []);
   const creatorRoutes: MetadataRoute.Sitemap = creators.map((c) => ({
     url: `${baseUrl}/creator/${c.passportId}`,
     lastModified: currentDate,

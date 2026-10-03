@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
       details: { username: user.username, role: user.role },
     });
 
-    const creator = getCreatorByUserIdDB(user.id);
+    const creator = await getCreatorByUserIdDB(user.id);
 
     const response = NextResponse.json({
       success: true,

@@ -142,7 +142,7 @@ async function runFullAudit() {
   });
 
   assert(Boolean(creator1Card), 'Creator card saved with userId binding');
-  const fetchedByUserId = getCreatorByUserIdDB(newUser.id);
+  const fetchedByUserId = await getCreatorByUserIdDB(newUser.id);
   assert(
     fetchedByUserId?.id === creator1Card.id,
     'Card correctly fetched by authenticated user ID'
@@ -165,7 +165,7 @@ async function runFullAudit() {
   };
   const user2 = createUserDB(user2Obj);
 
-  const existingCreators = getAllCreatorsDB();
+  const existingCreators = await getAllCreatorsDB();
   const slugCollision = existingCreators.some(
     c => c.userId !== user2.id && c.slug.toLowerCase() === testUsername.toLowerCase()
   );
@@ -216,7 +216,7 @@ async function runFullAudit() {
   // -------------------------------------------------------------
   console.log('\n--- 6. Admin Panel RBAC, Audit Logging & Cascading Deletion ---');
   // Admin verifies creator
-  const reviewResult = updateVerificationStatusDB(
+  const reviewResult = await updateVerificationStatusDB(
     creator1Card.slug,
     'VERIFIED',
     'admin@creatorhq.fun',
@@ -240,8 +240,8 @@ async function runFullAudit() {
   // Cascading Deletion of Creator & References
   const deleted = await deleteCreatorDB([creator1Card.id, creator1Card.slug, newUser.id]);
   assert(deleted, 'Creator card and associated records deleted cleanly');
-  assert(getCreatorBySlugDB(creator1Card.slug) === null, 'Deleted creator no longer retrievable by slug');
-  assert(getCreatorByUserIdDB(newUser.id) === null, 'Deleted creator no longer retrievable by userId');
+  assert(await getCreatorBySlugDB(creator1Card.slug) === null, 'Deleted creator no longer retrievable by slug');
+  assert(await getCreatorByUserIdDB(newUser.id) === null, 'Deleted creator no longer retrievable by userId');
 
   console.log('\n=============================================================');
   console.log(`  AUDIT SUITE COMPLETE: ${passed} PASSED, ${failed} FAILED  `);

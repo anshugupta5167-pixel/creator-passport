@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
     const { slug, handle, guildId } = body;
 
     const identifier = slug || handle || '';
-    const creator = getCreatorBySlugDB(identifier) || getCreatorBySlug(identifier);
+    const creator = await getCreatorBySlugDB(identifier) || getCreatorBySlug(identifier);
     if (!creator) {
       return NextResponse.json({ error: 'Creator not found' }, { status: 404 });
     }

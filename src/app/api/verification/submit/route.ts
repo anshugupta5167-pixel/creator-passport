@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
     } = body;
 
     // Get user's creator card
-    const userCard = auth.creator || getCreatorByUserIdDB(user.id);
+    const userCard = auth.creator || await getCreatorByUserIdDB(user.id);
     const targetSlug = (creatorSlug || userCard?.slug || user.username).toLowerCase().replace(/^@/, '');
 
     // Strict ownership verification: cannot submit proofs for another user's profile
@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const creator = userCard || getCreatorBySlugDB(targetSlug);
+    const creator = userCard || await getCreatorBySlugDB(targetSlug);
     if (!creator) {
       return NextResponse.json(
         { error: 'NOT_FOUND', message: 'Creator profile not found. Please create your card first.' },
@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create the verification submission
-    const submission = submitVerificationDB({
+    const submission = await submitVerificationDB({
       creatorId: creator.id,
       userId: user.id,
       creatorSlug: targetSlug,
