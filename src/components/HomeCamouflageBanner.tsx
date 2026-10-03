@@ -2,12 +2,12 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { ArrowRight, Sparkles } from 'lucide-react';
+import { ArrowRight, Sparkles, ShieldCheck, CheckCircle2, Zap } from 'lucide-react';
 import { CryptoPassSvg, MultiPlatformSvg, AuditedPrecisionSvg, BrandDealsSvg } from '@/components/RichSvgIcons';
 
 export default function HomeCamouflageBanner() {
   return (
-    <div className="relative w-full max-w-7xl mx-auto my-8 px-4 sm:px-6 lg:px-8">
+    <div className="relative w-full max-w-7xl mx-auto my-16 px-4 sm:px-6 lg:px-8">
       {/* 3D Flowing Outer Wrapper */}
       <div className="relative rounded-[32px] overflow-hidden border border-sky-400/30 bg-[#070b14]/90 shadow-[0_25px_80px_-20px_rgba(56,189,248,0.25)] group transition-all duration-500 hover:border-sky-400/70 hover:shadow-[0_30px_90px_-15px_rgba(56,189,248,0.4)]">
         
@@ -26,10 +26,10 @@ export default function HomeCamouflageBanner() {
         </div>
 
         {/* Content Container */}
-        <div className="relative z-10 p-7 sm:p-10 lg:p-14 flex flex-col lg:flex-row items-center justify-between gap-8 lg:gap-10">
+        <div className="relative z-10 p-10 sm:p-14 md:p-20 flex flex-col lg:flex-row items-center justify-between gap-10">
           
           {/* Left Text Column with Holographic Feel */}
-          <div className="space-y-5 max-w-2xl text-left">
+          <div className="space-y-6 max-w-2xl text-left">
             <div className="inline-flex items-center gap-2 rounded-full border border-sky-400/40 bg-sky-950/60 px-4 py-1.5 backdrop-blur-md shadow-[0_0_15px_rgba(56,189,248,0.2)]">
               <Sparkles className="w-4 h-4 text-sky-400 animate-pulse" />
               <span className="text-xs sm:text-sm font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-sky-300 via-cyan-200 to-sky-400 tracking-wider font-mono">
@@ -37,19 +37,19 @@ export default function HomeCamouflageBanner() {
               </span>
             </div>
 
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-white leading-[1.05] font-sans">
+            <h3 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight text-white leading-[1.05] font-sans">
               Sovereign 3D Passes For{' '}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 via-cyan-200 to-blue-400">
                 Serious Creators
               </span>
-            </h1>
+            </h3>
 
-            <p className="text-base sm:text-lg text-slate-200 leading-relaxed font-normal max-w-xl">
-              One verified creator pass. Real audience insights. Direct access to brand opportunities.
+            <p className="text-base sm:text-xl text-slate-200 leading-relaxed font-normal">
+              Say goodbye to forged screenshots and outdated PDF media kits. CreatorHQ gives you a tamper-proof digital passport with verified YouTube metrics, Discord role validation, and direct sponsor access.
             </p>
 
             {/* 4 Feature Badges with SVG Image Icons */}
-            <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-3 pt-1">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
               <div className="flex items-center gap-2 p-2.5 rounded-xl bg-[#090d16]/80 border border-sky-500/20 backdrop-blur-sm">
                 <AuditedPrecisionSvg className="w-6 h-6 shrink-0" size={24} />
                 <span className="text-xs font-semibold text-slate-200">Audited Reach</span>
@@ -70,11 +70,11 @@ export default function HomeCamouflageBanner() {
           </div>
 
           {/* Right Action Column */}
-          <div className="flex flex-col sm:flex-row lg:flex-col gap-3 shrink-0 w-full sm:w-auto lg:w-64">
+          <div className="flex flex-col sm:flex-row lg:flex-col gap-4 shrink-0 w-full sm:w-auto lg:w-72">
             <div className="p-1 rounded-full border border-sky-400/30 bg-sky-950/40 backdrop-blur-md shadow-[0_0_30px_rgba(56,189,248,0.3)]">
               <Link
                 href="/signup"
-                className="btn-chq-primary w-full py-3.5 px-7 text-sm font-extrabold flex items-center justify-center gap-2 text-slate-950"
+                className="btn-chq-primary w-full py-4 px-8 text-base font-extrabold flex items-center justify-center gap-2 text-slate-950"
               >
                 <span>Start Creating</span>
                 <ArrowRight className="w-5 h-5 stroke-[2.5]" />
@@ -83,7 +83,7 @@ export default function HomeCamouflageBanner() {
 
             <Link
               href="/talents"
-              className="btn-chq-secondary w-full py-3.5 px-6 text-sm font-semibold flex items-center justify-center text-center"
+              className="btn-chq-secondary w-full py-4 px-6 text-sm font-semibold flex items-center justify-center text-center"
             >
               <span>Explore Verified Roster</span>
             </Link>
