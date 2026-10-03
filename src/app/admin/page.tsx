@@ -460,6 +460,7 @@ export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [staffId, setStaffId] = useState('');
   const [staffPass, setStaffPass] = useState('');
+  const [loginFieldsEditable, setLoginFieldsEditable] = useState(false);
   const [loginError, setLoginError] = useState('');
 
   // Tab & Data states
@@ -1018,19 +1019,24 @@ export default function AdminPage() {
             </div>
           )}
 
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleLogin} autoComplete="off" className="space-y-4">
             <div>
               <label className="text-xs text-slate-300 font-semibold block mb-1.5">
                 Staff ID
               </label>
               <input
                 type="text"
-                autoComplete="username"
+                name="staff-login-id"
+                autoComplete="off"
+                autoCapitalize="none"
+                spellCheck={false}
+                readOnly={!loginFieldsEditable}
+                onFocus={() => setLoginFieldsEditable(true)}
                 required
-                placeholder="admin"
+                placeholder="Enter staff ID"
                 value={staffId}
                 onChange={(e) => setStaffId(e.target.value)}
-                className="w-full h-11 px-3.5 rounded-lg bg-[#161922] border border-white/10 text-white text-sm focus:outline-none focus:border-sky-400 font-mono"
+                className="staff-credential-field w-full h-11 px-3.5 rounded-lg bg-[#161922] border border-white/10 text-white text-sm focus:outline-none focus:border-sky-400 font-mono"
               />
             </div>
 
@@ -1040,12 +1046,15 @@ export default function AdminPage() {
               </label>
               <input
                 type="password"
-                autoComplete="current-password"
+                name="staff-login-secret"
+                autoComplete="new-password"
+                readOnly={!loginFieldsEditable}
+                onFocus={() => setLoginFieldsEditable(true)}
                 required
-                placeholder="••••••••••••"
+                placeholder="Enter staff password"
                 value={staffPass}
                 onChange={(e) => setStaffPass(e.target.value)}
-                className="w-full h-11 px-3.5 rounded-lg bg-[#161922] border border-white/10 text-white text-sm focus:outline-none focus:border-sky-400"
+                className="staff-credential-field w-full h-11 px-3.5 rounded-lg bg-[#161922] border border-white/10 text-white text-sm focus:outline-none focus:border-sky-400"
               />
             </div>
 
