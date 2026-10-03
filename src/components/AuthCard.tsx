@@ -15,6 +15,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import CHQLogo from './CHQLogo';
+import { cacheAuthHint } from '@/lib/clientAuth';
 
 interface AuthCardProps {
   initialMode?: 'signin' | 'signup' | 'forgot' | 'verify';
@@ -72,14 +73,10 @@ export default function AuthCard({
         throw new Error(data.message || 'Failed to sign in. Please verify your credentials.');
       }
 
-      setSuccessMsg('Welcome back! Loading your dashboard...');
-      setTimeout(() => {
-        if (onSuccess) {
-          onSuccess(data.user, data.creator);
-        } else if (typeof window !== 'undefined') {
-          window.location.href = '/dashboard';
-        }
-      }, 500);
+      cacheAuthHint(data.user, data.creator);
+      setSuccessMsg('Welcome back!');
+      if (onSuccess) onSuccess(data.user, data.creator);
+      else if (typeof window !== 'undefined') window.location.replace('/');
     } catch (err: any) {
       setErrorMsg(err.message || 'Authentication failed. Please try again.');
     } finally {
@@ -126,14 +123,10 @@ export default function AuthCard({
         setDemoCodeNotice(data.demoVerificationCode);
       }
 
+      cacheAuthHint(data.user, data.creator);
       setSuccessMsg('Account created successfully!');
-      setTimeout(() => {
-        if (onSuccess) {
-          onSuccess(data.user, data.creator);
-        } else if (typeof window !== 'undefined') {
-          window.location.href = '/dashboard';
-        }
-      }, 600);
+      if (onSuccess) onSuccess(data.user, data.creator);
+      else if (typeof window !== 'undefined') window.location.replace('/');
     } catch (err: any) {
       setErrorMsg(err.message || 'Registration failed. Please try again.');
     } finally {
@@ -312,6 +305,7 @@ export default function AuthCard({
                 <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type="text"
+                  autoComplete="username"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="creator@creatorhq.fun or username"
@@ -341,6 +335,7 @@ export default function AuthCard({
                 <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type="password"
+                  autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••••••"
@@ -381,6 +376,7 @@ export default function AuthCard({
                 <User className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type="text"
+                  autoComplete="username"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
                   placeholder="e.g. Apex Gaming TV"
@@ -419,6 +415,7 @@ export default function AuthCard({
                 <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type="email"
+                  autoComplete="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="creator@gmail.com"
@@ -436,6 +433,7 @@ export default function AuthCard({
                 <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type="password"
+                  autoComplete="new-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••••••"

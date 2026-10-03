@@ -141,6 +141,7 @@ export interface CreatorProfile {
   bio: string;
   isVerified: boolean;
   verification_status?: VerificationStatus;
+  verificationReviewedAt?: string;
   rejectionReason?: string;
   proofDocuments?: ProofDocument[];
   isFounding?: boolean;

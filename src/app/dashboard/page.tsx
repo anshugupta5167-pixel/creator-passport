@@ -9,6 +9,7 @@ import ImageUploader from '@/components/ImageUploader';
 import MoreChannelsCard from '@/components/MoreChannelsCard';
 import { CreatorProfile, ChannelItem } from '@/lib/types';
 import { resolveYouTubeUrl, resolveDiscordUrl, resolveInstagramUrl, getSafeAvatarUrl } from '@/lib/urls';
+import { cacheAuthHint } from '@/lib/clientAuth';
 import {
   Check,
   Copy,
@@ -460,10 +461,18 @@ export default function DashboardPage() {
       });
 
       if (!res.ok) {
-        throw new Error('Server error while saving pass');
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || data.error || 'Server error while saving pass');
       }
 
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(profileToSave));
+      const saved = await res.json();
+      const sessionResponse = await fetch('/api/auth/me', { cache: 'no-store' });
+      if (sessionResponse.ok) {
+        const sessionData = await sessionResponse.json();
+        if (sessionData.user) cacheAuthHint(sessionData.user, saved.creator || profileToSave);
+      }
+
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(saved.creator || profileToSave));
       setHasCreatedCard(true);
       setPassportId(uniquePassId);
 

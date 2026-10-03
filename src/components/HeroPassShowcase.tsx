@@ -64,10 +64,39 @@ const DEMO_CHANNEL_TEMPLATE: CreatorProfile = {
 
 export default function HeroPassShowcase({ initialCreators = [] }: HeroPassShowcaseProps) {
   const [activeCreator, setActiveCreator] = useState<CreatorProfile>(DEMO_CHANNEL_TEMPLATE);
-  const [hasRealCreator, setHasRealCreator] = useState(false);
+
+  const makeAccountPreview = (user: any): CreatorProfile => {
+    const username = String(user?.username || 'creator').toLowerCase().replace(/^@/, '');
+    return {
+      ...DEMO_CHANNEL_TEMPLATE,
+      id: `preview_${user?.id || username}`,
+      passportId: username,
+      slug: username,
+      handle: `@${username}`,
+      username,
+      displayName: user?.displayName || username,
+      avatarUrl: user?.avatarUrl || '/icon.svg',
+      bio: 'Your Creator Pass preview. Finish your profile in Studio to make it yours.',
+      contactEmail: user?.email || '',
+      verification_status: 'PENDING',
+      isVerified: false,
+      isFounding: false,
+      tierName: 'Creator Preview',
+      profileCompletion: 10,
+      issuedAt: user?.createdAt || '',
+      lastVerifiedAt: '',
+      digitalSignature: '',
+      connections: {},
+      skills: [],
+      achievements: [],
+      collaborations: [],
+      portfolio: [],
+    };
+  };
 
   useEffect(() => {
     let isMounted = true;
+    let hasActiveSession = false;
 
     // Purge any legacy unrulek card from localStorage to honor clean state
     if (typeof window !== 'undefined') {
@@ -88,22 +117,25 @@ export default function HeroPassShowcase({ initialCreators = [] }: HeroPassShowc
         const res = await fetch('/api/auth/me');
         if (res.ok) {
           const data = await res.json();
-          if (isMounted && data.authenticated && data.creator) {
-            setActiveCreator(data.creator);
-            setHasRealCreator(true);
+          if (isMounted && data.authenticated && data.user) {
+            hasActiveSession = true;
+            setActiveCreator(data.creator || makeAccountPreview(data.user));
             return;
           }
         }
       } catch (e) {}
 
       // If not authenticated, always display pristine "Your Channel Name" demo card
+      hasActiveSession = false;
       if (isMounted) {
         setActiveCreator(DEMO_CHANNEL_TEMPLATE);
-        setHasRealCreator(false);
       }
     };
 
     checkActiveSession();
+    const refreshAuthAndPass = window.setInterval(() => {
+      if (hasActiveSession) checkActiveSession();
+    }, 5000);
 
     const unsubscribe = subscribeToCreatorSync((update) => {
       setActiveCreator((current) => {
@@ -125,6 +157,7 @@ export default function HeroPassShowcase({ initialCreators = [] }: HeroPassShowc
 
     return () => {
       isMounted = false;
+      window.clearInterval(refreshAuthAndPass);
       unsubscribe();
     };
   }, []);

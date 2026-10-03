@@ -3,12 +3,9 @@ import { CreatorProfile, VerificationSubmission } from './types';
 
 const GIST_ID = '7ae221f82e230d2955ef1048505941b4';
 
-// Runtime token reconstruction to prevent git secret scanner revocation
-function getAuthToken(): string {
-  if (process.env.GITHUB_DATA_TOKEN) return process.env.GITHUB_DATA_TOKEN;
-  const p1 = 'gho_' + '1ygSU5WeBfltuX9z';
-  const p2 = 'EwFMdOECopBiaB4Yh8rm';
-  return p1 + p2;
+function getAuthHeaders(): Record<string, string> {
+  const token = process.env.GITHUB_DATA_TOKEN;
+  return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
 interface CacheState {
@@ -44,7 +41,7 @@ export async function fetchFromCloudStore(): Promise<{
     const res = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
       headers: {
         'User-Agent': 'CreatorHQ-Network/2.0',
-        'Authorization': `token ${getAuthToken()}`,
+        ...getAuthHeaders(),
         'Accept': 'application/vnd.github.v3+json',
       },
       next: { revalidate: 0 },
@@ -90,6 +87,7 @@ export async function fetchFromCloudStore(): Promise<{
  * Update cloud store creators list in background
  */
 export async function pushCreatorsToCloudStore(creators: CreatorProfile[]): Promise<boolean> {
+  if (!process.env.GITHUB_DATA_TOKEN) return false;
   cache.creators = creators;
   cache.lastFetched = Date.now();
 
@@ -107,7 +105,7 @@ export async function pushCreatorsToCloudStore(creators: CreatorProfile[]): Prom
       method: 'PATCH',
       headers: {
         'User-Agent': 'CreatorHQ-Network/2.0',
-        'Authorization': `token ${getAuthToken()}`,
+        ...getAuthHeaders(),
         'Content-Type': 'application/json',
       },
       body: payload,
@@ -125,6 +123,7 @@ export async function pushCreatorsToCloudStore(creators: CreatorProfile[]): Prom
  * Update cloud store verifications list in background
  */
 export async function pushVerificationsToCloudStore(verifications: VerificationSubmission[]): Promise<boolean> {
+  if (!process.env.GITHUB_DATA_TOKEN) return false;
   cache.verifications = verifications;
   cache.lastFetched = Date.now();
 
@@ -142,7 +141,7 @@ export async function pushVerificationsToCloudStore(verifications: VerificationS
       method: 'PATCH',
       headers: {
         'User-Agent': 'CreatorHQ-Network/2.0',
-        'Authorization': `token ${getAuthToken()}`,
+        ...getAuthHeaders(),
         'Content-Type': 'application/json',
       },
       body: payload,

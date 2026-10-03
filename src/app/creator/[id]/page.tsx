@@ -1,6 +1,6 @@
 import React from 'react';
 import CreatorProfileView from '@/components/CreatorProfileView';
-import { getCreatorByIdDB, getCreatorByUsernameDB, getAllCreatorsDB } from '@/lib/db';
+import { getAllCreatorsDBAsync } from '@/lib/db';
 import { CreatorProfile } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -14,12 +14,8 @@ export async function generateMetadata({ params }: PageProps) {
   const { id } = await params;
   const decoded = decodeURIComponent(id || '').trim();
   const cleanId = decoded.replace(/^@/, '');
-  const all = getAllCreatorsDB();
-  const creator =
-    getCreatorByIdDB(cleanId) ||
-    getCreatorByIdDB(decoded) ||
-    getCreatorByUsernameDB(cleanId) ||
-    all.find(
+  const all = await getAllCreatorsDBAsync();
+  const creator = all.find(
       (c: CreatorProfile) =>
         (c.slug && c.slug.toLowerCase() === cleanId.toLowerCase()) ||
         (c.passportId && c.passportId.toLowerCase() === cleanId.toLowerCase()) ||
@@ -53,12 +49,8 @@ export default async function CreatorPage({ params }: PageProps) {
   const { id } = await params;
   const decoded = decodeURIComponent(id || '').trim();
   const cleanId = decoded.replace(/^@/, '');
-  const all = getAllCreatorsDB();
-  const creator =
-    getCreatorByIdDB(cleanId) ||
-    getCreatorByIdDB(decoded) ||
-    getCreatorByUsernameDB(cleanId) ||
-    all.find(
+  const all = await getAllCreatorsDBAsync();
+  const creator = all.find(
       (c: CreatorProfile) =>
         (c.slug && c.slug.toLowerCase() === cleanId.toLowerCase()) ||
         (c.passportId && c.passportId.toLowerCase() === cleanId.toLowerCase()) ||

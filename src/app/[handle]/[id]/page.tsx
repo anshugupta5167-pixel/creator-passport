@@ -1,5 +1,5 @@
 import React from 'react';
-import { getCreatorByIdDB, getCreatorByUsernameDB } from '@/lib/db';
+import { getAllCreatorsDBAsync } from '@/lib/db';
 import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
@@ -14,11 +14,12 @@ export async function generateMetadata({ params }: PageProps) {
   const decodedHandle = decodeURIComponent(handle).replace(/^@/, '');
   const decodedId = decodeURIComponent(id);
 
-  const creator =
-    getCreatorByIdDB(decodedId) ||
-    getCreatorByUsernameDB(decodedHandle) ||
-    getCreatorByIdDB(decodedHandle) ||
-    getCreatorByUsernameDB(decodedId);
+  const creators = await getAllCreatorsDBAsync();
+  const creator = creators.find((candidate) =>
+    [candidate.slug, candidate.username, candidate.passportId, candidate.handle, candidate.id]
+      .some((value) => value?.toLowerCase().replace(/^@/, '') === decodedId.toLowerCase().replace(/^@/, '') ||
+        value?.toLowerCase().replace(/^@/, '') === decodedHandle.toLowerCase())
+  );
 
   if (!creator) {
     return {
@@ -47,11 +48,12 @@ export default async function HandleWithIdPage({ params }: PageProps) {
   const decodedHandle = decodeURIComponent(handle).replace(/^@/, '');
   const decodedId = decodeURIComponent(id);
 
-  const creator =
-    getCreatorByIdDB(decodedId) ||
-    getCreatorByUsernameDB(decodedHandle) ||
-    getCreatorByIdDB(decodedHandle) ||
-    getCreatorByUsernameDB(decodedId);
+  const creators = await getAllCreatorsDBAsync();
+  const creator = creators.find((candidate) =>
+    [candidate.slug, candidate.username, candidate.passportId, candidate.handle, candidate.id]
+      .some((value) => value?.toLowerCase().replace(/^@/, '') === decodedId.toLowerCase().replace(/^@/, '') ||
+        value?.toLowerCase().replace(/^@/, '') === decodedHandle.toLowerCase())
+  );
 
   const targetSlug = creator ? (creator.slug || creator.username) : decodedHandle;
   redirect(`/${targetSlug}`);

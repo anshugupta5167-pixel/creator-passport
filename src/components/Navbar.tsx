@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { Menu, X, ArrowRight, LogOut } from 'lucide-react';
 import CHQLogo from '@/components/CHQLogo';
 import { subscribeToCreatorSync } from '@/lib/sync';
+import { cacheAuthHint, clearCachedAuthHint, readCachedAuthHint } from '@/lib/clientAuth';
 
 export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -18,17 +19,25 @@ export default function Navbar() {
     let isMounted = true;
 
     const checkAuth = async () => {
+      const cached = readCachedAuthHint();
+      if (isMounted && cached) {
+        setUser(cached.user);
+        setCreator(cached.creator);
+        setLoading(false);
+      }
       try {
-        const res = await fetch('/api/auth/me');
+        const res = await fetch('/api/auth/me', { cache: 'no-store' });
         if (res.ok) {
           const data = await res.json();
           if (isMounted) {
             if (data.authenticated && data.user) {
               setUser(data.user);
               setCreator(data.creator || null);
+              cacheAuthHint(data.user, data.creator);
             } else {
               setUser(null);
               setCreator(null);
+              clearCachedAuthHint();
             }
           }
         }
@@ -72,6 +81,7 @@ export default function Navbar() {
     try {
       await fetch('/api/auth/signout', { method: 'POST' });
     } catch (e) {}
+    clearCachedAuthHint();
     setUser(null);
     setCreator(null);
     if (typeof window !== 'undefined') {
@@ -135,7 +145,9 @@ export default function Navbar() {
 
           {/* RIGHT: AUTH / DASHBOARD CTAS */}
           <div className="flex items-center gap-2 sm:gap-3">
-            {user ? (
+            {loading ? (
+              <div className="w-28 h-9 rounded-full bg-white/5 border border-white/10 animate-pulse" aria-label="Checking sign-in status" />
+            ) : user ? (
               <div className="flex items-center gap-2">
                 {/* Creator Studio Profile Pill */}
                 <Link

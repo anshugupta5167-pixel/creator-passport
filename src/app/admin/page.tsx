@@ -477,9 +477,12 @@ export default function AdminPage() {
   const [actionFeedback, setActionFeedback] = useState<string>('');
 
   const [loginLoading, setLoginLoading] = useState(false);
+  const liveDataLoadingRef = React.useRef(false);
 
   // Load live creators, verifications, and audit logs from DB
   const loadLiveData = React.useCallback(async () => {
+    if (liveDataLoadingRef.current) return;
+    liveDataLoadingRef.current = true;
     try {
       const [creatorsRes, verificationsRes, logsRes] = await Promise.all([
         fetch('/api/creators', { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } }),
@@ -489,14 +492,14 @@ export default function AdminPage() {
 
       if (creatorsRes.ok) {
         const data = await creatorsRes.json();
-        if (data.creators) {
+        if (Array.isArray(data.creators)) {
           setCreators(data.creators);
         }
       }
 
       if (verificationsRes.ok) {
         const data = await verificationsRes.json();
-        if (data.verifications) {
+        if (Array.isArray(data.verifications)) {
           setVerifications(data.verifications);
         }
       }
@@ -509,6 +512,8 @@ export default function AdminPage() {
       }
     } catch (e) {
       console.warn('Error loading data in admin:', e);
+    } finally {
+      liveDataLoadingRef.current = false;
     }
   }, []);
 
@@ -1009,6 +1014,7 @@ export default function AdminPage() {
               </label>
               <input
                 type="text"
+                autoComplete="username"
                 required
                 placeholder="admin"
                 value={staffId}
@@ -1023,6 +1029,7 @@ export default function AdminPage() {
               </label>
               <input
                 type="password"
+                autoComplete="current-password"
                 required
                 placeholder="••••••••••••"
                 value={staffPass}

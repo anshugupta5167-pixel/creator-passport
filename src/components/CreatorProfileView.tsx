@@ -165,7 +165,25 @@ export default function CreatorProfileView({ creator, targetId }: CreatorProfile
       }
     });
 
-    return unsubscribe;
+    // The event stream is process-local, so serverless instances can miss an
+    // admin review. Refresh the canonical server record periodically as well.
+    const refreshCreator = async () => {
+      const slug = activeCreator?.slug || activeCreator?.username || currentSlug || targetId;
+      if (!slug || document.visibilityState !== 'visible') return;
+      try {
+        const response = await fetch(`/api/creator/${encodeURIComponent(slug)}`, { cache: 'no-store' });
+        if (!response.ok) return;
+        const data = await response.json();
+        if (data.creator) setActiveCreator(data.creator);
+      } catch {
+        // Keep the last rendered profile while the network is unavailable.
+      }
+    };
+    const interval = window.setInterval(refreshCreator, 5000);
+    return () => {
+      unsubscribe();
+      window.clearInterval(interval);
+    };
   }, [creator, targetId]);
 
   const handleCopyLink = () => {

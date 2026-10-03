@@ -1,12 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCreatorByDiscordId } from '@/lib/data';
+import { getAllCreatorsDBAsync } from '@/lib/db';
 
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ discordId: string }> }
 ) {
   const { discordId } = await context.params;
-  const creator = getCreatorByDiscordId(discordId);
+  const creators = await getAllCreatorsDBAsync();
+  const creator = creators.find((candidate) => {
+    const discord = candidate.connections?.discord;
+    return discord?.connected && (
+      discord.guildId === discordId ||
+      discord.username?.toLowerCase() === discordId.toLowerCase()
+    );
+  }) || null;
 
   if (!creator) {
     return NextResponse.json(
