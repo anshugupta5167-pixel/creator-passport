@@ -5,24 +5,24 @@ import CamouflageBannerBg from '@/components/CamouflageBannerBg';
 
 export default function Footer() {
   return (
-    <footer className="w-full bg-[#0b0d11] border-t border-white/10 text-slate-400 text-sm relative overflow-hidden">
+    <footer className="w-full bg-[#07090e] border-t border-white/10 text-slate-400 text-base relative overflow-hidden">
       {/* Camouflaged Luxury Tech Banner Background & Grid */}
-      <CamouflageBannerBg bannerOpacity="opacity-25" gridOpacity="opacity-20" />
+      <CamouflageBannerBg />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 sm:py-16 relative z-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20 relative z-10">
         
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-10 lg:gap-12 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-10 lg:gap-14 mb-14">
           
           {/* Brand Info */}
-          <div className="md:col-span-2 space-y-4">
+          <div className="md:col-span-2 space-y-5">
             <Link href="/" className="inline-flex items-center gap-2.5 group">
-              <CHQLogo size="sm" showText={false} />
-              <span className="font-extrabold text-xl tracking-tight text-white font-sans flex items-center">
+              <CHQLogo size="md" showText={false} />
+              <span className="font-extrabold text-2xl tracking-tight text-white font-sans flex items-center">
                 Creator<span className="text-sky-400">HQ</span>
                 <span className="ml-1.5 w-1.5 h-1.5 rounded-full bg-sky-400 shadow-[0_0_8px_#38bdf8]" />
               </span>
             </Link>
-            <p className="text-xs sm:text-sm text-slate-400 max-w-sm leading-relaxed">
+            <p className="text-sm sm:text-base text-slate-300 max-w-lg leading-relaxed">
               CreatorHQ is the private creator network and verification infrastructure for online creators. Connecting authenticated YouTube channels, Discord servers, and creator credentials into one verifiable passport.
             </p>
 
@@ -45,10 +45,10 @@ export default function Footer() {
 
           {/* Navigation Links */}
           <div>
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-white mb-4">
+            <h4 className="text-sm font-bold uppercase tracking-wider text-white mb-5">
               Platform
             </h4>
-            <ul className="space-y-2.5 text-xs">
+            <ul className="space-y-3 text-sm">
               <li>
                 <Link href="/about" className="hover:text-white transition-colors">
                   About CreatorHQ
@@ -79,10 +79,10 @@ export default function Footer() {
 
           {/* Ecosystem Links */}
           <div>
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-white mb-4">
+            <h4 className="text-sm font-bold uppercase tracking-wider text-white mb-5">
               Resources & Inquiries
             </h4>
-            <ul className="space-y-2.5 text-xs">
+            <ul className="space-y-3 text-sm">
               <li>
                 <Link href="/faq" className="hover:text-white transition-colors">
                   Help Center & FAQ
@@ -109,7 +109,7 @@ export default function Footer() {
         </div>
 
         {/* Legal & Non-Government Disclaimer with Discord Action */}
-        <div className="pt-8 border-t border-white/10 flex flex-col items-center justify-center gap-3 text-xs text-slate-500 text-center">
+        <div className="pt-9 border-t border-white/10 flex flex-col items-center justify-center gap-4 text-sm text-slate-400 text-center">
           <div className="flex items-center gap-3">
             <p className="text-slate-400">
               © 2026 <span className="text-sky-400 font-bold">CreatorHQ</span>. All rights reserved.
@@ -128,10 +128,10 @@ export default function Footer() {
               </svg>
             </a>
           </div>
-          <p className="text-[12px] text-slate-300 font-medium">
+          <p className="text-sm sm:text-base text-slate-200 font-medium">
             Founded September 2026 by Anshu Gupta & Co-Founder Pranav Sharma • Empowering creators and brands worldwide
           </p>
-          <p className="font-mono text-[10px] text-slate-500">
+          <p className="font-mono text-xs text-slate-400">
             PRIVATE CREATOR PLATFORM • NOT A GOVERNMENT ISSUED ID
           </p>
         </div>

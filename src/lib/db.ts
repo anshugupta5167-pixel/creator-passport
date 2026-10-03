@@ -800,12 +800,6 @@ export function syncCreatorToVerificationDB(creator: CreatorProfile): Verificati
             username: creator.connections.instagram.username,
           }
         : undefined,
-      x: creator.connections?.x?.connected
-        ? {
-            connected: true,
-            username: creator.connections.x.username,
-          }
-        : undefined,
     },
     proofDocuments: creator.proofDocuments || existingSub?.proofDocuments || [],
     status: creator.verification_status || existingSub?.status || 'PENDING',

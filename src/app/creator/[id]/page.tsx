@@ -46,12 +46,6 @@ export async function generateMetadata({ params }: PageProps) {
       description: `Official verified Creator Pass for ${creator.displayName}. YouTube: ${ytChannel}${ytMetric}.`,
       images: [creator.avatarUrl],
     },
-    twitter: {
-      card: 'summary_large_image',
-      title: `${creator.displayName} | YouTube: ${ytChannel}${ytMetric}`,
-      description: `Official verified Creator Pass for ${creator.displayName}. YouTube: ${ytChannel}${ytMetric}.`,
-      images: [creator.avatarUrl],
-    }
   };
 }
 

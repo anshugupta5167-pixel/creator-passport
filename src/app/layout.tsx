@@ -59,13 +59,6 @@ export const metadata: Metadata = {
       },
     ],
   },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'CreatorHQ — Sovereign Digital Passports & Verified Creator Identities',
-    description:
-      'The verifiable digital passport for YouTube creators and Discord community founders.',
-    images: ['/og-banner.png'],
-  },
   robots: {
     index: true,
     follow: true,

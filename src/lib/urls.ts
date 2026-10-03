@@ -147,33 +147,3 @@ export function resolveInstagramUrl(
 
   return 'https://instagram.com';
 }
-
-export function resolveXUrl(
-  profileUrl?: string | null,
-  username?: string | null,
-  fallback: string = ''
-): string {
-  if (profileUrl) {
-    const trimmed = profileUrl.trim();
-    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-      const clean = trimmed.replace(/\/$/, '');
-      if (
-        clean !== 'https://x.com' &&
-        clean !== 'https://twitter.com' &&
-        !clean.endsWith('x.com/@') &&
-        !clean.endsWith('twitter.com/@')
-      ) {
-        return trimmed;
-      }
-    } else if (trimmed.startsWith('@')) {
-      return `https://x.com/${trimmed.replace(/^@/, '')}`;
-    }
-  }
-
-  const clean = (username || fallback || '').replace(/^@/, '').trim();
-  if (clean && clean !== 'null' && clean !== 'undefined') {
-    return `https://x.com/${clean}`;
-  }
-
-  return 'https://x.com';
-}

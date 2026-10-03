@@ -142,7 +142,7 @@ export function updateCreatorProfile(identifier: string, updates: Partial<Creato
   return all[index];
 }
 
-export function togglePlatformConnection(identifier: string, platformKey: 'youtube' | 'discord' | 'twitch' | 'x' | 'github', connected: boolean): CreatorProfile | null {
+export function togglePlatformConnection(identifier: string, platformKey: 'youtube' | 'discord' | 'twitch' | 'github', connected: boolean): CreatorProfile | null {
   const creator = getCreatorBySlug(identifier) || getCreatorByPassportId(identifier);
   if (!creator) return null;
 

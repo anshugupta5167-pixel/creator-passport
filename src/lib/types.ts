@@ -49,7 +49,7 @@ export interface ProofDocument {
 }
 
 export interface PlatformConnection {
-  platform: 'YOUTUBE' | 'DISCORD' | 'INSTAGRAM' | 'X' | 'TWITCH' | 'GITHUB' | 'TIKTOK';
+  platform: 'YOUTUBE' | 'DISCORD' | 'INSTAGRAM' | 'TWITCH' | 'GITHUB' | 'TIKTOK';
   connected: boolean;
   username: string;
   metricLabel: string; // e.g. "subscribers", "members", "followers"
@@ -92,7 +92,6 @@ export interface QuickInfo {
   connectLinks?: {
     youtube?: string;
     instagram?: string;
-    x?: string;
     discord?: string;
   };
 }
@@ -161,7 +160,6 @@ export interface CreatorProfile {
     youtube?: PlatformConnection;
     discord?: PlatformConnection;
     instagram?: PlatformConnection;
-    x?: PlatformConnection;
     twitch?: PlatformConnection;
     github?: PlatformConnection;
   };
@@ -196,7 +194,6 @@ export interface VerificationSubmission {
     youtube?: { connected: boolean; metricValue?: string; username?: string; proofScreenshot?: string };
     discord?: { connected: boolean; metricValue?: string; username?: string; proofScreenshot?: string };
     instagram?: { connected: boolean; username?: string };
-    x?: { connected: boolean; username?: string };
   };
   proofDocuments: ProofDocument[];
   status: VerificationStatus;

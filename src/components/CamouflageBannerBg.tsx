@@ -10,8 +10,6 @@ interface CamouflageBannerBgProps {
 
 export default function CamouflageBannerBg({
   className = '',
-  gridOpacity = 'opacity-30',
-  bannerOpacity = 'opacity-60',
 }: CamouflageBannerBgProps) {
   return (
     <div aria-hidden="true" className={`absolute inset-0 pointer-events-none overflow-hidden select-none z-0 ${className}`}>
@@ -19,7 +17,7 @@ export default function CamouflageBannerBg({
       <img
         src="/chq-hero-banner.jpg"
         alt=""
-        className={`chq-camouflage-image w-full h-full object-cover object-center ${bannerOpacity}`}
+        className="chq-camouflage-image w-full h-full object-cover object-center opacity-55"
       />
 
       <div className="chq-camouflage-flow" />
@@ -35,7 +33,7 @@ export default function CamouflageBannerBg({
       <div className="absolute inset-0 bg-gradient-to-b from-[#060911]/90 via-transparent to-[#060911]" />
 
       {/* Technical Precision Grid */}
-      <div className={`absolute inset-0 bg-grid-chq ${gridOpacity}`} />
+      <div className="absolute inset-0 bg-grid-chq opacity-30" />
     </div>
   );
 }

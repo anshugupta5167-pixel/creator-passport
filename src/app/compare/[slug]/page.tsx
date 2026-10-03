@@ -46,11 +46,6 @@ export async function generateMetadata({ params }: PageProps) {
       description: comp.metaDescription,
       url: `https://creatorhq.fun/compare/${comp.slug}`,
     },
-    twitter: {
-      card: 'summary_large_image',
-      title: comp.title,
-      description: comp.metaDescription,
-    },
   };
 }
 
