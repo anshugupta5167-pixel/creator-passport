@@ -5,7 +5,8 @@ import {
   attachSessionCookie, 
   sanitizeUser,
   checkRateLimit, 
-  SESSION_DURATION_MS 
+  SESSION_DURATION_MS,
+  hasAdminSessionSigningSecret,
 } from '@/lib/auth';
 import { 
   getUserByEmailDB, 
@@ -42,7 +43,7 @@ export async function POST(request: NextRequest) {
     const cleanIdentifier = identifier.trim().toLowerCase().replace(/^@/, '');
 
     // Look up by email or username
-    let user = getUserByEmailDB(cleanIdentifier) || getUserByUsernameDB(cleanIdentifier);
+    const user = getUserByEmailDB(cleanIdentifier) || getUserByUsernameDB(cleanIdentifier);
 
     if (!user) {
       return NextResponse.json(
@@ -56,6 +57,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'INVALID_CREDENTIALS', message: 'Incorrect email/username or password.' },
         { status: 401 }
+      );
+    }
+
+    if (user.role === 'ADMIN' && process.env.VERCEL && !hasAdminSessionSigningSecret()) {
+      console.error('[Auth] Admin sign-in is disabled because no shared session signing secret is configured.');
+      return NextResponse.json(
+        {
+          error: 'ADMIN_SESSION_CONFIGURATION',
+          message: 'Staff sign-in is not configured on this deployment. Please contact the site administrator.',
+        },
+        { status: 503 }
       );
     }
 
@@ -89,9 +101,9 @@ export async function POST(request: NextRequest) {
 
     attachSessionCookie(response, sessionToken, user);
     return response;
-  } catch (err: any) {
+  } catch (err: unknown) {
     return NextResponse.json(
-      { error: 'SERVER_ERROR', message: err.message || 'Failed to authenticate' },
+      { error: 'SERVER_ERROR', message: err instanceof Error ? err.message : 'Failed to authenticate' },
       { status: 500 }
     );
   }
