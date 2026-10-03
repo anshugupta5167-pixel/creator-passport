@@ -270,11 +270,6 @@ function ProofInspectorModal({
                 IG
               </span>
             )}
-            {submission.connectedPlatforms?.x?.connected && (
-              <span className="px-2 py-0.5 rounded bg-white/5 border border-white/10 text-slate-300 text-[10px] font-mono font-semibold">
-                X
-              </span>
-            )}
           </div>
         </div>
 
@@ -1281,9 +1276,6 @@ export default function AdminPage() {
                           )}
                           {sub.connectedPlatforms?.instagram?.connected && (
                             <span className="px-2 py-0.5 rounded bg-pink-950/40 text-[10px] text-pink-300 font-mono">Instagram</span>
-                          )}
-                          {sub.connectedPlatforms?.x?.connected && (
-                            <span className="px-2 py-0.5 rounded bg-white/5 text-[10px] text-slate-300 font-mono">X</span>
                           )}
                         </div>
 

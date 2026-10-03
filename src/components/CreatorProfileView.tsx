@@ -261,7 +261,7 @@ export default function CreatorProfileView({ creator, targetId }: CreatorProfile
       <Navbar />
 
       {/* Camouflage Tech Atmosphere in Background */}
-      <div className="absolute top-0 inset-x-0 h-[600px] pointer-events-none overflow-hidden">
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <CamouflageBannerBg />
       </div>
 

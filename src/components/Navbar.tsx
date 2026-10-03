@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu, X, ArrowRight, User as UserIcon, ShieldCheck, LogOut, Sparkles } from 'lucide-react';
+import { Menu, X, ArrowRight, LogOut } from 'lucide-react';
 import CHQLogo from '@/components/CHQLogo';
 import { subscribeToCreatorSync } from '@/lib/sync';
 
@@ -66,7 +66,7 @@ export default function Navbar() {
       isMounted = false;
       unsubscribeSync();
     };
-  }, []);
+  }, [pathname]);
 
   const handleLogout = async () => {
     try {

@@ -8,7 +8,7 @@ import PassportCard, { CardTheme } from '@/components/PassportCard';
 import ImageUploader from '@/components/ImageUploader';
 import MoreChannelsCard from '@/components/MoreChannelsCard';
 import { CreatorProfile, ChannelItem } from '@/lib/types';
-import { resolveYouTubeUrl, resolveDiscordUrl, resolveInstagramUrl, resolveXUrl, getSafeAvatarUrl } from '@/lib/urls';
+import { resolveYouTubeUrl, resolveDiscordUrl, resolveInstagramUrl, getSafeAvatarUrl } from '@/lib/urls';
 import {
   Check,
   Copy,
@@ -95,11 +95,6 @@ export default function DashboardPage() {
   const [instagramUsername, setInstagramUsername] = useState('');
   const [instagramReach, setInstagramReach] = useState('');
   const [instagramDetecting, setInstagramDetecting] = useState(false);
-
-  const [xUrl, setXUrl] = useState('');
-  const [xUsername, setXUsername] = useState('');
-  const [xReach, setXReach] = useState('');
-  const [xDetecting, setXDetecting] = useState(false);
 
   const [moreChannels, setMoreChannels] = useState<ChannelItem[]>([]);
   const [selectedTheme, setSelectedTheme] = useState<CardTheme>('obsidian');
@@ -281,10 +276,10 @@ export default function DashboardPage() {
       },
       discord: {
         platform: 'DISCORD',
-        connected: !!(discordReach || discordUrl),
+        connected: !!discordReach,
         username: discordUsername || displayName || 'Community',
         metricLabel: 'members',
-        metricValue: discordReach || (discordUrl ? '10K+ Members' : 'Not Connected'),
+        metricValue: discordReach || 'Not Connected',
         verified: true,
         profileUrl: resolveDiscordUrl(discordUrl, discordUsername, discordGuildId, username || 'yourchannel'),
         guildId: discordGuildId,
@@ -371,17 +366,21 @@ export default function DashboardPage() {
       const res = await fetch('/api/discord/detect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: discordUrl.trim() }),
+        body: JSON.stringify({ inviteUrl: discordUrl.trim(), passportId }),
       });
       const data = await res.json();
       if (!res.ok || data.error) throw new Error(data.error || 'Discord invite invalid');
 
-      setDiscordGuildId(data.guild.id);
-      setDiscordUsername(data.guild.name);
-      setDiscordReach(`${data.guild.approximate_member_count?.toLocaleString() || '1,000+'} Members`);
-      setDiscordUrl(resolveDiscordUrl(discordUrl, data.guild.name, data.guild.id, username));
+      const server = data.server;
+      if (!server?.guildId || !Number.isInteger(server.memberCount)) {
+        throw new Error('Discord did not return a live server member count.');
+      }
+      setDiscordGuildId(server.guildId);
+      setDiscordUsername(server.guildName);
+      setDiscordReach(server.memberCountFormatted);
+      setDiscordUrl(server.inviteUrl || resolveDiscordUrl(discordUrl, server.guildName, server.guildId, username));
 
-      setToastMessage(`✓ Discord Server Verified: ${data.guild.name}`);
+      setToastMessage(`✓ Discord Server Found: ${server.guildName}`);
       setTimeout(() => setToastMessage(null), 3500);
     } catch (err: any) {
       setDiscordError(err.message || 'Could not verify Discord invite');
@@ -432,10 +431,10 @@ export default function DashboardPage() {
           },
           discord: {
             platform: 'DISCORD',
-            connected: !!(discordUrl || discordReach),
+            connected: !!discordReach,
             username: discordUsername || displayName,
             metricLabel: 'members',
-            metricValue: discordReach || '10K+ Members',
+            metricValue: discordReach || 'Not Connected',
             verified: true,
             profileUrl: resolveDiscordUrl(discordUrl, discordUsername, discordGuildId, cleanHandle),
             guildId: discordGuildId,
@@ -897,19 +896,6 @@ export default function DashboardPage() {
                         />
                       </div>
 
-                      {/* X / Twitter */}
-                      <div className="p-4 rounded-2xl bg-[#10141e] border border-white/10 space-y-2">
-                        <label className="text-xs font-bold text-white flex items-center gap-1.5">
-                          <span>X / Twitter Profile URL</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={xUrl}
-                          onChange={(e) => setXUrl(e.target.value)}
-                          placeholder="https://x.com/username"
-                          className="w-full px-3.5 py-2 rounded-xl bg-[#080a0f] border border-white/10 text-white text-xs placeholder-slate-500 focus:outline-none focus:border-sky-400 transition-colors"
-                        />
-                      </div>
                     </div>
 
                     {/* More Channels Card */}

@@ -155,7 +155,6 @@ export async function POST(request: NextRequest) {
         youtube: body.connections?.youtube?.connected ? body.connections.youtube : existingUserCard?.connections?.youtube,
         discord: body.connections?.discord?.connected ? body.connections.discord : existingUserCard?.connections?.discord,
         instagram: body.connections?.instagram?.connected ? body.connections.instagram : existingUserCard?.connections?.instagram,
-        x: body.connections?.x?.connected ? body.connections.x : existingUserCard?.connections?.x,
       },
       moreChannels: Array.isArray(body.moreChannels) ? body.moreChannels : (existingUserCard?.moreChannels || []),
       skills: Array.isArray(body.skills) ? body.skills : (existingUserCard?.skills || ['Content Creator']),

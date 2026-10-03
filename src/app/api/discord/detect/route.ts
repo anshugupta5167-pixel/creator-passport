@@ -8,7 +8,8 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { inviteUrl, passportId, guildId } = body;
+    const { passportId, guildId } = body;
+    const inviteUrl = body.inviteUrl || body.url;
 
     if (!inviteUrl && !guildId) {
       return NextResponse.json(
@@ -17,7 +18,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const input = (inviteUrl || guildId).trim();
+    const input = String(inviteUrl || guildId).trim();
     const auth = await getAuthenticatedUser(request);
 
     let existingCreator = null;
@@ -30,13 +31,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const previousCount = existingCreator?.connections.discord?.rawCount;
-    const previousGuildId = existingCreator?.connections.discord?.guildId || guildId;
-
-    const serverResult = await fetchDiscordServer(input, {
-      previousCount,
-      previousGuildId,
-    });
+    const serverResult = await fetchDiscordServer(input);
 
     if (existingCreator && auth && (auth.user.id === existingCreator.userId || auth.user.role === 'ADMIN')) {
       existingCreator.connections = existingCreator.connections || {};

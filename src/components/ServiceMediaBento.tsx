@@ -26,47 +26,47 @@ export default function ServiceMediaBento() {
       {/* ================= HIGH-IMPACT STATS COUNTERS ================= */}
       <section className="relative py-10 md:py-14 bg-transparent">
         <div className="container px-4 md:px-6 mx-auto">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-6xl mx-auto">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 max-w-5xl mx-auto">
             
             {/* Stat 1 */}
-            <TiltCard maxTilt={8} className="flex flex-col items-center text-center gap-2 p-5 sm:p-6 rounded-2xl border border-sky-500/30 bg-[#090d16]/90 backdrop-blur-md hover:border-sky-400/70 transition-all duration-300 shadow-[0_8px_40px_-12px_rgba(56,189,248,0.2)] hover:shadow-[0_12px_50px_-8px_rgba(56,189,248,0.35)] hover:-translate-y-1">
-              <div className="w-11 h-11 rounded-xl bg-sky-500/10 border border-sky-500/25 flex items-center justify-center mb-1">
-                <UsersRound className="w-6 h-6 text-sky-400" />
+            <TiltCard maxTilt={8} className="flex flex-col items-center text-center gap-1.5 p-3 sm:p-4 rounded-2xl border border-sky-500/30 bg-[#090d16]/90 backdrop-blur-md hover:border-sky-400/70 transition-all duration-300 shadow-[0_8px_40px_-12px_rgba(56,189,248,0.2)] hover:shadow-[0_12px_50px_-8px_rgba(56,189,248,0.35)] hover:-translate-y-1">
+              <div className="w-9 h-9 rounded-xl bg-sky-500/10 border border-sky-500/25 flex items-center justify-center mb-1">
+                <UsersRound className="w-5 h-5 text-sky-400" />
               </div>
-              <div className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-b from-white via-white to-sky-200 font-sans tracking-tight">
+              <div className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-b from-white via-white to-sky-200 font-sans tracking-tight">
                 500+
               </div>
               <p className="text-xs sm:text-sm text-slate-300 font-semibold tracking-wide">Founding Creators</p>
             </TiltCard>
 
             {/* Stat 2 */}
-            <TiltCard maxTilt={8} className="flex flex-col items-center text-center gap-2 p-5 sm:p-6 rounded-2xl border border-sky-500/30 bg-[#090d16]/90 backdrop-blur-md hover:border-sky-400/70 transition-all duration-300 shadow-[0_8px_40px_-12px_rgba(56,189,248,0.2)] hover:shadow-[0_12px_50px_-8px_rgba(56,189,248,0.35)] hover:-translate-y-1">
-              <div className="w-11 h-11 rounded-xl bg-sky-500/10 border border-sky-500/25 flex items-center justify-center mb-1">
-                <TrendingUp className="w-6 h-6 text-sky-400" />
+            <TiltCard maxTilt={8} className="flex flex-col items-center text-center gap-1.5 p-3 sm:p-4 rounded-2xl border border-sky-500/30 bg-[#090d16]/90 backdrop-blur-md hover:border-sky-400/70 transition-all duration-300 shadow-[0_8px_40px_-12px_rgba(56,189,248,0.2)] hover:shadow-[0_12px_50px_-8px_rgba(56,189,248,0.35)] hover:-translate-y-1">
+              <div className="w-9 h-9 rounded-xl bg-sky-500/10 border border-sky-500/25 flex items-center justify-center mb-1">
+                <TrendingUp className="w-5 h-5 text-sky-400" />
               </div>
-              <div className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-b from-white via-white to-sky-200 font-sans tracking-tight">
+              <div className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-b from-white via-white to-sky-200 font-sans tracking-tight">
                 24M+
               </div>
               <p className="text-xs sm:text-sm text-slate-300 font-semibold tracking-wide">Verified Reach</p>
             </TiltCard>
 
             {/* Stat 3 */}
-            <TiltCard maxTilt={8} className="flex flex-col items-center text-center gap-2 p-5 sm:p-6 rounded-2xl border border-sky-500/30 bg-[#090d16]/90 backdrop-blur-md hover:border-sky-400/70 transition-all duration-300 shadow-[0_8px_40px_-12px_rgba(56,189,248,0.2)] hover:shadow-[0_12px_50px_-8px_rgba(56,189,248,0.35)] hover:-translate-y-1">
-              <div className="w-11 h-11 rounded-xl bg-sky-500/10 border border-sky-500/25 flex items-center justify-center mb-1">
-                <ShieldCheck className="w-6 h-6 text-sky-400" />
+            <TiltCard maxTilt={8} className="flex flex-col items-center text-center gap-1.5 p-3 sm:p-4 rounded-2xl border border-sky-500/30 bg-[#090d16]/90 backdrop-blur-md hover:border-sky-400/70 transition-all duration-300 shadow-[0_8px_40px_-12px_rgba(56,189,248,0.2)] hover:shadow-[0_12px_50px_-8px_rgba(56,189,248,0.35)] hover:-translate-y-1">
+              <div className="w-9 h-9 rounded-xl bg-sky-500/10 border border-sky-500/25 flex items-center justify-center mb-1">
+                <ShieldCheck className="w-5 h-5 text-sky-400" />
               </div>
-              <div className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-b from-white via-white to-sky-200 font-sans tracking-tight">
+              <div className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-b from-white via-white to-sky-200 font-sans tracking-tight">
                 100%
               </div>
               <p className="text-xs sm:text-sm text-slate-300 font-semibold tracking-wide">Audit Accuracy</p>
             </TiltCard>
 
             {/* Stat 4 */}
-            <TiltCard maxTilt={8} className="flex flex-col items-center text-center gap-2 p-5 sm:p-6 rounded-2xl border border-sky-500/30 bg-[#090d16]/90 backdrop-blur-md hover:border-sky-400/70 transition-all duration-300 shadow-[0_8px_40px_-12px_rgba(56,189,248,0.2)] hover:shadow-[0_12px_50px_-8px_rgba(56,189,248,0.35)] hover:-translate-y-1">
-              <div className="w-11 h-11 rounded-xl bg-sky-500/10 border border-sky-500/25 flex items-center justify-center mb-1">
-                <Award className="w-6 h-6 text-sky-400" />
+            <TiltCard maxTilt={8} className="flex flex-col items-center text-center gap-1.5 p-3 sm:p-4 rounded-2xl border border-sky-500/30 bg-[#090d16]/90 backdrop-blur-md hover:border-sky-400/70 transition-all duration-300 shadow-[0_8px_40px_-12px_rgba(56,189,248,0.2)] hover:shadow-[0_12px_50px_-8px_rgba(56,189,248,0.35)] hover:-translate-y-1">
+              <div className="w-9 h-9 rounded-xl bg-sky-500/10 border border-sky-500/25 flex items-center justify-center mb-1">
+                <Award className="w-5 h-5 text-sky-400" />
               </div>
-              <div className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-b from-white via-white to-sky-200 font-sans tracking-tight">
+              <div className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-b from-white via-white to-sky-200 font-sans tracking-tight">
                 0%
               </div>
               <p className="text-xs sm:text-sm text-slate-300 font-semibold tracking-wide">Commission Cut</p>

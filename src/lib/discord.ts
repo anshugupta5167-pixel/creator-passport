@@ -56,8 +56,20 @@ export function parseDiscordInvite(input: string): {
 } {
   const trimmed = input.trim();
 
+  // A plain invite code is also accepted; don't mistake it for a hostname.
+  if (!trimmed.includes('.') && !trimmed.includes('/') && !trimmed.includes(':')) {
+    if (!/^[a-z0-9_-]{2,128}$/i.test(trimmed)) {
+      throw new Error('Please enter a valid Discord invite code or invite link.');
+    }
+    return { inviteCode: trimmed, canonicalUrl: `https://discord.gg/${trimmed}` };
+  }
+
   try {
-    const urlObj = new URL(trimmed.startsWith('http') ? trimmed : `https://${trimmed}`);
+    const urlObj = new URL(trimmed.includes('://') ? trimmed : `https://${trimmed}`);
+    const host = urlObj.hostname.toLowerCase();
+    if (!['discord.gg', 'www.discord.gg', 'discord.com', 'www.discord.com', 'discordapp.com', 'www.discordapp.com'].includes(host)) {
+      throw new Error('Please enter a Discord invite link such as https://discord.gg/your-invite.');
+    }
     const pathname = urlObj.pathname.replace(/^\//, '').replace(/\/$/, '');
     const parts = pathname.split('/');
     const code = parts[parts.length - 1];
@@ -67,12 +79,18 @@ export function parseDiscordInvite(input: string): {
         canonicalUrl: `https://discord.gg/${code}`,
       };
     }
-  } catch (e) {}
+  } catch (e) {
+    if (e instanceof Error && e.message.startsWith('Please enter a Discord invite')) throw e;
+  }
 
   const cleanCode = trimmed
     .replace(/^https?:\/\/(www\.)?discord(\.gg|\.com\/invite)\/?/i, '')
     .replace(/\/.*$/, '')
     .trim();
+
+  if (!/^[a-z0-9_-]{2,128}$/i.test(cleanCode)) {
+    throw new Error('Please enter a valid Discord invite code or invite link.');
+  }
 
   return {
     inviteCode: cleanCode,
@@ -112,7 +130,7 @@ export async function fetchDiscordServer(
 
   const promise: Promise<DiscordServerResult> = (async (): Promise<DiscordServerResult> => {
     try {
-      const discordApiUrl = `https://discord.com/api/v10/invites/${encodeURIComponent(inviteCode)}?with_counts=true&with_expiration=true`;
+      const discordApiUrl = `https://discord.com/api/v10/invites/${encodeURIComponent(inviteCode)}?with_counts=true`;
 
       const headers: Record<string, string> = {
         'Accept': 'application/json',
@@ -168,18 +186,18 @@ export async function fetchDiscordServer(
       }
 
       const guild = json.guild;
-      const memberCount = json.approximate_member_count ?? options?.previousCount ?? 0;
+      const countValue = json.approximate_member_count;
+      if (!Number.isInteger(countValue) || countValue < 0) {
+        throw new Error('Discord resolved the invite but did not return a member count. Use an active server invite with public preview enabled.');
+      }
+      const memberCount = countValue;
       const presenceCount = json.approximate_presence_count || 0;
       const iconUrl = guild.icon
         ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png`
         : null;
 
       const formatted = formatMemberCount(memberCount);
-      const isVerified =
-        guild.features?.includes('VERIFIED') ||
-        guild.features?.includes('PARTNERED') ||
-        guild.features?.includes('COMMUNITY') ||
-        true;
+      const isVerified = true;
 
       const result: DiscordServerResult = {
         guildId: guild.id,
