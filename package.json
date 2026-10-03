@@ -9,9 +9,11 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@netlify/database": "^2.0.1",
     "@prisma/client": "^7.10.0",
     "canvas-confetti": "^1.9.4",
     "discord.js": "^14.27.0",
+    "drizzle-orm": "^1.0.0-beta.22",
     "firebase": "^12.19.0",
     "lenis": "^1.3.26",
     "lucide-react": "^1.48.0",
@@ -27,6 +29,7 @@
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "drizzle-kit": "^1.0.0-beta.22",
     "eslint": "^9",
     "eslint-config-next": "16.3.7",
     "prisma": "^6.19.3",

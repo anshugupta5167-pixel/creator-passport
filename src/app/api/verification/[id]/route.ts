@@ -9,7 +9,7 @@ export async function GET(
   const { id } = await context.params;
 
   // Try the new DB first, then fall back to in-memory queue
-  const dbItem = getVerificationByIdDB(id);
+  const dbItem = await getVerificationByIdDB(id);
   if (dbItem) {
     return NextResponse.json({
       id: dbItem.id,

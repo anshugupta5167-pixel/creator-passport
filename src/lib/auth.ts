@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
-import { getSessionByTokenDB, getUserByIdPersistentDB, getCreatorByUserIdDB, getAllCreatorsDBAsync } from './db';
+import { getSessionByTokenDB, getUserByIdPersistentDB, getCreatorByUserIdDB } from './db';
 import { User, Session, CreatorProfile } from './types';
 
 export const SESSION_COOKIE_NAME = 'chq_session';
@@ -170,10 +170,7 @@ export async function getAuthenticatedUser(request: NextRequest): Promise<{
   const user = await getUserByIdPersistentDB(session.userId);
   if (!user) return null;
 
-  // Serverless instances do not share the local cache. Refresh durable creator
-  // records before resolving the profile associated with this account.
-  await getAllCreatorsDBAsync();
-  const creator = getCreatorByUserIdDB(user.id);
+  const creator = await getCreatorByUserIdDB(user.id);
 
   return {
     user,

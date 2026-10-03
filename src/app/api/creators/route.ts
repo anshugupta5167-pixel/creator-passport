@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
     const cleanSlug = targetSlug.replace(/[^a-z0-9_-]/g, '') || user.username;
 
     // Check conflict: does another user own this slug?
-    const allCreators = getAllCreatorsDB();
+    const allCreators = await getAllCreatorsDB();
     const existingConflict = allCreators.find(
       (c) =>
         c.userId !== user.id &&
@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Find existing card for THIS authenticated user
-    const existingUserCard = getCreatorByUserIdDB(user.id);
+    const existingUserCard = await getCreatorByUserIdDB(user.id);
 
     const safeCreator: CreatorProfile = {
       ...body,
@@ -191,7 +191,7 @@ export async function DELETE(request: NextRequest) {
 
     // If regular creator, they can ONLY delete their own card
     if (user.role !== 'ADMIN') {
-      const userCard = getCreatorByUserIdDB(user.id);
+      const userCard = await getCreatorByUserIdDB(user.id);
       if (!userCard) {
         return NextResponse.json({ error: 'NOT_FOUND', message: 'No creator card found to delete.' }, { status: 404 });
       }

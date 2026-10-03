@@ -26,7 +26,7 @@ async function handleRefresh(request: NextRequest) {
       } catch (e) {}
     }
 
-    const creator = passportId ? getCreatorByIdDB(passportId) : null;
+    const creator = passportId ? await getCreatorByIdDB(passportId) : null;
     const target = url || channelId || creator?.connections.youtube?.profileUrl || creator?.connections.youtube?.username;
 
     if (!target) {

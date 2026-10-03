@@ -11,7 +11,7 @@ export async function GET(
 ) {
   const { username } = await context.params;
   const clean = username.replace(/^@/, '').toLowerCase().trim();
-  const creator = await getCreatorByIdDBAsync(clean) || getCreatorByUsernameDB(clean);
+  const creator = await getCreatorByIdDBAsync(clean) || await getCreatorByUsernameDB(clean);
 
   if (!creator) {
     return NextResponse.json(
@@ -41,7 +41,7 @@ export async function PATCH(
 ) {
   const { username } = await context.params;
   const clean = username.replace(/^@/, '').toLowerCase().trim();
-  const creator = getCreatorByIdDB(clean) || getCreatorByUsernameDB(clean);
+  const creator = await getCreatorByIdDB(clean) || await getCreatorByUsernameDB(clean);
 
   if (!creator) {
     return NextResponse.json({ error: 'Creator not found' }, { status: 404 });

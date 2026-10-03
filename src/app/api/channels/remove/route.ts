@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const creator = auth.creator || getCreatorByUserIdDB(auth.user.id);
+    const creator = auth.creator || await getCreatorByUserIdDB(auth.user.id);
     if (!creator) {
       return NextResponse.json({ error: 'NOT_FOUND', message: 'Creator card not found.' }, { status: 404 });
     }

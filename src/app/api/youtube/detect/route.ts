@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     if (auth?.creator) {
       existingCreator = auth.creator;
     } else if (passportId) {
-      const found = getCreatorByIdDB(passportId);
+      const found = await getCreatorByIdDB(passportId);
       // ONLY allow updating if caller is the owner
       if (found && auth?.user.id === found.userId) {
         existingCreator = found;

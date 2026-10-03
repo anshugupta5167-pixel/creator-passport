@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
     };
 
     // 2. Fetch authenticated user's card
-    let creator = auth.creator || getCreatorByUserIdDB(auth.user.id);
+    let creator = auth.creator || await getCreatorByUserIdDB(auth.user.id);
     if (!creator) {
       // User hasn't finished full card, return the channel item so frontend can store in draft state
       return NextResponse.json({

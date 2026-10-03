@@ -10,18 +10,10 @@ import {
   Session,
   AuditLog
 } from './types';
-import { 
-  syncCreatorToFirebase, 
-  deleteCreatorFromFirebase,
-  syncVerificationToFirebase,
-  fetchCreatorsFromFirebase,
-  isFirebaseConfigured,
-} from './firebase';
-import { 
-  fetchFromCloudStore, 
-  pushCreatorsToCloudStore, 
-  pushVerificationsToCloudStore 
-} from './cloudStore';
+import { fetchFromCloudStore } from './cloudStore';
+import { desc, eq, inArray } from 'drizzle-orm';
+import { db as pg } from '../../db';
+import { creators as creatorsTable, verifications as verificationsTable, appMeta } from '../../db/schema';
 import {
   deleteFirestoreDocument,
   findFirestoreDocument,
@@ -41,14 +33,10 @@ const SEED_USERS_FILE = path.join(SEED_DIR, 'users.json');
 const SEED_SESSIONS_FILE = path.join(SEED_DIR, 'sessions.json');
 const SEED_AUDIT_LOGS_FILE = path.join(SEED_DIR, 'audit_logs.json');
 
-// In-memory caches for high-performance sub-millisecond access
-let memoryCreators: CreatorProfile[] = [];
-let memoryVerifications: VerificationSubmission[] = [];
+// In-memory caches (users/sessions only; creators & verifications are read from Netlify Database)
 let memoryUsers: User[] = [];
 let memorySessions: Session[] = [];
 let memoryAuditLogs: AuditLog[] = [];
-let isLoaded = false;
-let areVerificationsLoaded = false;
 
 function canonicalVerificationStatus(creator: Partial<CreatorProfile>): VerificationStatus {
   const status = creator.verification_status;
@@ -61,50 +49,6 @@ function canonicalVerificationStatus(creator: Partial<CreatorProfile>): Verifica
 function normalizeCreatorVerification<T extends CreatorProfile>(creator: T): T {
   const status = canonicalVerificationStatus(creator);
   return { ...creator, verification_status: status, isVerified: status === 'VERIFIED' };
-}
-
-function mergeIncomingVerifications(incoming: VerificationSubmission[]): void {
-  for (const verification of incoming) {
-    const idx = memoryVerifications.findIndex(
-      (item) => item.id === verification.id || item.creatorSlug.toLowerCase() === verification.creatorSlug.toLowerCase()
-    );
-    if (idx < 0) {
-      memoryVerifications.push(verification);
-      continue;
-    }
-    const existing = memoryVerifications[idx];
-    const existingReviewTime = existing.reviewedAt ? Date.parse(existing.reviewedAt) : 0;
-    const incomingReviewTime = verification.reviewedAt ? Date.parse(verification.reviewedAt) : 0;
-    if (incomingReviewTime >= existingReviewTime) {
-      memoryVerifications[idx] = { ...existing, ...verification };
-    }
-  }
-}
-
-function applyReviewedVerificationStatuses(): void {
-  for (const verification of memoryVerifications) {
-    if (!verification.reviewedAt) continue;
-    const reviewedAt = Date.parse(verification.reviewedAt);
-    const creatorIndex = memoryCreators.findIndex((creator) =>
-      creator.slug.toLowerCase() === verification.creatorSlug.toLowerCase() ||
-      creator.username.toLowerCase() === verification.creatorSlug.toLowerCase() ||
-      (!!verification.creatorId && creator.id === verification.creatorId) ||
-      (!!verification.userId && creator.userId === verification.userId)
-    );
-    if (creatorIndex < 0) continue;
-
-    const creator = memoryCreators[creatorIndex];
-    const currentReviewAt = creator.verificationReviewedAt ? Date.parse(creator.verificationReviewedAt) : 0;
-    if (reviewedAt > currentReviewAt) {
-      memoryCreators[creatorIndex] = normalizeCreatorVerification({
-        ...creator,
-        verification_status: verification.status,
-        isVerified: verification.status === 'VERIFIED',
-        verificationReviewedAt: verification.reviewedAt,
-        rejectionReason: verification.status === 'REJECTED' ? verification.rejectionReason : undefined,
-      });
-    }
-  }
 }
 
 export function getWritablePaths() {
@@ -459,217 +403,167 @@ export function addAuditLogDB(log: { userId?: string | null; action: string; act
 }
 
 // ==========================================
-// CREATOR PROFILES & CARDS
+// CREATOR PROFILES & CARDS (Netlify Database)
 // ==========================================
+//
+// Creators and verifications live in Postgres so every server instance sees the
+// same data. There is deliberately no in-memory cache here: stale per-instance
+// copies were what caused deleted creators and verification changes to revert.
 
-function mergeIncomingCreators(incoming: CreatorProfile[]): boolean {
-  let changed = false;
-  for (const c of incoming) {
-    const clean = (c.slug || c.username || c.passportId || '').toLowerCase().replace(/^@/, '').trim();
-    if (!clean) continue;
-    const idx = memoryCreators.findIndex(
-      (m) => (m.slug || m.username || m.passportId || '').toLowerCase().replace(/^@/, '').trim() === clean
-    );
-    if (idx === -1) {
-      memoryCreators.push(normalizeCreatorVerification({
-        ...c,
-        connections: c.connections || {},
-      }));
-      changed = true;
-    } else {
-      memoryCreators[idx] = normalizeCreatorVerification({
-        ...memoryCreators[idx],
-        ...c,
-        connections: {
-          ...memoryCreators[idx].connections,
-          ...(c.connections || {}),
-        },
-      });
-    }
-  }
-  return changed;
+const LEGACY_IMPORT_KEY = 'legacy_import_v1';
+let legacyImportPromise: Promise<void> | null = null;
+
+function cleanKey(value: string | undefined | null): string {
+  return (value || '').toLowerCase().replace(/^@/, '').trim();
 }
 
-export function loadCreatorsFromDisk(): CreatorProfile[] {
-  if (isLoaded) return memoryCreators;
+function creatorSlugOf(c: Partial<CreatorProfile>): string {
+  return cleanKey(c.slug || c.passportId || c.username || '');
+}
+
+function readSeedFile<T>(file: string): T[] {
   try {
-    ensureDataFile();
-    const paths = getWritablePaths();
-    let content = '';
-
-    if (fs.existsSync(paths.dbFile)) {
-      content = fs.readFileSync(paths.dbFile, 'utf8');
-    } else if (fs.existsSync(SEED_DB_FILE)) {
-      content = fs.readFileSync(SEED_DB_FILE, 'utf8');
+    if (fs.existsSync(file)) {
+      const parsed = JSON.parse(fs.readFileSync(file, 'utf8') || '[]');
+      return Array.isArray(parsed) ? parsed : [];
     }
-
-    if (content) {
-      const parsed: CreatorProfile[] = JSON.parse(content || '[]');
-      const diskList = parsed.map((c) => {
-        const slug = (c.slug || c.passportId || c.username || 'creator')
-          .toLowerCase()
-          .replace(/^@/, '')
-          .trim();
-        return normalizeCreatorVerification({
-          ...c,
-          slug,
-          handle: c.handle || `@${slug}`,
-          passportId: c.passportId || slug,
-          verification_status: c.verification_status || (c.isVerified ? 'VERIFIED' : 'PENDING'),
-          connections: c.connections || {},
-        });
-      });
-
-      memoryCreators = diskList;
-      isLoaded = true;
-    }
-  } catch (err) {
-    console.error('[DB] Error loading creators from disk:', err);
-  }
-
-  return memoryCreators;
+  } catch (e) {}
+  return [];
 }
 
-export function saveCreatorsToDisk(creators: CreatorProfile[]): boolean {
-  memoryCreators = creators.map((c) => normalizeCreatorVerification({
-    ...c,
-    connections: c.connections || {},
-  }));
-  isLoaded = true;
-  try {
-    ensureDataFile();
-    const paths = getWritablePaths();
-    fs.writeFileSync(paths.dbFile, JSON.stringify(memoryCreators, null, 2), 'utf8');
+// One-time import of data saved by the previous storage (GitHub Gist / seed files),
+// so existing creators are not lost when switching to the database.
+async function runLegacyImport(): Promise<void> {
+  const claimed = await pg
+    .insert(appMeta)
+    .values({ key: LEGACY_IMPORT_KEY, value: new Date().toISOString() })
+    .onConflictDoNothing()
+    .returning();
+  if (claimed.length === 0) return;
 
-    if (!paths.isTmp || fs.existsSync(SEED_DB_FILE)) {
-      try {
-        fs.writeFileSync(SEED_DB_FILE, JSON.stringify(memoryCreators, null, 2), 'utf8');
-      } catch (e) {}
-    }
-  } catch (err) {
-    console.error('[DB] Error saving creators to disk:', err);
-  }
-
-  // Sync to persistent cloud database in background
-  pushCreatorsToCloudStore(memoryCreators).catch((err) => {
-    console.warn('[DB] Cloud sync notice:', err);
-  });
-
-  return true;
-}
-
-export function getAllCreatorsDB(): CreatorProfile[] {
-  loadCreatorsFromDisk();
-  return memoryCreators.map((c) => ({
-    ...c,
-    connections: c.connections || {},
-  }));
-}
-
-export async function getAllCreatorsDBAsync(): Promise<CreatorProfile[]> {
-  getAllCreatorsDB();
   try {
     const cloud = await fetchFromCloudStore();
-    if (cloud.hasCreatorSnapshot) {
-      if (cloud.creators.length > 0) {
-        mergeIncomingCreators(cloud.creators);
-      } else {
-        memoryCreators = [];
-      }
-    }
-    mergeIncomingVerifications(cloud.verifications || []);
-    applyReviewedVerificationStatuses();
-  } catch (e) {}
+    const legacyCreators = cloud.hasCreatorSnapshot ? cloud.creators : readSeedFile<CreatorProfile>(SEED_DB_FILE);
+    const legacyVerifications = cloud.verifications.length > 0
+      ? cloud.verifications
+      : readSeedFile<VerificationSubmission>(SEED_VERIFICATION_FILE);
 
-  if (isFirebaseConfigured()) {
-    try {
-      const firebaseCreators = await fetchCreatorsFromFirebase();
-      mergeIncomingCreators(firebaseCreators);
-    } catch (e) {
-      console.warn('[DB] Firebase creator refresh notice:', e);
+    for (const c of legacyCreators) {
+      const slug = creatorSlugOf(c);
+      if (!slug) continue;
+      await pg.insert(creatorsTable).values({ slug, data: normalizeStoredCreator(c) }).onConflictDoNothing();
     }
+    for (const v of legacyVerifications) {
+      const slug = cleanKey(v?.creatorSlug);
+      if (!slug) continue;
+      const id = v.id || `vrf_${slug}`;
+      await pg
+        .insert(verificationsTable)
+        .values({ id, creatorSlug: slug, data: { ...v, id, creatorSlug: slug } })
+        .onConflictDoNothing();
+    }
+  } catch (err) {
+    // Allow a retry on the next request if the import could not complete
+    await pg.delete(appMeta).where(eq(appMeta.key, LEGACY_IMPORT_KEY)).catch(() => {});
+    throw err;
   }
-
-  if (isFirebaseAdminStoreConfigured()) {
-    try {
-      const firebaseCreators = await listFirestoreDocuments<CreatorProfile>('creators');
-      mergeIncomingCreators(firebaseCreators);
-    } catch (e) {
-      console.warn('[DB] Firebase server creator refresh notice:', e);
-    }
-  }
-
-  return memoryCreators.map((c) => ({ ...c, connections: c.connections || {} }));
 }
 
-export function getCreatorByUserIdDB(userId: string): CreatorProfile | null {
+async function ensureLegacyImport(): Promise<void> {
+  if (!legacyImportPromise) {
+    legacyImportPromise = runLegacyImport().catch((err) => {
+      legacyImportPromise = null;
+      console.warn('[DB] Legacy data import notice:', err);
+    });
+  }
+  await legacyImportPromise;
+}
+
+function normalizeStoredCreator(c: CreatorProfile): CreatorProfile {
+  const slug = creatorSlugOf(c) || 'creator';
+  return normalizeCreatorVerification({
+    ...c,
+    slug,
+    handle: c.handle || `@${slug}`,
+    passportId: c.passportId || slug,
+    verification_status: c.verification_status || (c.isVerified ? 'VERIFIED' : 'PENDING'),
+    connections: c.connections || {},
+  });
+}
+
+async function writeCreatorRow(creator: CreatorProfile): Promise<CreatorProfile> {
+  const normalized = normalizeStoredCreator(creator);
+  const data = JSON.parse(JSON.stringify(normalized));
+  await pg
+    .insert(creatorsTable)
+    .values({ slug: normalized.slug, data })
+    .onConflictDoUpdate({ target: creatorsTable.slug, set: { data, updatedAt: new Date() } });
+  return normalized;
+}
+
+async function writeVerificationRow(submission: VerificationSubmission): Promise<VerificationSubmission> {
+  const slug = cleanKey(submission.creatorSlug);
+  const [existing] = await pg
+    .select({ id: verificationsTable.id })
+    .from(verificationsTable)
+    .where(eq(verificationsTable.creatorSlug, slug))
+    .limit(1);
+  const id = existing?.id || submission.id || `vrf_${slug}`;
+  const saved: VerificationSubmission = { ...submission, id, creatorSlug: slug };
+  const data = JSON.parse(JSON.stringify(saved));
+  await pg
+    .insert(verificationsTable)
+    .values({ id, creatorSlug: slug, data })
+    .onConflictDoUpdate({ target: verificationsTable.creatorSlug, set: { data, updatedAt: new Date() } });
+  return saved;
+}
+
+function matchesCreator(c: CreatorProfile, targets: string[]): boolean {
+  const keys = [c.slug, c.handle, c.username, c.passportId, c.id, c.userId].map(cleanKey).filter(Boolean);
+  return targets.some((t) => keys.includes(t));
+}
+
+export async function getAllCreatorsDB(): Promise<CreatorProfile[]> {
+  await ensureLegacyImport();
+  const rows = await pg.select().from(creatorsTable).orderBy(desc(creatorsTable.updatedAt));
+  return rows.map((row) => normalizeStoredCreator(row.data as CreatorProfile));
+}
+
+export const getAllCreatorsDBAsync = getAllCreatorsDB;
+
+export async function getCreatorByUserIdDB(userId: string): Promise<CreatorProfile | null> {
   if (!userId) return null;
-  const all = getAllCreatorsDB();
-  const found = all.find((c) => c.userId === userId);
-  if (!found) return null;
-  return { ...found, connections: found.connections || {} };
+  const all = await getAllCreatorsDB();
+  return all.find((c) => c.userId === userId) || null;
 }
 
-export function getCreatorBySlugDB(slug: string): CreatorProfile | null {
-  const all = getAllCreatorsDB();
-  const clean = slug.replace(/^@/, '').toLowerCase().trim();
-  const found = all.find((c) => 
-    (c.slug && c.slug.toLowerCase() === clean) || 
-    (c.username && c.username.toLowerCase() === clean) ||
-    (c.passportId && c.passportId.toLowerCase() === clean) ||
-    (c.handle && c.handle.toLowerCase().replace(/^@/, '') === clean) ||
-    (c.id && c.id.toLowerCase() === clean)
-  );
-  if (!found) return null;
-  return { ...found, connections: found.connections || {} };
+export async function getCreatorBySlugDB(slug: string): Promise<CreatorProfile | null> {
+  const clean = cleanKey(slug);
+  const all = await getAllCreatorsDB();
+  return all.find((c) =>
+    cleanKey(c.slug) === clean ||
+    cleanKey(c.username) === clean ||
+    cleanKey(c.passportId) === clean ||
+    cleanKey(c.handle) === clean ||
+    cleanKey(c.id) === clean
+  ) || null;
 }
 
-export function getCreatorByIdDB(target: string): CreatorProfile | null {
-  const all = getAllCreatorsDB();
-  const raw = target.trim().toLowerCase();
-  const clean = raw.replace(/^@/, '');
-
-  const found = all.find((c) => {
-    const cSlug = (c.slug || '').toLowerCase();
-    const cHandle = (c.handle || '').toLowerCase().replace(/^@/, '');
-    const cUser = (c.username || '').toLowerCase();
-    const cPass = (c.passportId || '').toLowerCase();
-    const cId = (c.id || '').toLowerCase();
-    const cUserId = (c.userId || '').toLowerCase();
-
-    return (
-      cSlug === clean ||
-      cHandle === clean ||
-      cUser === clean ||
-      cPass === clean ||
-      cId === raw ||
-      cUserId === raw
-    );
-  });
-  if (!found) return null;
-  return { ...found, connections: found.connections || {} };
+export async function getCreatorByIdDB(target: string): Promise<CreatorProfile | null> {
+  const clean = cleanKey(target);
+  if (!clean) return null;
+  const all = await getAllCreatorsDB();
+  return all.find((c) => matchesCreator(c, [clean])) || null;
 }
 
-export async function getCreatorByIdDBAsync(target: string): Promise<CreatorProfile | null> {
-  getAllCreatorsDB();
+export const getCreatorByIdDBAsync = getCreatorByIdDB;
 
-  try {
-    const cloud = await fetchFromCloudStore();
-    if (cloud.creators && cloud.creators.length > 0) {
-      mergeIncomingCreators(cloud.creators);
-      return getCreatorByIdDB(target);
-    }
-  } catch (e) {}
-
-  return getCreatorByIdDB(target);
-}
-
-export function getCreatorByUsernameDB(username: string): CreatorProfile | null {
+export function getCreatorByUsernameDB(username: string): Promise<CreatorProfile | null> {
   return getCreatorByIdDB(username);
 }
 
 export async function addCreatorDB(creator: CreatorProfile): Promise<CreatorProfile> {
-  const current = getAllCreatorsDB();
+  const current = await getAllCreatorsDB();
 
   // Normalize slug, handle, and niche — use slug as the primary identifier
   const rawSlug = (creator.slug || creator.username || 'creator').toLowerCase().replace(/^@/, '').trim();
@@ -685,7 +579,7 @@ export async function addCreatorDB(creator: CreatorProfile): Promise<CreatorProf
   }
 
   // Find existing by userId or slug
-  const existingIdx = current.findIndex(
+  const existing = current.find(
     (c) =>
       (creator.userId && c.userId && c.userId === creator.userId) ||
       (c.slug && c.slug.toLowerCase() === cleanSlug) ||
@@ -693,10 +587,9 @@ export async function addCreatorDB(creator: CreatorProfile): Promise<CreatorProf
       (c.id && creator.id && c.id.toLowerCase() === creator.id.toLowerCase())
   );
 
-  let updatedList: CreatorProfile[];
-  if (existingIdx >= 0) {
-    const existing = current[existingIdx];
-    const merged: CreatorProfile = {
+  let toSave: CreatorProfile;
+  if (existing) {
+    toSave = {
       ...existing,
       ...creator,
       id: existing.id || `creator_${cleanSlug}`,
@@ -707,8 +600,13 @@ export async function addCreatorDB(creator: CreatorProfile): Promise<CreatorProf
       digitalSignature: existing.digitalSignature || creator.digitalSignature,
       category: creator.category || existing.category,
       niche: creator.niche || existing.niche || creator.category,
-      verification_status: creator.verification_status || existing.verification_status || (creator.isVerified || existing.isVerified ? 'VERIFIED' : 'PENDING'),
-      isVerified: (creator.verification_status || existing.verification_status || (creator.isVerified || existing.isVerified ? 'VERIFIED' : 'PENDING')) === 'VERIFIED',
+      // Verification state is owned by the admin review flow (updateVerificationStatusDB);
+      // profile saves must never overwrite it with a stale copy.
+      verification_status: canonicalVerificationStatus(existing),
+      isVerified: canonicalVerificationStatus(existing) === 'VERIFIED',
+      verificationReviewedAt: existing.verificationReviewedAt,
+      rejectionReason: existing.rejectionReason,
+      lastVerifiedAt: existing.lastVerifiedAt || creator.lastVerifiedAt,
       proofDocuments: creator.proofDocuments || existing.proofDocuments || [],
       connections: {
         ...existing.connections,
@@ -719,83 +617,50 @@ export async function addCreatorDB(creator: CreatorProfile): Promise<CreatorProf
         : existing.moreChannels || [],
       quickInfo: creator.quickInfo || existing.quickInfo,
     };
-    current[existingIdx] = merged;
-    updatedList = [...current];
+    // If the slug changed, drop the row stored under the old slug
+    const oldSlug = creatorSlugOf(existing);
+    if (oldSlug && oldSlug !== cleanSlug) {
+      await pg.delete(creatorsTable).where(eq(creatorsTable.slug, oldSlug));
+    }
   } else {
-    updatedList = [creator, ...current];
+    toSave = creator;
   }
 
-  saveCreatorsToDisk(updatedList);
+  const saved = await writeCreatorRow(toSave);
 
   // Automatically sync creator proof and verification entry
   try {
-    syncCreatorToVerificationDB(existingIdx >= 0 ? current[existingIdx] : creator);
-  } catch (e) {}
-
-  const savedCreator = existingIdx >= 0 ? current[existingIdx] : creator;
-  let savedToFirebase = false;
-  if (isFirebaseAdminStoreConfigured()) {
-    const docId = (savedCreator.passportId || savedCreator.slug || savedCreator.username || savedCreator.id).toLowerCase().replace(/^@/, '');
-    await writeFirestoreDocument('creators', docId, savedCreator as unknown as Record<string, unknown>);
-    savedToFirebase = true;
-  } else if (isFirebaseConfigured()) {
-    savedToFirebase = await syncCreatorToFirebase(savedCreator);
-  }
-  const savedToCloud = await pushCreatorsToCloudStore(memoryCreators);
-  if (process.env.VERCEL && !savedToFirebase && !savedToCloud) {
-    throw new Error('Creator card storage is not configured. Enable Firebase sync or configure GITHUB_DATA_TOKEN in Vercel before saving creator cards.');
+    await syncCreatorToVerificationDB(saved);
+  } catch (e) {
+    console.warn('[DB] Verification sync notice:', e);
   }
 
-  return existingIdx >= 0 ? memoryCreators[existingIdx] : memoryCreators[0];
+  return saved;
 }
 
 export async function deleteCreatorDB(targets: string[]): Promise<boolean> {
-  const current = await getAllCreatorsDBAsync();
-  const cleanTargets = targets.map((t) => t.trim().toLowerCase().replace(/^@/, ''));
+  const cleanTargets = targets.map(cleanKey).filter(Boolean);
+  if (cleanTargets.length === 0) return false;
 
-  const remaining = current.filter((c) => {
-    const cSlug = (c.slug || '').toLowerCase();
-    const cHandle = (c.handle || '').toLowerCase().replace(/^@/, '');
-    const cUser = (c.username || '').toLowerCase();
-    const cPass = (c.passportId || '').toLowerCase();
-    const cId = (c.id || '').toLowerCase();
-    const cUserId = (c.userId || '').toLowerCase();
+  const current = await getAllCreatorsDB();
+  const toDelete = current.filter((c) => matchesCreator(c, cleanTargets));
+  if (toDelete.length === 0) return false;
 
-    const matches = cleanTargets.some(
-      (t) =>
-        t === cSlug ||
-        t === cHandle ||
-        t === cUser ||
-        t === cPass ||
-        t === cId ||
-        t === cUserId
-    );
-    return !matches;
-  });
+  const slugs = toDelete.map((c) => c.slug);
+  await pg.delete(creatorsTable).where(inArray(creatorsTable.slug, slugs));
 
-  const changed = remaining.length !== current.length;
-  if (changed) {
-    saveCreatorsToDisk(remaining);
-    const cloudSaved = await pushCreatorsToCloudStore(remaining);
-    let savedToFirebase = false;
+  // Also clean up related verification entries
+  await pg
+    .delete(verificationsTable)
+    .where(inArray(verificationsTable.creatorSlug, Array.from(new Set([...slugs, ...cleanTargets]))));
 
-    // Also clean up related verifications and proofs
-    for (const t of cleanTargets) {
-      await deleteVerificationByCreatorSlugDB(t);
-      try {
-        if (isFirebaseAdminStoreConfigured()) {
-          savedToFirebase = (await deleteFirestoreDocument('creators', t)) || savedToFirebase;
-        } else if (isFirebaseConfigured()) {
-          savedToFirebase = (await deleteCreatorFromFirebase(t)) || savedToFirebase;
-        }
-      } catch (e) {}
+  try {
+    for (const slug of slugs) {
+      notifySubscribers({ type: 'CREATOR_DELETED', slug });
     }
-    if (process.env.VERCEL && !cloudSaved && !savedToFirebase && current.length > 0) {
-      throw new Error('Creator was removed locally, but cloud storage could not save the deletion. Configure Firebase Admin storage or GITHUB_DATA_TOKEN in Vercel.');
-    }
-  }
+  } catch (e) {}
 
-  return changed;
+  return true;
 }
 
 export async function deleteCreatorByUserIdDB(userId: string): Promise<boolean> {
@@ -807,71 +672,15 @@ export async function deleteCreatorByUserIdDB(userId: string): Promise<boolean> 
 // VERIFICATION SUBMISSIONS DATABASE
 // ==========================================
 
-export function loadVerificationsFromDisk(): VerificationSubmission[] {
-  if (areVerificationsLoaded) return memoryVerifications;
-  try {
-    ensureDataFile();
-    const paths = getWritablePaths();
-    let content = '';
-
-    if (fs.existsSync(paths.verificationFile)) {
-      content = fs.readFileSync(paths.verificationFile, 'utf8');
-    } else if (fs.existsSync(SEED_VERIFICATION_FILE)) {
-      content = fs.readFileSync(SEED_VERIFICATION_FILE, 'utf8');
-    }
-
-    if (content) {
-      memoryVerifications = JSON.parse(content || '[]');
-      areVerificationsLoaded = true;
-    }
-  } catch (err) {
-    console.error('[DB] Error loading verifications from disk:', err);
-  }
-
-  return memoryVerifications;
+export async function getAllVerificationsDB(): Promise<VerificationSubmission[]> {
+  await ensureLegacyImport();
+  const rows = await pg.select().from(verificationsTable).orderBy(desc(verificationsTable.updatedAt));
+  return rows.map((row) => row.data as VerificationSubmission);
 }
 
-export function saveVerificationsToDisk(submissions: VerificationSubmission[]): boolean {
-  memoryVerifications = submissions;
-  areVerificationsLoaded = true;
-  try {
-    ensureDataFile();
-    const paths = getWritablePaths();
-    fs.writeFileSync(paths.verificationFile, JSON.stringify(submissions, null, 2), 'utf8');
+export const getAllVerificationsDBAsync = getAllVerificationsDB;
 
-    if (!paths.isTmp || fs.existsSync(SEED_VERIFICATION_FILE)) {
-      try {
-        fs.writeFileSync(SEED_VERIFICATION_FILE, JSON.stringify(submissions, null, 2), 'utf8');
-      } catch (e) {}
-    }
-  } catch (err) {
-    console.error('[DB] Error saving verifications to disk:', err);
-  }
-
-  pushVerificationsToCloudStore(submissions).catch((err) => {
-    console.warn('[DB] Cloud sync notice (verifications):', err);
-  });
-
-  return true;
-}
-
-export function getAllVerificationsDB(): VerificationSubmission[] {
-  loadVerificationsFromDisk();
-  return memoryVerifications;
-}
-
-export async function getAllVerificationsDBAsync(): Promise<VerificationSubmission[]> {
-  getAllVerificationsDB();
-  try {
-    const cloud = await fetchFromCloudStore();
-    mergeIncomingVerifications(cloud.verifications || []);
-    applyReviewedVerificationStatuses();
-  } catch (e) {}
-  return memoryVerifications;
-}
-
-export function submitVerificationDB(submission: any): VerificationSubmission {
-  const all = getAllVerificationsDB();
+export async function submitVerificationDB(submission: any): Promise<VerificationSubmission> {
   const sub: VerificationSubmission = {
     ...submission,
     id: submission.id || `vrf_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
@@ -879,21 +688,18 @@ export function submitVerificationDB(submission: any): VerificationSubmission {
     submittedAt: submission.submittedAt || new Date().toISOString(),
     proofDocuments: submission.proofDocuments || [],
   };
-  all.unshift(sub);
-  saveVerificationsToDisk(all);
-  return sub;
+  return writeVerificationRow(sub);
 }
 
-
-export function getVerificationByIdDB(target: string): VerificationSubmission | null {
-  const all = getAllVerificationsDB();
-  const clean = target.trim().toLowerCase().replace(/^@/, '');
+export async function getVerificationByIdDB(target: string): Promise<VerificationSubmission | null> {
+  const all = await getAllVerificationsDB();
+  const clean = cleanKey(target);
   return (
     all.find(
       (v) =>
         v.id.toLowerCase() === clean ||
-        v.creatorSlug.toLowerCase() === clean ||
-        v.creatorHandle.toLowerCase().replace(/^@/, '') === clean ||
+        cleanKey(v.creatorSlug) === clean ||
+        cleanKey(v.creatorHandle) === clean ||
         (v.creatorId && v.creatorId.toLowerCase() === clean) ||
         (v.userId && v.userId.toLowerCase() === clean)
     ) || null
@@ -901,54 +707,33 @@ export function getVerificationByIdDB(target: string): VerificationSubmission | 
 }
 
 export async function deleteVerificationByCreatorSlugDB(slug: string): Promise<boolean> {
-  const clean = slug.toLowerCase().replace(/^@/, '').trim();
-  const all = await getAllVerificationsDBAsync();
-  const filtered = all.filter((v) => v.creatorSlug.toLowerCase() !== clean);
-  if (filtered.length !== all.length) {
-    saveVerificationsToDisk(filtered);
-    const cloudSaved = await pushVerificationsToCloudStore(filtered);
-    if (process.env.VERCEL && !cloudSaved && all.length > 0) {
-      throw new Error('Verification data was removed locally, but cloud storage could not save the deletion. Configure GITHUB_DATA_TOKEN or Firebase sync to keep it deleted.');
-    }
-    return true;
-  }
-  return false;
+  const clean = cleanKey(slug);
+  const deleted = await pg
+    .delete(verificationsTable)
+    .where(eq(verificationsTable.creatorSlug, clean))
+    .returning({ id: verificationsTable.id });
+  return deleted.length > 0;
 }
 
-export function addVerificationDB(submission: VerificationSubmission): VerificationSubmission {
-  const all = getAllVerificationsDB();
-  const cleanSlug = submission.creatorSlug.toLowerCase().replace(/^@/, '');
-  submission.creatorSlug = cleanSlug;
-  submission.id = submission.id || `vrf_${cleanSlug}`;
-
-  const idx = all.findIndex(
-    (v) => v.id === submission.id || v.creatorSlug.toLowerCase() === cleanSlug
-  );
-
-  if (idx >= 0) {
-    all[idx] = { ...all[idx], ...submission };
-  } else {
-    all.unshift(submission);
-  }
-
-  saveVerificationsToDisk(all);
-
-  try {
-    syncVerificationToFirebase(submission);
-  } catch (e) {}
-
-  return submission;
+export async function addVerificationDB(submission: VerificationSubmission): Promise<VerificationSubmission> {
+  const cleanSlug = cleanKey(submission.creatorSlug);
+  const all = await getAllVerificationsDB();
+  const existing = all.find((v) => v.id === submission.id || cleanKey(v.creatorSlug) === cleanSlug);
+  return writeVerificationRow({
+    ...(existing || {}),
+    ...submission,
+    creatorSlug: cleanSlug,
+    id: existing?.id || submission.id || `vrf_${cleanSlug}`,
+  });
 }
 
-export function syncCreatorToVerificationDB(creator: CreatorProfile): VerificationSubmission | null {
+export async function syncCreatorToVerificationDB(creator: CreatorProfile): Promise<VerificationSubmission | null> {
   if (!creator) return null;
-  const cleanSlug = (creator.slug || creator.username || '').toLowerCase().replace(/^@/, '').trim();
+  const cleanSlug = cleanKey(creator.slug || creator.username);
   if (!cleanSlug) return null;
 
-  const allVerifs = getAllVerificationsDB();
-  const existingIdx = allVerifs.findIndex((v) => v.creatorSlug.toLowerCase() === cleanSlug);
-
-  const existingSub = existingIdx >= 0 ? allVerifs[existingIdx] : null;
+  const allVerifs = await getAllVerificationsDB();
+  const existingSub = allVerifs.find((v) => cleanKey(v.creatorSlug) === cleanSlug) || null;
 
   const submission: VerificationSubmission = {
     id: existingSub?.id || `vrf_${cleanSlug}`,
@@ -994,83 +779,70 @@ export function syncCreatorToVerificationDB(creator: CreatorProfile): Verificati
     rejectionReason: creator.rejectionReason || existingSub?.rejectionReason,
   };
 
-  if (existingIdx >= 0) {
-    allVerifs[existingIdx] = submission;
-  } else {
-    allVerifs.unshift(submission);
-  }
-
-  saveVerificationsToDisk(allVerifs);
-  return submission;
+  return writeVerificationRow(submission);
 }
 
-export function updateVerificationStatusDB(
+export async function updateVerificationStatusDB(
   targetIdentifier: string,
   status: VerificationStatus,
   reviewedBy: string = 'Admin',
   rejectionReason?: string,
   extraCreatorInfo?: Partial<CreatorProfile>
-): { verification: VerificationSubmission | null; creator: CreatorProfile | null } {
+): Promise<{ verification: VerificationSubmission | null; creator: CreatorProfile | null }> {
   if (!targetIdentifier) {
     return { verification: null, creator: null };
   }
-  const clean = targetIdentifier.trim().toLowerCase().replace(/^@/, '');
-  const allVerifs = getAllVerificationsDB();
-  const allCreators = getAllCreatorsDB();
+  const clean = cleanKey(targetIdentifier);
+  const [allVerifs, allCreators] = await Promise.all([getAllVerificationsDB(), getAllCreatorsDB()]);
 
-  const vIdx = allVerifs.findIndex(
+  const submission = allVerifs.find(
     (v) =>
       v.id.toLowerCase() === clean ||
-      v.creatorSlug.toLowerCase() === clean ||
-      v.creatorHandle.toLowerCase().replace(/^@/, '') === clean ||
+      cleanKey(v.creatorSlug) === clean ||
+      cleanKey(v.creatorHandle) === clean ||
       (v.creatorId && v.creatorId.toLowerCase() === clean) ||
       (v.userId && v.userId.toLowerCase() === clean)
-  );
+  ) || null;
 
-  const submission = vIdx >= 0 ? allVerifs[vIdx] : null;
   const aliases = new Set([clean]);
   if (submission) {
     [submission.creatorSlug, submission.creatorHandle, submission.creatorId, submission.userId]
       .filter(Boolean)
-      .forEach((value) => aliases.add(String(value).toLowerCase().replace(/^@/, '')));
+      .forEach((value) => aliases.add(cleanKey(String(value))));
   }
 
-  let cIdx = allCreators.findIndex(
-    (c) =>
-      aliases.has(c.id.toLowerCase()) ||
-      aliases.has((c.slug || '').toLowerCase().replace(/^@/, '')) ||
-      aliases.has((c.username || '').toLowerCase().replace(/^@/, '')) ||
-      aliases.has((c.passportId || '').toLowerCase().replace(/^@/, '')) ||
-      aliases.has((c.handle || '').toLowerCase().replace(/^@/, '')) ||
-      aliases.has((c.userId || '').toLowerCase())
-  );
+  const existingCreator = allCreators.find((c) => matchesCreator(c, Array.from(aliases))) || null;
 
-  const canonicalSlug =
-    (cIdx >= 0 ? allCreators[cIdx].slug : null) ||
-    (submission ? submission.creatorSlug : null) ||
-    clean;
-
+  const canonicalSlug = existingCreator?.slug || submission?.creatorSlug || clean;
   const isVerified = status === 'VERIFIED';
+  const now = new Date().toISOString();
   let updatedCreator: CreatorProfile | null = null;
 
-  if (cIdx >= 0) {
-    if (extraCreatorInfo) {
-      allCreators[cIdx] = { ...allCreators[cIdx], ...extraCreatorInfo };
-    }
-    allCreators[cIdx].verification_status = status;
-    allCreators[cIdx].isVerified = isVerified;
-    allCreators[cIdx].verificationReviewedAt = new Date().toISOString();
-    if (isVerified) allCreators[cIdx].lastVerifiedAt = new Date().toISOString().split('T')[0];
-    if (status === 'REJECTED') {
-      allCreators[cIdx].rejectionReason = rejectionReason || 'Proof inconclusive';
-    } else {
-      allCreators[cIdx].rejectionReason = undefined;
-    }
-    saveCreatorsToDisk(allCreators);
-    updatedCreator = allCreators[cIdx];
-  } else if (vIdx >= 0) {
-    const v = submission!;
-    const synthesized: CreatorProfile = {
+  if (existingCreator) {
+    // Only accept non-verification profile fields from the admin's (possibly stale) copy
+    const {
+      verification_status: _vs,
+      isVerified: _iv,
+      verificationReviewedAt: _vra,
+      rejectionReason: _rr,
+      slug: _slug,
+      passportId: _pid,
+      ...safeExtra
+    } = (extraCreatorInfo || {}) as Partial<CreatorProfile>;
+    updatedCreator = await writeCreatorRow({
+      ...existingCreator,
+      ...safeExtra,
+      slug: existingCreator.slug,
+      passportId: existingCreator.passportId,
+      verification_status: status,
+      isVerified,
+      verificationReviewedAt: now,
+      lastVerifiedAt: isVerified ? now.split('T')[0] : existingCreator.lastVerifiedAt,
+      rejectionReason: status === 'REJECTED' ? rejectionReason || 'Proof inconclusive' : undefined,
+    });
+  } else if (submission) {
+    const v = submission;
+    updatedCreator = await writeCreatorRow({
       id: v.creatorId || `creator_${canonicalSlug}`,
       userId: v.userId || `usr_${canonicalSlug}`,
       passportId: v.creatorSlug || canonicalSlug,
@@ -1084,13 +856,13 @@ export function updateVerificationStatusDB(
       country: 'Global',
       location: 'Global',
       contactEmail: `${canonicalSlug}@creatorhq.fun`,
-      issuedAt: v.submittedAt || new Date().toISOString(),
-      lastVerifiedAt: new Date().toISOString().split('T')[0],
+      issuedAt: v.submittedAt || now,
+      lastVerifiedAt: now.split('T')[0],
       digitalSignature: `0x${Date.now().toString(16)}`,
       isSuspended: false,
       isVerified,
       verification_status: status,
-      verificationReviewedAt: new Date().toISOString(),
+      verificationReviewedAt: now,
       tierName: isVerified ? 'Founding Member Tier I' : 'Candidate Member',
       profileCompletion: 100,
       skills: ['Content Creator'],
@@ -1098,35 +870,28 @@ export function updateVerificationStatusDB(
       collaborations: [],
       portfolio: [],
       connections: (v.connectedPlatforms as any) || {},
-    };
-    allCreators.unshift(synthesized);
-    saveCreatorsToDisk(allCreators);
-    updatedCreator = synthesized;
+    } as CreatorProfile);
   }
 
   let updatedSubmission: VerificationSubmission | null = null;
-  if (vIdx >= 0) {
-    allVerifs[vIdx].status = status;
-    allVerifs[vIdx].reviewedAt = new Date().toISOString();
-    allVerifs[vIdx].reviewedBy = reviewedBy || 'Admin';
-    if (status === 'REJECTED') {
-      allVerifs[vIdx].rejectionReason = rejectionReason || 'Proof inconclusive';
-    } else {
-      allVerifs[vIdx].rejectionReason = undefined;
-    }
-    saveVerificationsToDisk(allVerifs);
-    updatedSubmission = allVerifs[vIdx];
+  if (submission) {
+    updatedSubmission = await writeVerificationRow({
+      ...submission,
+      status,
+      reviewedAt: now,
+      reviewedBy: reviewedBy || 'Admin',
+      rejectionReason: status === 'REJECTED' ? rejectionReason || 'Proof inconclusive' : undefined,
+    });
   } else if (updatedCreator) {
-    const newSub = syncCreatorToVerificationDB(updatedCreator);
+    const newSub = await syncCreatorToVerificationDB(updatedCreator);
     if (newSub) {
-      newSub.status = status;
-      newSub.reviewedAt = new Date().toISOString();
-      newSub.reviewedBy = reviewedBy || 'Admin';
-      if (status === 'REJECTED') {
-        newSub.rejectionReason = rejectionReason || 'Proof inconclusive';
-      }
-      saveVerificationsToDisk(memoryVerifications);
-      updatedSubmission = newSub;
+      updatedSubmission = await writeVerificationRow({
+        ...newSub,
+        status,
+        reviewedAt: now,
+        reviewedBy: reviewedBy || 'Admin',
+        rejectionReason: status === 'REJECTED' ? rejectionReason || 'Proof inconclusive' : undefined,
+      });
     }
   }
 
@@ -1207,8 +972,6 @@ export function getProofFilePath(creatorSlug: string, storedFilename: string): s
 
 // Initial load on server start
 if (typeof window === 'undefined') {
-  loadCreatorsFromDisk();
-  loadVerificationsFromDisk();
   getUsersDB();
   getSessionsDB();
 }
