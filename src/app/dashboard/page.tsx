@@ -792,37 +792,37 @@ export default function DashboardPage() {
           )}
 
           {/* ================= STUDIO HEADER BAR ================= */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-white/10">
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-3">
-                <span className="text-xs font-mono font-bold tracking-widest px-3 py-1 rounded-full bg-sky-500/10 border border-sky-500/25 text-sky-400">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6 pb-5 sm:pb-6 border-b border-white/10">
+            <div className="space-y-1 sm:space-y-1.5">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                <span className="text-[10px] sm:text-xs font-mono font-bold tracking-widest px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full bg-sky-500/10 border border-sky-500/25 text-sky-400">
                   CREATOR STUDIO
                 </span>
-                <span className="flex items-center gap-1.5 text-xs text-slate-400">
+                <span className="flex items-center gap-1.5 text-[11px] sm:text-xs text-slate-400">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" />
-                  1-Person 1-Card Sync Active
+                  1-Person 1-Card Active
                 </span>
               </div>
-              <h1 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight font-sans">
+              <h1 className="text-xl sm:text-3xl md:text-4xl font-extrabold text-white tracking-tight font-sans">
                 {displayName ? `${displayName}'s Pass` : 'Manage Creator Pass'}
               </h1>
             </div>
 
             {/* Quick Actions */}
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
               <button
                 type="button"
                 onClick={handleCopyLink}
-                className="btn-chq-secondary px-5 py-2 text-xs font-semibold"
+                className="flex-1 sm:flex-none btn-chq-secondary px-3.5 sm:px-5 py-2 sm:py-2.5 text-xs font-semibold justify-center"
               >
                 {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                <span>{copiedLink ? 'Copied' : 'Share Pass Link'}</span>
+                <span>{copiedLink ? 'Copied' : 'Share Link'}</span>
               </button>
 
               <Link
                 href={`/${username || 'yourchannel'}/${passportId || username || 'pass'}`}
                 target="_blank"
-                className="btn-chq-secondary px-5 py-2 text-xs font-semibold"
+                className="btn-chq-secondary px-3.5 sm:px-5 py-2 sm:py-2.5 text-xs font-semibold justify-center"
               >
                 <Eye className="w-3.5 h-3.5" />
                 <span>View Live</span>
@@ -831,7 +831,7 @@ export default function DashboardPage() {
               <button
                 type="button"
                 onClick={handleLogout}
-                className="p-2.5 rounded-full text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                className="p-2 sm:p-2.5 rounded-xl text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors border border-white/10"
                 title="Sign Out"
               >
                 <LogOut className="w-4 h-4" />
@@ -840,13 +840,13 @@ export default function DashboardPage() {
           </div>
 
           {/* ================= WORKSPACE SPLIT-SCREEN ================= */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 lg:gap-12 items-start">
             
             {/* LEFT COLUMN: Clean Studio Tabs & Forms (7 cols) */}
-            <div className="lg:col-span-7 space-y-6">
+            <div className="lg:col-span-7 space-y-5 sm:space-y-6">
               
-              {/* Studio Navigation Tabs */}
-              <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-[#0e121a] border border-white/10 overflow-x-auto">
+              {/* Studio Navigation Tabs - Touch optimized */}
+              <div className="flex items-center gap-1.5 sm:gap-2 p-1 sm:p-1.5 rounded-2xl bg-[#0e121a] border border-white/10 overflow-x-auto no-scrollbar scroll-smooth">
                 {[
                   { id: 'identity', label: 'Identity & Bio', icon: User },
                   { id: 'channels', label: 'Platforms & Stats', icon: Zap },
@@ -860,13 +860,13 @@ export default function DashboardPage() {
                       key={tab.id}
                       type="button"
                       onClick={() => setActiveTab(tab.id as any)}
-                      className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs sm:text-sm font-semibold transition-all whitespace-nowrap ${
+                      className={`flex-1 min-w-[100px] sm:min-w-0 flex items-center justify-center gap-1.5 sm:gap-2 py-2 sm:py-2.5 px-2.5 sm:px-4 rounded-xl text-xs sm:text-sm font-semibold transition-all whitespace-nowrap shrink-0 ${
                         isActive
                           ? 'bg-sky-500 text-slate-950 font-bold shadow-md shadow-sky-500/20'
                           : 'text-slate-400 hover:text-white hover:bg-white/5'
                       }`}
                     >
-                      <Icon className="w-4 h-4" />
+                      <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
                       <span>{tab.label}</span>
                     </button>
                   );
@@ -874,36 +874,36 @@ export default function DashboardPage() {
               </div>
 
               {/* Form Container */}
-              <form onSubmit={handleSavePass} className="space-y-6">
+              <form onSubmit={handleSavePass} className="space-y-5 sm:space-y-6">
                 
                 {/* ================= TAB 1: IDENTITY & BIO ================= */}
                 {activeTab === 'identity' && (
-                  <div className="p-6 sm:p-8 rounded-3xl bg-[#0c1017] border border-white/10 space-y-6 animate-fadeIn">
+                  <div className="p-4 sm:p-6 md:p-8 rounded-2xl sm:rounded-3xl bg-[#0c1017] border border-white/10 space-y-5 sm:space-y-6 animate-fadeIn">
                     <div className="space-y-1">
-                      <h2 className="text-xl font-bold text-white font-sans">Creator Profile & Visuals</h2>
-                      <p className="text-xs sm:text-sm text-slate-400">Establish your authenticated handle, creator category, and public bio.</p>
+                      <h2 className="text-lg sm:text-xl font-bold text-white font-sans">Creator Profile & Visuals</h2>
+                      <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">Establish your authenticated handle, creator category, and public bio.</p>
                     </div>
 
                     {/* Avatar Preview & Source */}
-                    <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 flex flex-col sm:flex-row items-center gap-4">
+                    <div className="p-3.5 sm:p-4 rounded-2xl bg-white/[0.03] border border-white/10 flex flex-col sm:flex-row items-center gap-3.5 sm:gap-4">
                       <div className="relative shrink-0">
                         <img
                           src={getSafeAvatarUrl(avatarUrl, displayName)}
                           alt={displayName || 'Creator'}
                           referrerPolicy="no-referrer"
-                          className="w-20 h-20 rounded-full object-cover border-2 border-sky-400/40 ring-4 ring-black/40 shadow-xl"
+                          className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover border-2 border-sky-400/40 ring-4 ring-black/40 shadow-xl"
                         />
                         {isVerified && (
-                          <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-sky-400 text-slate-950 flex items-center justify-center shadow-lg">
-                            <Check className="w-3.5 h-3.5 stroke-[3]" />
+                          <div className="absolute -bottom-1 -right-1 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-sky-400 text-slate-950 flex items-center justify-center shadow-lg">
+                            <Check className="w-3 h-3 sm:w-3.5 sm:h-3.5 stroke-[3]" />
                           </div>
                         )}
                       </div>
                       <div className="flex-1 text-center sm:text-left space-y-1">
-                        <span className="text-sm font-bold text-white block">
+                        <span className="text-xs sm:text-sm font-bold text-white block">
                           {isAvatarFromYouTube ? 'Official YouTube Profile Picture' : 'Custom Active Avatar'}
                         </span>
-                        <p className="text-xs text-slate-400">
+                        <p className="text-[11px] sm:text-xs text-slate-400 leading-relaxed">
                           {isAvatarFromYouTube
                             ? 'Automatically retrieved and synced from YouTube. You can also upload a custom override below.'
                             : 'Upload a custom square avatar for your Creator Pass.'}
@@ -911,9 +911,9 @@ export default function DashboardPage() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
                       {/* Display Name */}
-                      <div className="space-y-2">
+                      <div className="space-y-1.5 sm:space-y-2">
                         <label className="text-xs font-semibold text-slate-300">Creator Name / Channel Title *</label>
                         <input
                           type="text"
@@ -921,26 +921,26 @@ export default function DashboardPage() {
                           onChange={(e) => setDisplayName(e.target.value)}
                           placeholder="e.g. Linus Tech Tips or PewDiePie"
                           required
-                          className="w-full px-4 py-3 rounded-xl bg-[#121620] border border-white/10 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-sky-400 transition-colors"
+                          className="w-full px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-xl bg-[#121620] border border-white/10 text-white text-xs sm:text-sm placeholder-slate-500 focus:outline-none focus:border-sky-400 transition-colors"
                         />
                       </div>
 
                       {/* Username / Handle */}
-                      <div className="space-y-2">
+                      <div className="space-y-1.5 sm:space-y-2">
                         <div className="flex items-center justify-between">
                           <label className="text-xs font-semibold text-slate-300">Claimed Handle (@username) *</label>
                           {handleStatus === 'available' && <span className="text-[11px] text-emerald-400 font-semibold">✓ Available</span>}
                           {handleStatus === 'taken' && <span className="text-[11px] text-red-400 font-semibold">✕ Claimed</span>}
                         </div>
                         <div className="relative">
-                          <span className="absolute inset-y-0 left-3.5 flex items-center text-slate-500 text-sm font-mono">@</span>
+                          <span className="absolute inset-y-0 left-3.5 flex items-center text-slate-500 text-xs sm:text-sm font-mono">@</span>
                           <input
                             type="text"
                             value={username}
                             onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
                             placeholder="yourhandle"
                             required
-                            className="w-full pl-8 pr-4 py-3 rounded-xl bg-[#121620] border border-white/10 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-sky-400 font-mono transition-colors"
+                            className="w-full pl-8 pr-4 py-2.5 sm:py-3 rounded-xl bg-[#121620] border border-white/10 text-white text-xs sm:text-sm placeholder-slate-500 focus:outline-none focus:border-sky-400 font-mono transition-colors"
                           />
                         </div>
                       </div>
@@ -1358,21 +1358,21 @@ export default function DashboardPage() {
               </form>
             </div>
 
-            {/* RIGHT COLUMN: Sticky Live PassportCard Preview (5 cols) */}
-            <div className="lg:col-span-5 sticky top-28 space-y-6">
+            {/* RIGHT COLUMN: Stacked Live PassportCard Preview (5 cols on desktop) */}
+            <div className="lg:col-span-5 lg:sticky lg:top-28 space-y-5 sm:space-y-6 w-full">
               <div className="flex items-center justify-between px-1">
-                <span className="text-xs font-mono font-bold tracking-wider text-slate-400 uppercase flex items-center gap-1.5">
+                <span className="text-[11px] sm:text-xs font-mono font-bold tracking-wider text-slate-400 uppercase flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-sky-400 animate-pulse" />
                   Live Pass Preview
                 </span>
-                <span className="text-[11px] text-sky-400 font-semibold font-mono">
+                <span className="text-[10px] sm:text-[11px] text-sky-400 font-semibold font-mono">
                   Real-time rendering
                 </span>
               </div>
 
               {/* The Live Interactive PassportCard */}
-              <div className="flex justify-center">
-                <div className="w-full max-w-[420px]">
+              <div className="flex justify-center w-full overflow-hidden">
+                <div className="w-full max-w-full sm:max-w-[420px]">
                   <PassportCard
                     creator={liveCreator}
                     size="hero"
@@ -1385,7 +1385,7 @@ export default function DashboardPage() {
               </div>
 
               {/* Quick Info & Share Box */}
-              <div className="p-5 rounded-3xl bg-[#0c1017] border border-white/10 space-y-3">
+              <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-[#0c1017] border border-white/10 space-y-3">
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-slate-400">Pass Serial:</span>
                   <span className="font-mono text-white font-bold">{passportId || 'Pending Mint'}</span>
@@ -1405,7 +1405,7 @@ export default function DashboardPage() {
                   <button
                     type="button"
                     onClick={handleCopyLink}
-                    className="flex-1 btn-chq-primary py-2.5 text-xs font-bold"
+                    className="flex-1 btn-chq-primary py-2 sm:py-2.5 text-xs font-bold justify-center"
                   >
                     <Share2 className="w-3.5 h-3.5" />
                     <span>Copy Share URL</span>
@@ -1413,7 +1413,7 @@ export default function DashboardPage() {
                   <Link
                     href={`/${username || 'yourchannel'}/${passportId || username || 'pass'}`}
                     target="_blank"
-                    className="btn-chq-secondary px-4 py-2.5 text-xs font-semibold"
+                    className="btn-chq-secondary px-3.5 sm:px-4 py-2 sm:py-2.5 text-xs font-semibold justify-center"
                   >
                     <ExternalLink className="w-3.5 h-3.5" />
                   </Link>

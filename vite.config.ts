@@ -392,88 +392,12 @@ function apiMiddlewarePlugin(): Plugin {
             };
           };
 
-          const SEED_CREATORS = [
-            {
-              id: 'creator_itsuniqueplayz',
-              passportId: 'itsuniqueplayz',
-              slug: 'itsuniqueplayz',
-              handle: '@itsuniqueplayz',
-              username: 'itsuniqueplayz',
-              displayName: 'ItsUniquePlayz',
-              avatarUrl: '/alex-passport.png',
-              bio: 'Professional Gaming Content Creator & Esports Streamer.',
-              category: 'Gaming Creator',
-              isVerified: true,
-              verification_status: 'VERIFIED',
-              isFounding: true,
-              tierName: 'Founding Member Tier I',
-              profileCompletion: 100,
-              contactEmail: 'contact@itsuniqueplayz.com',
-              issuedAt: '2026-09-15',
-              lastVerifiedAt: '2026-10-01',
-              connections: {
-                youtube: {
-                  platform: 'YOUTUBE',
-                  connected: true,
-                  username: 'ItsUniquePlayz',
-                  metricLabel: 'subscribers',
-                  metricValue: '184K Subscribers',
-                  verified: true,
-                  profileUrl: 'https://youtube.com/@itsuniqueplayz',
-                },
-                discord: {
-                  platform: 'DISCORD',
-                  connected: true,
-                  username: 'Playz Squad',
-                  metricLabel: 'members',
-                  metricValue: '12.4K Members',
-                  verified: true,
-                  profileUrl: 'https://discord.gg/uniqueplayz',
-                }
-              }
-            },
-            {
-              id: 'creator_alex',
-              passportId: 'alex',
-              slug: 'alex',
-              handle: '@alex',
-              username: 'alex',
-              displayName: 'Alex Rivers',
-              avatarUrl: '/alex-passport.png',
-              bio: 'Software Engineer & AI Tech Creator.',
-              category: 'Tech & AI Creator',
-              isVerified: true,
-              verification_status: 'VERIFIED',
-              isFounding: true,
-              tierName: 'Founding Member Tier I',
-              profileCompletion: 95,
-              contactEmail: 'alex@rivers.dev',
-              issuedAt: '2026-09-18',
-              lastVerifiedAt: '2026-10-02',
-              connections: {
-                youtube: {
-                  platform: 'YOUTUBE',
-                  connected: true,
-                  username: 'AlexTech',
-                  metricLabel: 'subscribers',
-                  metricValue: '96.2K Subscribers',
-                  verified: true,
-                  profileUrl: 'https://youtube.com/@alextech',
-                }
-              }
-            }
-          ];
+          const SEED_CREATORS: any[] = [];
 
           // 1. /api/creators
           if (pathname === '/api/creators') {
-            let creators = readJson(creatorsFile, null);
-            if (creators === null) {
-              const tombstones = new Set(readTombstones());
-              creators = SEED_CREATORS.filter(c => !tombstones.has((c.slug || '').toLowerCase()));
-              writeJson(creatorsFile, creators);
-            } else {
-              creators = creators.filter((c: any) => !isTombstoned(c));
-            }
+            let creators = readJson(creatorsFile, []);
+            creators = creators.filter((c: any) => !isTombstoned(c));
 
             const check = url.searchParams.get('check');
             if (check) {

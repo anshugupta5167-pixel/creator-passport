@@ -11,123 +11,7 @@ const AUDIT_LOGS_KEY = 'creatorhq_audit_logs';
 const TOMBSTONES_KEY = 'creatorhq_tombstones';
 const INITIALIZED_KEY = 'creatorhq_initialized';
 
-export const SEED_CREATORS_LIST: CreatorProfile[] = [
-  {
-    id: 'creator_itsuniqueplayz',
-    passportId: 'itsuniqueplayz',
-    slug: 'itsuniqueplayz',
-    handle: '@itsuniqueplayz',
-    username: 'itsuniqueplayz',
-    displayName: 'ItsUniquePlayz',
-    avatarUrl: '/alex-passport.png',
-    bio: 'Professional Gaming Content Creator, Esports Streamer, and community leader.',
-    category: 'Gaming Creator',
-    country: 'United States',
-    isVerified: true,
-    verification_status: 'VERIFIED',
-    isFounding: true,
-    tierName: 'Founding Member Tier I',
-    profileCompletion: 100,
-    contactEmail: 'contact@itsuniqueplayz.com',
-    issuedAt: '2026-09-15',
-    lastVerifiedAt: '2026-10-01',
-    digitalSignature: '0x8f294a1b0c92e741d5a38e9c6140b2f974e18320',
-    isSuspended: false,
-    connections: {
-      youtube: {
-        platform: 'YOUTUBE',
-        connected: true,
-        username: 'ItsUniquePlayz',
-        metricLabel: 'subscribers',
-        metricValue: '184K Subscribers',
-        verified: true,
-        profileUrl: 'https://youtube.com/@itsuniqueplayz',
-        channelId: 'UC_unique_playz_gaming',
-        rawCount: 184000,
-        lastSynced: '2026-10-01',
-        syncStatus: 'VERIFIED',
-      },
-      discord: {
-        platform: 'DISCORD',
-        connected: true,
-        username: 'Playz Squad',
-        metricLabel: 'members',
-        metricValue: '12.4K Members',
-        verified: true,
-        profileUrl: 'https://discord.gg/uniqueplayz',
-        guildId: '984019283746192837',
-        rawCount: 12400,
-        lastSynced: '2026-10-01',
-        syncStatus: 'VERIFIED',
-      },
-    },
-    skills: ['Competitive FPS', 'YouTube Strategy', 'Discord Community Growth', 'Live Streaming'],
-    achievements: [
-      { id: 'ach_1', name: 'Founding Member Tier I', slug: 'founding-member', description: 'Early network adopter and founding identity holder.', badgeIcon: 'award', unlockedAt: '2026-09-15' },
-      { id: 'ach_2', name: 'Dual Verified Authority', slug: 'dual-verified', description: 'Simultaneous YouTube Studio & Discord Guild verified authenticity.', badgeIcon: 'shield-check', unlockedAt: '2026-09-20' },
-      { id: 'ach_3', name: '100K Audience Milestone', slug: '100k-club', description: 'Audited watch time exceeding 1.2M hours.', badgeIcon: 'sparkles', unlockedAt: '2026-09-28' },
-    ],
-    collaborations: [],
-    moreChannels: [],
-  },
-  {
-    id: 'creator_alex',
-    passportId: 'alex',
-    slug: 'alex',
-    handle: '@alex',
-    username: 'alex',
-    displayName: 'Alex Rivers',
-    avatarUrl: '/alex-passport.png',
-    bio: 'Software Engineer & AI Tech Creator. Deep diving into next-gen development tools.',
-    category: 'Tech & AI Creator',
-    country: 'United States',
-    isVerified: true,
-    verification_status: 'VERIFIED',
-    isFounding: true,
-    tierName: 'Founding Member Tier I',
-    profileCompletion: 95,
-    contactEmail: 'alex@rivers.dev',
-    issuedAt: '2026-09-18',
-    lastVerifiedAt: '2026-10-02',
-    digitalSignature: '0x3c78a01f52b6d8e9c4021a87b5f1903e1a6b4728',
-    isSuspended: false,
-    connections: {
-      youtube: {
-        platform: 'YOUTUBE',
-        connected: true,
-        username: 'AlexTech',
-        metricLabel: 'subscribers',
-        metricValue: '96.2K Subscribers',
-        verified: true,
-        profileUrl: 'https://youtube.com/@alextech',
-        channelId: 'UC_alex_tech_official',
-        rawCount: 96200,
-        lastSynced: '2026-10-02',
-        syncStatus: 'VERIFIED',
-      },
-      discord: {
-        platform: 'DISCORD',
-        connected: true,
-        username: 'DevHub Discord',
-        metricLabel: 'members',
-        metricValue: '8.9K Members',
-        verified: true,
-        profileUrl: 'https://discord.gg/devhub',
-        guildId: '782910293847562910',
-        rawCount: 8900,
-        lastSynced: '2026-10-02',
-        syncStatus: 'VERIFIED',
-      },
-    },
-    skills: ['TypeScript Systems', 'AI Agents', 'Cloud Architecture', 'DevRel'],
-    achievements: [
-      { id: 'ach_1', name: 'Founding Creator', slug: 'founding-creator', description: 'Early network adopter and founding identity holder.', badgeIcon: 'shield-check', unlockedAt: '2026-09-18' },
-      { id: 'ach_2', name: 'Verified Creator', slug: 'verified-creator', description: 'Passed official staff audit of YouTube Studio analytics.', badgeIcon: 'check-circle-2', unlockedAt: '2026-09-22' }
-    ],
-    collaborations: [],
-    moreChannels: [],
-  }
-];
+export const SEED_CREATORS_LIST: CreatorProfile[] = [];
 
 function isBrowser(): boolean {
   return typeof window !== 'undefined' && typeof localStorage !== 'undefined';
@@ -401,6 +285,12 @@ export class ApiStore {
     }
 
     this.addAuditLog('CREATOR_DELETED', 'Staff Admin', `Permanently deleted creator @${clean}`);
+    
+    // 6. Delete from backend server storage so all other visitors and devices immediately see it gone
+    if (isBrowser()) {
+      fetch(`/api/creators?slug=${encodeURIComponent(clean)}`, { method: 'DELETE' }).catch(() => {});
+    }
+
     try {
       broadcastLocalChange({ type: 'CREATOR_DELETED', slug: clean });
     } catch (e) {}
