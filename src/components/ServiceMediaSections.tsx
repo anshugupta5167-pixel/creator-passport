@@ -46,7 +46,6 @@ import {
   Step3MintSvg,
   HoloStepBadge
 } from '@/components/RichSvgIcons';
-import TechShowcaseBanner from '@/components/TechShowcaseBanner';
 import { subscribeToCreatorSync } from '@/lib/sync';
 
 interface ServiceMediaSectionsProps {
@@ -109,8 +108,10 @@ export default function ServiceMediaSections({
 
     if (typeof window !== 'undefined') {
       window.addEventListener('creatorhq_profile_updated', refreshCreators);
+      window.addEventListener('creatorhq_auth_updated', refreshCreators);
       return () => {
         window.removeEventListener('creatorhq_profile_updated', refreshCreators);
+        window.removeEventListener('creatorhq_auth_updated', refreshCreators);
         unsubscribe();
       };
     }
@@ -741,11 +742,15 @@ export default function ServiceMediaSections({
                       <TrendingUp className="w-4 h-4 text-sky-400" />
                       <span>
                         {creator.connections?.youtube?.metricValue
-                          ? `${creator.connections.youtube.metricValue} subscribers`
+                          ? (creator.connections.youtube.metricValue.toLowerCase().includes('sub')
+                              ? creator.connections.youtube.metricValue
+                              : `${creator.connections.youtube.metricValue} Subscribers`)
                           : (creator.connections?.instagram?.metricValue
                               ? `${creator.connections.instagram.metricValue}`
                               : (creator.connections?.discord?.metricValue
-                                  ? `${creator.connections.discord.metricValue} members`
+                                  ? (creator.connections.discord.metricValue.toLowerCase().includes('mem')
+                                      ? creator.connections.discord.metricValue
+                                      : `${creator.connections.discord.metricValue} Members`)
                                   : 'Verified Talent'))}
                       </span>
                     </div>
@@ -847,17 +852,6 @@ export default function ServiceMediaSections({
             </div>
           </div>
 
-          {/* High-Impact Visual Banner in Section */}
-          <TechShowcaseBanner
-            badge="SOVEREIGN TALENT NETWORK"
-            title="Ready to Elevate Your Creator Presence?"
-            subtitle="Claim your tamper-proof Creator Pass, connect your YouTube and Discord, and unlock direct brand sponsorships with zero agency cuts."
-            ctaText="Start Creating"
-            ctaHref="/signup"
-            secondaryCtaText="Explore Talents"
-            secondaryCtaHref="/talents"
-          />
-
         </div>
       </section>
 
@@ -951,7 +945,11 @@ export default function ServiceMediaSections({
                   {inspectingCreator.displayName}
                 </h3>
                 <p className="text-xs text-slate-400">
-                  {inspectingCreator.category} • Verified Reach: <strong className="text-white font-semibold">{inspectingCreator.connections?.youtube?.metricValue || '1.8M'} subscribers</strong>
+                  {inspectingCreator.category} • Verified Reach: <strong className="text-white font-semibold">
+                    {inspectingCreator.connections?.youtube?.metricValue?.toLowerCase().includes('sub')
+                      ? inspectingCreator.connections.youtube.metricValue
+                      : `${inspectingCreator.connections?.youtube?.metricValue || '1.8M'} Subscribers`}
+                  </strong>
                 </p>
               </div>
             </div>

@@ -1,0 +1,8 @@
+{
+  "name": "CreatorHQ",
+  "description": "Sovereign digital creator passports and verified identities for YouTube and Discord creators with direct brand sponsorships.",
+  "permissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

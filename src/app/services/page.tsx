@@ -5,7 +5,6 @@ import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import CamouflageBannerBg from '@/components/CamouflageBannerBg';
-import TechShowcaseBanner from '@/components/TechShowcaseBanner';
 import {
   ArrowRight,
   ShieldCheck,
@@ -123,19 +122,6 @@ export default function ServicesPage() {
                   </div>
                 );
               })}
-            </div>
-
-            {/* High-Impact Tech Showcase Banner */}
-            <div className="mt-16">
-              <TechShowcaseBanner
-                badge="SCALE YOUR CHANNEL"
-                title="Monetize Directly With Vetted Brand Deals"
-                subtitle="Join our network of verified content creators. Secure brand contracts with 100% payout transparency and zero agency commission cuts."
-                ctaText="Start Creating"
-                ctaHref="/signup"
-                secondaryCtaText="Explore Talents"
-                secondaryCtaHref="/talents"
-              />
             </div>
           </div>
         </section>

@@ -6,6 +6,7 @@ import { CreatorProfile } from '@/lib/types';
 import PassportCard from '@/components/PassportCard';
 import { ArrowRight, Sparkles } from 'lucide-react';
 import { subscribeToCreatorSync } from '@/lib/sync';
+import { readCachedAuthHint } from '@/lib/clientAuth';
 
 interface HeroPassShowcaseProps {
   initialCreators?: CreatorProfile[];
@@ -67,6 +68,8 @@ export default function HeroPassShowcase({ initialCreators = [] }: HeroPassShowc
 
   const makeAccountPreview = (user: any): CreatorProfile => {
     const username = String(user?.username || 'creator').toLowerCase().replace(/^@/, '');
+    const displayName = user?.displayName || username;
+    const avatarUrl = user?.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=0284c7&color=ffffff&size=256&bold=true`;
     return {
       ...DEMO_CHANNEL_TEMPLATE,
       id: `preview_${user?.id || username}`,
@@ -74,8 +77,8 @@ export default function HeroPassShowcase({ initialCreators = [] }: HeroPassShowc
       slug: username,
       handle: `@${username}`,
       username,
-      displayName: user?.displayName || username,
-      avatarUrl: user?.avatarUrl || '/icon.svg',
+      displayName,
+      avatarUrl,
       bio: 'Your Creator Pass preview. Finish your profile in Studio to make it yours.',
       contactEmail: user?.email || '',
       verification_status: 'PENDING',
@@ -98,36 +101,70 @@ export default function HeroPassShowcase({ initialCreators = [] }: HeroPassShowc
     let isMounted = true;
     let hasActiveSession = false;
 
-    // Purge any legacy unrulek card from localStorage to honor clean state
+    // Check cached auth hint or local storage card for instant zero-latency paint
     if (typeof window !== 'undefined') {
       try {
-        const stored = localStorage.getItem('creatorhq_user_card');
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (parsed && (parsed.username === 'unrulek' || parsed.slug === 'unrulek')) {
-            localStorage.removeItem('creatorhq_user_card');
+        const cached = readCachedAuthHint();
+        if (cached?.creator) {
+          setActiveCreator(cached.creator as CreatorProfile);
+          hasActiveSession = true;
+        } else if (cached?.user) {
+          setActiveCreator(makeAccountPreview(cached.user));
+          hasActiveSession = true;
+        } else {
+          const stored = localStorage.getItem('creatorhq_user_card');
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            if (parsed && (parsed.displayName || parsed.username)) {
+              setActiveCreator(parsed);
+              hasActiveSession = true;
+            }
           }
         }
       } catch (e) {}
     }
 
-    // Verify authenticated session first
+    // Verify authenticated session with server
     const checkActiveSession = async () => {
       try {
-        const res = await fetch('/api/auth/me');
+        const res = await fetch('/api/auth/me', { cache: 'no-store' });
         if (res.ok) {
           const data = await res.json();
           if (isMounted && data.authenticated && data.user) {
             hasActiveSession = true;
-            setActiveCreator(data.creator || makeAccountPreview(data.user));
+            if (data.creator) {
+              setActiveCreator(data.creator);
+            } else {
+              const localCard = typeof window !== 'undefined' ? localStorage.getItem('creatorhq_user_card') : null;
+              if (localCard) {
+                try {
+                  const parsed = JSON.parse(localCard);
+                  if (parsed && (parsed.displayName || parsed.username)) {
+                    setActiveCreator(parsed);
+                    return;
+                  }
+                } catch (e) {}
+              }
+              setActiveCreator(makeAccountPreview(data.user));
+            }
             return;
           }
         }
       } catch (e) {}
 
-      // If not authenticated, always display pristine "Your Channel Name" demo card
-      hasActiveSession = false;
+      // If not authenticated, check if visitor has a local card or fallback to demo template
       if (isMounted) {
+        const localCard = typeof window !== 'undefined' ? localStorage.getItem('creatorhq_user_card') : null;
+        if (localCard) {
+          try {
+            const parsed = JSON.parse(localCard);
+            if (parsed && (parsed.displayName || parsed.username)) {
+              setActiveCreator(parsed);
+              return;
+            }
+          } catch (e) {}
+        }
+        hasActiveSession = false;
         setActiveCreator(DEMO_CHANNEL_TEMPLATE);
       }
     };
@@ -135,7 +172,26 @@ export default function HeroPassShowcase({ initialCreators = [] }: HeroPassShowc
     checkActiveSession();
     const refreshAuthAndPass = window.setInterval(() => {
       if (hasActiveSession) checkActiveSession();
-    }, 5000);
+    }, 4000);
+
+    const handleAuthUpdate = (event: any) => {
+      if (event.detail?.creator) {
+        setActiveCreator(event.detail.creator);
+      } else if (event.detail?.user) {
+        setActiveCreator(makeAccountPreview(event.detail.user));
+      }
+    };
+
+    const handleProfileUpdate = (event: any) => {
+      if (event.detail && (event.detail.displayName || event.detail.username || event.detail.slug)) {
+        setActiveCreator(event.detail);
+      }
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('creatorhq_auth_updated', handleAuthUpdate);
+      window.addEventListener('creatorhq_profile_updated', handleProfileUpdate);
+    }
 
     const unsubscribe = subscribeToCreatorSync((update) => {
       setActiveCreator((current) => {
@@ -158,6 +214,10 @@ export default function HeroPassShowcase({ initialCreators = [] }: HeroPassShowc
     return () => {
       isMounted = false;
       window.clearInterval(refreshAuthAndPass);
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('creatorhq_auth_updated', handleAuthUpdate);
+        window.removeEventListener('creatorhq_profile_updated', handleProfileUpdate);
+      }
       unsubscribe();
     };
   }, []);

@@ -6,7 +6,6 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import TiltCard from '@/components/TiltCard';
 import CamouflageBannerBg from '@/components/CamouflageBannerBg';
-import TechShowcaseBanner from '@/components/TechShowcaseBanner';
 import {
   AuditedPrecisionSvg,
   CryptoPassSvg,
@@ -313,21 +312,6 @@ export default function AboutPage() {
                 <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
-          </div>
-        </section>
-
-        {/* ================= HIGH-IMPACT SHOWCASE BANNER ================= */}
-        <section className="relative z-10 py-8 bg-transparent">
-          <div className="container mx-auto px-4 md:px-6 max-w-6xl">
-            <TechShowcaseBanner
-              badge="INDEPENDENT CREATOR SOVEREIGNTY"
-              title="Own Your Reach. Keep 100% of Your Earnings."
-              subtitle="Stop giving away 30-50% to outdated management agencies. Mint your official Creator Pass and partner directly with world-class sponsors."
-              ctaText="Start Creating"
-              ctaHref="/signup"
-              secondaryCtaText="Meet The Founders"
-              secondaryCtaHref="/founders"
-            />
           </div>
         </section>
 

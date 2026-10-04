@@ -195,7 +195,7 @@ export interface VerificationSubmission {
   connectedPlatforms: {
     youtube?: { connected: boolean; metricValue?: string; username?: string; proofScreenshot?: string };
     discord?: { connected: boolean; metricValue?: string; username?: string; proofScreenshot?: string };
-    instagram?: { connected: boolean; username?: string };
+    instagram?: { connected: boolean; username?: string; metricValue?: string };
   };
   proofDocuments: ProofDocument[];
   status: VerificationStatus;

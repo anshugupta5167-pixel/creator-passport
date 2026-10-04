@@ -5,7 +5,6 @@ import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import CamouflageBannerBg from '@/components/CamouflageBannerBg';
-import TechShowcaseBanner from '@/components/TechShowcaseBanner';
 import { CreatorProfile } from '@/lib/types';
 import { subscribeToCreatorSync } from '@/lib/sync';
 import {
@@ -330,37 +329,34 @@ export default function CreatorsDirectoryPage() {
                 >
                   <div className="space-y-5">
                     
-                    {/* Top Row: Avatar + Name + Creator ID */}
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-3.5">
+                    {/* Top Row: Avatar + Name + Creator Status Badge */}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
                         <img
-                          src={creator.avatarUrl}
+                          src={creator.avatarUrl || '/icon.svg'}
                           alt={creator.displayName}
-                          className="w-14 h-14 rounded-xl object-cover border border-white/10 shadow-sm"
+                          className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-cover border border-white/10 shrink-0 shadow-sm"
                         />
-                        <div>
+                        <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-1.5">
-                            <h3 className="text-lg font-bold text-white leading-tight font-sans">
+                            <h3 className="text-base sm:text-lg font-bold text-white leading-tight font-sans truncate">
                               {creator.displayName}
                             </h3>
                             {creator.isVerified && (
                               <BadgeCheck className="w-4 h-4 text-emerald-400 shrink-0" />
                             )}
                           </div>
-                          <span className="text-sm font-mono text-slate-300 block mt-0.5 font-medium">
-                            @{creator.username}
+                          <span className="text-xs sm:text-sm font-mono text-slate-400 block mt-0.5 truncate font-medium">
+                            @{creator.username || creator.slug}
                           </span>
                         </div>
                       </div>
 
-                      <div className="text-right font-mono">
-                        <span className="text-xs font-bold text-sky-400 block">
-                          @{creator.slug || creator.username}
-                        </span>
-                        <span className={`text-[10px] uppercase font-semibold ${
+                      <div className="shrink-0 font-mono">
+                        <span className={`text-[10px] sm:text-xs uppercase font-bold px-2 py-0.5 rounded-md border ${
                           (creator.isVerified || creator.verification_status === 'VERIFIED')
-                            ? 'text-emerald-400'
-                            : (creator.verification_status === 'REJECTED' ? 'text-red-400' : 'text-amber-400')
+                            ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+                            : (creator.verification_status === 'REJECTED' ? 'text-red-400 bg-red-500/10 border-red-500/20' : 'text-amber-400 bg-amber-500/10 border-amber-500/20')
                         }`}>
                           {(creator.isVerified || creator.verification_status === 'VERIFIED')
                             ? (creator.isFounding ? 'FOUNDING' : 'VERIFIED')
@@ -382,35 +378,39 @@ export default function CreatorsDirectoryPage() {
                     {/* Platform Badges with Stats */}
                     <div className="p-4 rounded-xl bg-[#161922] border border-white/10 space-y-2.5 text-sm">
                       {creator.connections?.youtube?.connected && (
-                        <div className="flex items-center justify-between">
-                          <span className="text-slate-200 flex items-center gap-2 font-medium">
-                            <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-slate-200 flex items-center gap-2 font-medium shrink-0">
+                            <span className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0" />
                             <span>YouTube</span>
                           </span>
-                          <span className="font-mono text-white font-bold text-sm sm:text-base">
-                            {creator.connections?.youtube?.metricValue || '–'} subscribers
+                          <span className="font-mono text-white font-bold text-xs sm:text-sm truncate text-right">
+                            {creator.connections.youtube.metricValue?.toLowerCase().includes('sub')
+                              ? creator.connections.youtube.metricValue
+                              : `${creator.connections.youtube.metricValue || '0'} Subscribers`}
                           </span>
                         </div>
                       )}
                       {creator.connections?.discord?.connected && (
-                        <div className="flex items-center justify-between">
-                          <span className="text-slate-200 flex items-center gap-2 font-medium">
-                            <span className="w-2.5 h-2.5 rounded-full bg-[#5865F2]" />
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-slate-200 flex items-center gap-2 font-medium shrink-0">
+                            <span className="w-2.5 h-2.5 rounded-full bg-[#5865F2] shrink-0" />
                             <span>Discord</span>
                           </span>
-                          <span className="font-mono text-white font-bold text-sm sm:text-base">
-                            {creator.connections?.discord?.metricValue || '–'} members
+                          <span className="font-mono text-white font-bold text-xs sm:text-sm truncate text-right">
+                            {creator.connections.discord.metricValue?.toLowerCase().includes('mem')
+                              ? creator.connections.discord.metricValue
+                              : `${creator.connections.discord.metricValue || '0'} Members`}
                           </span>
                         </div>
                       )}
                       {creator.connections?.instagram?.connected && (
-                        <div className="flex items-center justify-between">
-                          <span className="text-slate-200 flex items-center gap-2 font-medium">
-                            <span className="w-2.5 h-2.5 rounded-full bg-[#E1306C]" />
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-slate-200 flex items-center gap-2 font-medium shrink-0">
+                            <span className="w-2.5 h-2.5 rounded-full bg-[#E1306C] shrink-0" />
                             <span>Instagram</span>
                           </span>
-                          <span className="font-mono text-white font-bold text-sm sm:text-base">
-                            {creator.connections?.instagram?.metricValue || (creator.connections?.instagram?.username ? `@${creator.connections.instagram.username}` : '–')}
+                          <span className="font-mono text-white font-bold text-xs sm:text-sm truncate text-right">
+                            {creator.connections.instagram.metricValue || (creator.connections.instagram.username ? `@${creator.connections.instagram.username}` : '–')}
                           </span>
                         </div>
                       )}
@@ -453,19 +453,6 @@ export default function CreatorsDirectoryPage() {
               ))}
             </div>
           )}
-
-          {/* High-Impact Tech Showcase Banner */}
-          <div className="mt-16">
-            <TechShowcaseBanner
-              badge="VERIFIED TALENT DISCOVERY"
-              title="Want Your Channel Featured on This Roster?"
-              subtitle="Mint your sovereign 3D Creator Pass, submit your YouTube or Discord analytics for audit, and connect with global brand sponsors."
-              ctaText="Start Creating"
-              ctaHref="/signup"
-              secondaryCtaText="Explore Services"
-              secondaryCtaHref="/services"
-            />
-          </div>
 
         </div>
       </main>

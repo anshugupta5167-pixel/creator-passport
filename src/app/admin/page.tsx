@@ -603,10 +603,13 @@ export default function AdminPage() {
     setIsAuthenticated(false);
   };
 
-  const handleDeleteCreator = async (slug: string, displayName: string) => {
-    if (!confirm(`Are you sure you want to permanently delete Creator Pass for ${displayName} (@${slug})?`)) {
-      return;
-    }
+  const [creatorToDelete, setCreatorToDelete] = useState<{ slug: string; displayName: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const confirmDeleteCreator = async () => {
+    if (!creatorToDelete) return;
+    const { slug, displayName } = creatorToDelete;
+    setIsDeleting(true);
 
     try {
       const res = await fetch(`/api/creators?slug=${encodeURIComponent(slug)}`, {
@@ -614,26 +617,39 @@ export default function AdminPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(data.message || data.error || 'Could not permanently remove this creator from cloud storage.');
+        throw new Error(data.message || data.error || 'Could not permanently remove this creator.');
       }
 
       setCreators((prev) => prev.filter((c) => (c.slug || c.username || '').toLowerCase() !== slug.toLowerCase()));
 
       try {
+        const { ApiStore } = await import('@/lib/apiStore');
+        ApiStore.deleteCreator(slug);
+      } catch (e) {}
+
+      try {
+        broadcastLocalChange({ type: 'CREATOR_DELETED', slug });
+      } catch (e) {}
+
+      try {
         const saved = localStorage.getItem('creatorhq_user_card');
         if (saved) {
-          const parsed: CreatorProfile = JSON.parse(saved);
+          const parsed = JSON.parse(saved);
           if ((parsed.slug || parsed.username || '').toLowerCase() === slug.toLowerCase()) {
             localStorage.removeItem('creatorhq_user_card');
           }
         }
       } catch (e) {}
 
-      setActionFeedback(`Creator Pass @${slug} permanently deleted.`);
-      setTimeout(() => setActionFeedback(''), 4000);
+      setActionFeedback(`Creator Pass for ${displayName} (@${slug}) permanently deleted.`);
+      setTimeout(() => setActionFeedback(''), 4500);
+      setCreatorToDelete(null);
     } catch (err) {
       await loadLiveData();
-      alert(err instanceof Error ? err.message : 'Failed to delete creator pass. Check network/server connection.');
+      setActionFeedback(err instanceof Error ? err.message : 'Failed to delete creator pass.');
+      setTimeout(() => setActionFeedback(''), 5000);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -1483,8 +1499,8 @@ export default function AdminPage() {
                             </button>
 
                             <button
-                              onClick={() => handleDeleteCreator(creatorSlug, c.displayName)}
-                              className="px-3 py-1.5 rounded-lg bg-red-950/40 hover:bg-red-900/80 border border-red-800/40 text-red-400 hover:text-red-200 text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm"
+                              onClick={() => setCreatorToDelete({ slug: creatorSlug, displayName: c.displayName })}
+                              className="px-3 py-1.5 rounded-lg bg-red-950/40 hover:bg-red-900/80 border border-red-800/40 text-red-400 hover:text-red-200 text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm cursor-pointer"
                               title="Permanently delete pass"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
@@ -1719,6 +1735,69 @@ export default function AdminPage() {
               </button>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          PERMANENT DELETION CONFIRMATION MODAL
+          ========================================================================= */}
+      {creatorToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
+          <div className="relative w-full max-w-md bg-[#0e121a] border border-red-500/40 rounded-2xl shadow-2xl p-6 overflow-hidden">
+            {/* Top red accent glow */}
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-red-600 via-rose-500 to-red-600" />
+
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-xl bg-red-950/90 border border-red-700/60 flex items-center justify-center flex-shrink-0 text-red-400 shadow-inner">
+                <Trash2 className="w-6 h-6" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-lg font-bold text-white mb-1">
+                  Permanently Delete Pass?
+                </h3>
+                <p className="text-sm text-slate-300">
+                  Are you sure you want to permanently delete the sovereign pass for{' '}
+                  <span className="font-semibold text-white">
+                    {creatorToDelete.displayName}
+                  </span>{' '}
+                  (<span className="text-sky-400">@{creatorToDelete.slug}</span>)?
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4 p-3.5 rounded-xl bg-red-950/40 border border-red-800/40 text-xs text-red-200 leading-relaxed">
+              ⚠️ <strong className="font-semibold text-red-300">Warning:</strong> This cannot be undone. All verified creator data, connections, and sovereign credentials will be permanently erased.
+            </div>
+
+            <div className="mt-6 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setCreatorToDelete(null)}
+                disabled={isDeleting}
+                className="px-4 py-2.5 rounded-xl bg-[#161a24] hover:bg-[#1f2533] border border-white/10 text-slate-300 hover:text-white text-xs font-semibold transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteCreator}
+                disabled={isDeleting}
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white text-xs font-bold transition-all shadow-lg shadow-red-900/40 flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+              >
+                {isDeleting ? (
+                  <>
+                    <RotateCcw className="w-4 h-4 animate-spin" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    <span>Confirm Delete</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

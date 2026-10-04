@@ -5,7 +5,6 @@ import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import CamouflageBannerBg from '@/components/CamouflageBannerBg';
-import TechShowcaseBanner from '@/components/TechShowcaseBanner';
 import {
   HelpCircle,
   ChevronDown,
@@ -123,21 +122,6 @@ export default function FaqPage() {
                 </div>
               );
             })}
-          </div>
-        </section>
-
-        {/* High-Impact Tech Showcase Banner */}
-        <section className="relative z-10 py-12 bg-transparent">
-          <div className="container mx-auto px-4 md:px-6 max-w-5xl">
-            <TechShowcaseBanner
-              badge="24/7 VERIFICATION DESK"
-              title="Have More Questions About Sovereign Passes?"
-              subtitle="Our creator support and verification team is available 24/7 to audit your reach, inspect analytics proofs, and issue your official Creator ID."
-              ctaText="Start Creating"
-              ctaHref="/signup"
-              secondaryCtaText="Contact Support Desk"
-              secondaryCtaHref="/contact"
-            />
           </div>
         </section>
       </main>

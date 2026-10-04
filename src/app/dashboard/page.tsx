@@ -11,6 +11,8 @@ import MoreChannelsCard from '@/components/MoreChannelsCard';
 import { CreatorProfile, ChannelItem } from '@/lib/types';
 import { resolveYouTubeUrl, resolveDiscordUrl, resolveInstagramUrl, getSafeAvatarUrl } from '@/lib/urls';
 import { cacheAuthHint, readCachedAuthHint } from '@/lib/clientAuth';
+import { useSessionSync } from '@/hooks/useSessionSync';
+import { syncCreatorToFirebase } from '@/lib/firebase';
 import {
   Check,
   Copy,
@@ -107,6 +109,7 @@ export default function DashboardPage() {
   const [instagramUsername, setInstagramUsername] = useState('');
   const [instagramReach, setInstagramReach] = useState('');
   const [instagramDetecting, setInstagramDetecting] = useState(false);
+  const [instagramError, setInstagramError] = useState<string | null>(null);
 
   const [moreChannels, setMoreChannels] = useState<ChannelItem[]>([]);
   const [selectedTheme, setSelectedTheme] = useState<CardTheme>('obsidian');
@@ -194,6 +197,23 @@ export default function DashboardPage() {
     }
   };
 
+  // Custom Hook for Real-time Session & Creator Synchronization
+  useSessionSync({
+    onSessionChange: (data) => {
+      if (data.creator) {
+        applyCreatorToState(data.creator);
+      } else if (data.user) {
+        // Only initialize fields if creator hasn't set or auto-detected their channel name yet
+        setDisplayName((current) => (!current || current === 'Your Channel Name' ? (data.user?.displayName || '') : current));
+        setUsername((current) => (!current || current === 'yourchannel' ? (data.user?.username || '') : current));
+        setContactEmail((current) => (!current ? (data.user?.email || '') : current));
+        setAvatarUrl((current) => (!current ? (data.user?.avatarUrl || null) : current));
+      }
+    },
+    enablePolling: true,
+    pollIntervalMs: 5000,
+  });
+
   useEffect(() => {
     setIsMounted(true);
 
@@ -208,8 +228,7 @@ export default function DashboardPage() {
       })
       .catch(() => {});
 
-    // Confirm the server session before entering Studio. A transient API error
-    // should never bounce a signed-in creator to account creation.
+    // Confirm the server session before entering Studio
     const checkAuthAndStorage = async () => {
       let authData: AuthMeResponse | null = null;
       let lastError: unknown = null;
@@ -232,12 +251,19 @@ export default function DashboardPage() {
         if (authData.creator) {
           applyCreatorToState(authData.creator);
         } else {
+          setDisplayName((current) => (!current || current === 'Your Channel Name' ? (authData.user?.displayName || '') : current));
+          setUsername((current) => (!current || current === 'yourchannel' ? (authData.user?.username || '') : current));
+          setContactEmail((current) => (!current ? (authData.user?.email || '') : current));
+          setAvatarUrl((current) => (!current ? (authData.user?.avatarUrl || null) : current));
+
           const saved = localStorage.getItem(STORAGE_KEY);
           if (saved) {
-            const parsed = JSON.parse(saved);
-            if (parsed && (parsed.displayName || parsed.username)) {
-              applyCreatorToState(parsed);
-            }
+            try {
+              const parsed = JSON.parse(saved);
+              if (parsed && (parsed.displayName || parsed.username)) {
+                applyCreatorToState(parsed);
+              }
+            } catch (e) {}
           }
         }
         return;
@@ -272,6 +298,69 @@ export default function DashboardPage() {
     });
 
     return () => unsubscribe();
+  }, []);
+
+  // Dedicated useEffect listener for 'creatorhq_profile_updated' custom window events
+  useEffect(() => {
+    const handleProfileUpdated = (event: Event) => {
+      const customEvent = event as CustomEvent<CreatorProfile | Partial<CreatorProfile>>;
+      const updatedData = customEvent.detail;
+
+      if (updatedData) {
+        // Force state update and UI re-render with latest user display name, avatar, and saved passport data
+        applyCreatorToState(updatedData as CreatorProfile);
+
+        if (updatedData.displayName) {
+          setDisplayName(updatedData.displayName);
+        }
+        if (updatedData.avatarUrl) {
+          setAvatarUrl(updatedData.avatarUrl);
+        }
+        if (updatedData.username || updatedData.slug) {
+          setUsername(updatedData.username || updatedData.slug || '');
+        }
+        if (updatedData.passportId) {
+          setPassportId(updatedData.passportId);
+        }
+        if (updatedData.isVerified !== undefined) {
+          setIsVerified(Boolean(updatedData.isVerified));
+        }
+      } else {
+        // Re-fetch latest authenticated user & creator session data
+        try {
+          const stored = localStorage.getItem(STORAGE_KEY);
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            if (parsed) applyCreatorToState(parsed);
+          }
+        } catch (e) {}
+
+        fetch('/api/auth/me', { cache: 'no-store' })
+          .then((res) => res.json())
+          .then((data) => {
+            if (data?.authenticated) {
+              if (data.creator) {
+                applyCreatorToState(data.creator);
+              } else if (data.user) {
+                if (data.user.displayName) setDisplayName(data.user.displayName);
+                if (data.user.avatarUrl) setAvatarUrl(data.user.avatarUrl);
+                if (data.user.username) setUsername(data.user.username);
+              }
+            }
+          })
+          .catch(() => {});
+      }
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('creatorhq_profile_updated', handleProfileUpdated);
+    }
+
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('creatorhq_profile_updated', handleProfileUpdated);
+      }
+    };
   }, []);
 
   // Live Computed CreatorProfile for PassportCard
@@ -336,8 +425,9 @@ export default function DashboardPage() {
   };
 
   // YouTube Auto-Detection
-  const handleDetectYouTube = async () => {
-    if (!youtubeUrl.trim()) return;
+  const handleDetectYouTube = async (inputUrlOverride?: string) => {
+    const targetUrl = (inputUrlOverride || youtubeUrl).trim();
+    if (!targetUrl) return;
     setYoutubeDetecting(true);
     setYoutubeError(null);
 
@@ -345,7 +435,7 @@ export default function DashboardPage() {
       const res = await fetch('/api/youtube/detect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: youtubeUrl.trim(), passportId }),
+        body: JSON.stringify({ url: targetUrl, passportId }),
       });
       const data = await res.json();
       if (!res.ok || data.error) throw new Error(data.error || 'YouTube channel not found');
@@ -359,16 +449,16 @@ export default function DashboardPage() {
       setYoutubeUrl(formattedUrl);
 
       if (data.channel.avatarUrl) {
-        setAvatarUrl(getSafeAvatarUrl(data.channel.avatarUrl, data.channel.title));
+        setAvatarUrl(data.channel.avatarUrl);
         setIsAvatarFromYouTube(true);
       }
-      if (data.channel.title && !displayName) {
+      if (data.channel.title) {
         setDisplayName(data.channel.title);
       }
-      if (cleanHandle && !username) {
+      if (cleanHandle) {
         setUsername(cleanHandle.toLowerCase().replace(/[^a-z0-9_]/g, ''));
       }
-      if (data.channel.description && !bio) {
+      if (data.channel.description) {
         setBio(data.channel.description.substring(0, 300));
       }
 
@@ -381,7 +471,7 @@ export default function DashboardPage() {
         channelId: data.channel.channelId,
       });
 
-      setToastMessage(`✓ YouTube Synced: ${data.channel.title} (${data.channel.subscriberCountFormatted})`);
+      setToastMessage(`✓ YouTube Auto-Synced: ${data.channel.title} (${data.channel.subscriberCountFormatted})`);
       setTimeout(() => setToastMessage(null), 3500);
     } catch (err: any) {
       setYoutubeError(err.message || 'Could not auto-detect YouTube channel');
@@ -389,6 +479,26 @@ export default function DashboardPage() {
       setYoutubeDetecting(false);
     }
   };
+
+  // Automatic YouTube link detection on paste / typing
+  const lastDetectedUrlRef = React.useRef<string>('');
+  useEffect(() => {
+    const trimmed = youtubeUrl.trim();
+    if (!trimmed || trimmed === lastDetectedUrlRef.current) return;
+    if (
+      trimmed.includes('youtube.com/@') ||
+      trimmed.includes('youtube.com/channel/') ||
+      trimmed.includes('youtube.com/c/') ||
+      trimmed.includes('youtu.be/') ||
+      (trimmed.startsWith('@') && trimmed.length >= 3)
+    ) {
+      const timer = setTimeout(() => {
+        lastDetectedUrlRef.current = trimmed;
+        handleDetectYouTube(trimmed);
+      }, 600);
+      return () => clearTimeout(timer);
+    }
+  }, [youtubeUrl]);
 
   // Discord Auto-Detection
   const handleDetectDiscord = async () => {
@@ -405,16 +515,16 @@ export default function DashboardPage() {
       const data = await res.json();
       if (!res.ok || data.error) throw new Error(data.error || 'Discord invite invalid');
 
-      const server = data.server;
+      const server = data.server || data.guild;
       if (!server?.guildId || !Number.isInteger(server.memberCount)) {
         throw new Error('Discord did not return a live server member count.');
       }
       setDiscordGuildId(server.guildId);
       setDiscordUsername(server.guildName);
-      setDiscordReach(server.memberCountFormatted);
+      setDiscordReach(server.memberCountFormatted || `${server.memberCount.toLocaleString()} Members`);
       setDiscordUrl(server.inviteUrl || resolveDiscordUrl(discordUrl, server.guildName, server.guildId, username));
 
-      setToastMessage(`✓ Discord Server Found: ${server.guildName}`);
+      setToastMessage(`✓ Discord Server Found: ${server.guildName} (${server.memberCountFormatted || `${server.memberCount} Members`})`);
       setTimeout(() => setToastMessage(null), 3500);
     } catch (err: any) {
       setDiscordError(err.message || 'Could not verify Discord invite');
@@ -422,6 +532,78 @@ export default function DashboardPage() {
       setDiscordDetecting(false);
     }
   };
+
+  // Automatic Discord link detection on paste / typing
+  const lastDetectedDiscordRef = React.useRef<string>('');
+  useEffect(() => {
+    const trimmed = discordUrl.trim();
+    if (!trimmed || trimmed === lastDetectedDiscordRef.current) return;
+    if (trimmed.includes('discord.gg/') || trimmed.includes('discord.com/invite/')) {
+      const timer = setTimeout(() => {
+        lastDetectedDiscordRef.current = trimmed;
+        handleDetectDiscord();
+      }, 600);
+      return () => clearTimeout(timer);
+    }
+  }, [discordUrl]);
+
+  // Instagram Auto-Detection
+  const handleDetectInstagram = async () => {
+    if (!instagramUrl.trim()) return;
+    setInstagramDetecting(true);
+    setInstagramError(null);
+
+    try {
+      const res = await fetch('/api/instagram/detect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: instagramUrl.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || 'Instagram profile not found');
+
+      const profile = data.profile;
+      if (!profile?.username) {
+        throw new Error('Instagram did not return a valid profile.');
+      }
+
+      const cleanUser = profile.username.toLowerCase().replace(/^@/, '');
+      setInstagramUsername(cleanUser);
+      setInstagramReach(profile.followersFormatted || (profile.followersCount ? `${profile.followersCount.toLocaleString()} Followers` : 'Unavailable'));
+      setInstagramUrl(profile.url || `https://instagram.com/${cleanUser}`);
+
+      if (profile.avatarUrl && (!avatarUrl || avatarUrl.includes('alex-passport') || !isAvatarFromYouTube)) {
+        setAvatarUrl(profile.avatarUrl);
+      }
+      if (profile.fullName && (!displayName || displayName === 'Your Channel Name')) {
+        setDisplayName(profile.fullName);
+      }
+      if (profile.bio && (!bio || bio.startsWith('Authentic creator'))) {
+        setBio(profile.bio.substring(0, 300));
+      }
+
+      setToastMessage(`✓ Instagram Connected: @${cleanUser} (${profile.followersFormatted || 'Verified'})`);
+      setTimeout(() => setToastMessage(null), 3500);
+    } catch (err: any) {
+      setInstagramError(err.message || 'Could not verify Instagram profile');
+    } finally {
+      setInstagramDetecting(false);
+    }
+  };
+
+  // Automatic Instagram profile detection on paste / typing
+  const lastDetectedInstaRef = React.useRef<string>('');
+  useEffect(() => {
+    const trimmed = instagramUrl.trim();
+    if (!trimmed || trimmed === lastDetectedInstaRef.current) return;
+    if (trimmed.includes('instagram.com/') || (trimmed.startsWith('@') && trimmed.length >= 3)) {
+      const timer = setTimeout(() => {
+        lastDetectedInstaRef.current = trimmed;
+        handleDetectInstagram();
+      }, 600);
+      return () => clearTimeout(timer);
+    }
+  }, [instagramUrl]);
 
   // Save / Update Pass to Database
   const handleSavePass = async (e: React.FormEvent) => {
@@ -499,15 +681,46 @@ export default function DashboardPage() {
       }
 
       const saved = await res.json();
-      const sessionResponse = await fetch('/api/auth/me', { cache: 'no-store' });
-      if (sessionResponse.ok) {
-        const sessionData = await sessionResponse.json();
-        if (sessionData.user) cacheAuthHint(sessionData.user, saved.creator || profileToSave);
-      }
+      const savedCreator = saved.creator || profileToSave;
 
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(saved.creator || profileToSave));
+      let updatedUser = null;
+      try {
+        const sessionResponse = await fetch('/api/auth/me', { cache: 'no-store' });
+        if (sessionResponse.ok) {
+          const sessionData = await sessionResponse.json();
+          if (sessionData.user) {
+            updatedUser = sessionData.user;
+            cacheAuthHint(sessionData.user, savedCreator);
+          }
+        }
+      } catch (e) {}
+
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(savedCreator));
       setHasCreatedCard(true);
       setPassportId(uniquePassId);
+
+      // Persist directly to Firebase Firestore for bulletproof cross-device sync
+      try {
+        syncCreatorToFirebase(savedCreator).catch(() => {});
+      } catch (e) {}
+
+      // Instantly broadcast updates to Navbar, HeroPassShowcase, Bento, and entire app
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('creatorhq_auth_updated', {
+          detail: { user: updatedUser, creator: savedCreator }
+        }));
+        window.dispatchEvent(new CustomEvent('creatorhq_profile_updated', {
+          detail: savedCreator
+        }));
+      }
+
+      try {
+        broadcastLocalChange({
+          type: 'CREATOR_UPDATED',
+          creatorSlug: savedCreator.slug,
+          verificationStatus: savedCreator.verification_status,
+        });
+      } catch (e) {}
 
       confetti({
         particleCount: 50,
@@ -933,22 +1146,61 @@ export default function DashboardPage() {
                       )}
                     </div>
 
-                    {/* Additional Socials Grid */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {/* Instagram */}
-                      <div className="p-4 rounded-2xl bg-[#10141e] border border-white/10 space-y-2">
-                        <label className="text-xs font-bold text-white flex items-center gap-1.5">
-                          <span>Instagram Profile URL</span>
-                        </label>
+                    {/* Instagram Integration Card */}
+                    <div className="p-5 rounded-2xl bg-[#10141e] border border-white/10 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-lg bg-pink-500/10 border border-pink-500/20 flex items-center justify-center text-pink-500">
+                            <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                              <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                            </svg>
+                          </div>
+                          <div>
+                            <h3 className="text-sm font-bold text-white">Instagram Profile Auto-Detect</h3>
+                            <span className="text-[11px] text-slate-400">Pulls official followers count & public bio</span>
+                          </div>
+                        </div>
+                        {instagramReach && (
+                          <span className="text-xs font-mono font-bold text-pink-400 bg-pink-500/10 border border-pink-500/25 px-2.5 py-1 rounded-full">
+                            {instagramReach}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row gap-2.5">
                         <input
                           type="text"
                           value={instagramUrl}
                           onChange={(e) => setInstagramUrl(e.target.value)}
-                          placeholder="https://instagram.com/username"
-                          className="w-full px-3.5 py-2 rounded-xl bg-[#080a0f] border border-white/10 text-white text-xs placeholder-slate-500 focus:outline-none focus:border-sky-400 transition-colors"
+                          placeholder="Paste Instagram profile link (e.g. https://instagram.com/mrbeast or @handle)"
+                          className="flex-1 px-4 py-2.5 rounded-xl bg-[#080a0f] border border-white/10 text-white text-xs sm:text-sm placeholder-slate-500 focus:outline-none focus:border-sky-400 transition-colors"
                         />
+                        <button
+                          type="button"
+                          onClick={handleDetectInstagram}
+                          disabled={instagramDetecting || !instagramUrl.trim()}
+                          className="btn-chq-primary px-5 py-2.5 text-xs font-bold shrink-0 disabled:opacity-50"
+                        >
+                          {instagramDetecting ? (
+                            <>
+                              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                              <span>Detecting...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Zap className="w-3.5 h-3.5" />
+                              <span>Verify Profile</span>
+                            </>
+                          )}
+                        </button>
                       </div>
 
+                      {instagramError && (
+                        <p className="text-xs text-red-400 flex items-center gap-1.5 font-medium">
+                          <AlertCircle className="w-3.5 h-3.5" />
+                          <span>{instagramError}</span>
+                        </p>
+                      )}
                     </div>
 
                     {/* More Channels Card */}

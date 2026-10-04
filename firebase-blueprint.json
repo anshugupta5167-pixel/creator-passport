@@ -1,0 +1,90 @@
+{
+  "entities": {
+    "Creator": {
+      "title": "Creator",
+      "description": "Creator profile and digital passport identity",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "username": { "type": "string" },
+        "displayName": { "type": "string" },
+        "slug": { "type": "string" },
+        "passportId": { "type": "string" },
+        "isVerified": { "type": "boolean" },
+        "verification_status": { "type": "string" },
+        "category": { "type": "string" }
+      },
+      "required": ["username", "displayName"]
+    },
+    "Verification": {
+      "title": "Verification",
+      "description": "Verification submission for creator metrics and proofs",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "creatorSlug": { "type": "string" },
+        "status": { "type": "string" }
+      },
+      "required": ["creatorSlug", "status"]
+    },
+    "User": {
+      "title": "User",
+      "description": "User account and credentials",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "email": { "type": "string" },
+        "username": { "type": "string" },
+        "role": { "type": "string" }
+      },
+      "required": ["email", "role"]
+    },
+    "Session": {
+      "title": "Session",
+      "description": "Active authentication session",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "token": { "type": "string" },
+        "expiresAt": { "type": "string" }
+      },
+      "required": ["userId", "token", "expiresAt"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Staff audit log entry",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "action": { "type": "string" },
+        "actor": { "type": "string" },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["action", "actor", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/creators/{creatorId}": {
+      "schema": { "$ref": "#/entities/Creator" },
+      "description": "Collection of verified creator profiles"
+    },
+    "/verifications/{verificationId}": {
+      "schema": { "$ref": "#/entities/Verification" },
+      "description": "Collection of verification requests and review decisions"
+    },
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Collection of authenticated user records"
+    },
+    "/sessions/{sessionId}": {
+      "schema": { "$ref": "#/entities/Session" },
+      "description": "Active user sessions"
+    },
+    "/auditLogs/{logId}": {
+      "schema": { "$ref": "#/entities/AuditLog" },
+      "description": "System audit trail entries"
+    }
+  }
+}

@@ -10,5 +10,49 @@
     "emailVerified": true,
     "createdAt": "2026-10-03T06:28:01.200Z",
     "updatedAt": "2026-10-03T06:28:01.200Z"
+  },
+  {
+    "id": "usr_1791091539967",
+    "email": "testuser@gmail.com",
+    "username": "testuser",
+    "displayName": "Test Gaming Studio",
+    "role": "CREATOR",
+    "emailVerified": true,
+    "createdAt": "2026-10-04T05:25:39.967Z",
+    "avatarUrl": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400",
+    "creatorSlug": "testuser"
+  },
+  {
+    "id": "usr_1791091712882",
+    "email": "falcon@creatorhq.fun",
+    "username": "falcon",
+    "displayName": "Falcon Pro Gaming",
+    "role": "CREATOR",
+    "emailVerified": true,
+    "createdAt": "2026-10-04T05:28:32.882Z",
+    "avatarUrl": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400",
+    "creatorSlug": "falcon"
+  },
+  {
+    "id": "usr_1791091927736",
+    "email": "falconpro@gmail.com",
+    "username": "falconpro",
+    "displayName": "Falcon Pro Gaming",
+    "role": "CREATOR",
+    "emailVerified": true,
+    "createdAt": "2026-10-04T05:32:07.736Z",
+    "avatarUrl": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400",
+    "creatorSlug": "falconpro"
+  },
+  {
+    "id": "usr_1791092568184",
+    "email": "opuser@gmail.com",
+    "username": "opuser",
+    "displayName": "Unrulek",
+    "role": "CREATOR",
+    "emailVerified": true,
+    "createdAt": "2026-10-04T05:42:48.184Z",
+    "avatarUrl": "https://yt3.googleusercontent.com/fsTkU4pgO2Xyjf7IfshXvFE5wf7aQ1PJjrfwmON3vgPfKgZmb0DXGqGDypWjcDRmVWjvlGZQwA=s900-c-k-c0x00ffffff-no-rj",
+    "creatorSlug": "unrulek"
   }
 ]

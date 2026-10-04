@@ -82,6 +82,16 @@ export default function AuthCard({
       }
 
       cacheAuthHint(data.user, data.creator);
+      if (data.creator && typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('creatorhq_user_card', JSON.stringify(data.creator));
+        } catch (e) {}
+      }
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('creatorhq_auth_updated', {
+          detail: { user: data.user, creator: data.creator }
+        }));
+      }
       setSuccessMsg('Welcome back!');
       if (onSuccess) onSuccess(data.user, data.creator);
       else if (typeof window !== 'undefined') router.replace(getPostAuthPath());
@@ -132,6 +142,16 @@ export default function AuthCard({
       }
 
       cacheAuthHint(data.user, data.creator);
+      if (data.creator && typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('creatorhq_user_card', JSON.stringify(data.creator));
+        } catch (e) {}
+      }
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('creatorhq_auth_updated', {
+          detail: { user: data.user, creator: data.creator }
+        }));
+      }
       setSuccessMsg('Account created successfully!');
       if (onSuccess) onSuccess(data.user, data.creator);
       else if (typeof window !== 'undefined') router.replace(getPostAuthPath());

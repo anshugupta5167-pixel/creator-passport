@@ -6,20 +6,16 @@
 
 export function getSafeAvatarUrl(url?: string | null, fallbackName: string = 'Creator'): string {
   if (!url || typeof url !== 'string' || !url.trim()) {
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(fallbackName)}&background=141414&color=ffffff&size=256&bold=true`;
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(fallbackName || 'Creator')}&background=0284c7&color=ffffff&size=256&bold=true`;
   }
   const cleanUrl = url.trim();
-  // If already proxied or base64 data URI
-  if (cleanUrl.startsWith('/api/avatar-proxy') || cleanUrl.startsWith('data:image')) {
-    return cleanUrl;
-  }
-  // If hosted on Google / YouTube user content (yt3.googleusercontent.com, yt3.ggpht.com, etc.)
-  if (
-    cleanUrl.includes('googleusercontent.com') ||
-    cleanUrl.includes('ggpht.com') ||
-    cleanUrl.includes('youtube.com')
-  ) {
-    return `/api/avatar-proxy?url=${encodeURIComponent(cleanUrl)}`;
+  if (cleanUrl.startsWith('/api/avatar-proxy')) {
+    const match = cleanUrl.match(/url=([^&]+)/);
+    if (match) {
+      try {
+        return decodeURIComponent(match[1]);
+      } catch (e) {}
+    }
   }
   return cleanUrl;
 }

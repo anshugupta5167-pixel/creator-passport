@@ -53,6 +53,34 @@ export default function Navbar() {
 
     checkAuth();
 
+    const handleAuthUpdate = (event: any) => {
+      if (event.detail?.user) {
+        setUser(event.detail.user);
+      }
+      if (event.detail?.creator) {
+        setCreator(event.detail.creator);
+      }
+      setLoading(false);
+    };
+
+    const handleProfileUpdate = (event: any) => {
+      if (event.detail) {
+        setCreator(event.detail);
+        if (event.detail.displayName || event.detail.avatarUrl) {
+          setUser((prev: any) => prev ? {
+            ...prev,
+            displayName: event.detail.displayName || prev.displayName,
+            avatarUrl: event.detail.avatarUrl || prev.avatarUrl,
+          } : prev);
+        }
+      }
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('creatorhq_auth_updated', handleAuthUpdate);
+      window.addEventListener('creatorhq_profile_updated', handleProfileUpdate);
+    }
+
     const unsubscribeSync = subscribeToCreatorSync((update) => {
       setCreator((current: any) => {
         if (!current) return current;
@@ -73,6 +101,10 @@ export default function Navbar() {
 
     return () => {
       isMounted = false;
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('creatorhq_auth_updated', handleAuthUpdate);
+        window.removeEventListener('creatorhq_profile_updated', handleProfileUpdate);
+      }
       unsubscribeSync();
     };
   }, [pathname]);

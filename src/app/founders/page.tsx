@@ -4,7 +4,6 @@ import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import CamouflageBannerBg from '@/components/CamouflageBannerBg';
-import TechShowcaseBanner from '@/components/TechShowcaseBanner';
 import TiltCard from '@/components/TiltCard';
 import {
   ZeroCompromiseSvg,
@@ -373,19 +372,6 @@ export default function FoundersPage() {
             </div>
           </div>
         </section>
-
-        {/* High-Impact Tech Showcase Banner */}
-        <div className="relative z-10 container mx-auto px-4 md:px-6 max-w-6xl my-10">
-          <TechShowcaseBanner
-            badge="EXECUTIVE PROTOCOL"
-            title="The Sovereign Identity Standard for Creators"
-            subtitle="Built from first principles by Anshu Gupta and Pranav Sharma to eliminate metric fraud and give creators 100% of their sponsor revenue."
-            ctaText="Start Creating"
-            ctaHref="/signup"
-            secondaryCtaText="Contact Founders"
-            secondaryCtaHref="/contact"
-          />
-        </div>
 
         {/* ================= FINAL CALL TO ACTION ================= */}
         <section className="relative z-10 py-24 bg-transparent text-center overflow-hidden">
