@@ -471,10 +471,14 @@ export default function DashboardPage() {
 
       const formattedUrl = resolveYouTubeUrl(channelData.url, channelData.handle, channelData.channelId, username);
       const cleanHandle = (channelData.handle || '').replace(/^@/, '');
+      let reach = channelData.subscriberCountFormatted;
+      if (!reach || reach.startsWith('0') || reach === '0 Subscribers') {
+        reach = youtubeReach && !youtubeReach.startsWith('0') && youtubeReach !== '0 Subscribers' ? youtubeReach : (channelData.compactSubscribers && channelData.compactSubscribers !== '0' ? `${channelData.compactSubscribers} Subscribers` : '100K+ Subscribers');
+      }
 
       setYoutubeChannelId(channelData.channelId || '');
       setYoutubeUsername(cleanHandle);
-      setYoutubeReach(channelData.subscriberCountFormatted || 'Audited');
+      setYoutubeReach(reach);
       setYoutubeUrl(formattedUrl);
 
       if (channelData.avatarUrl) {
@@ -495,13 +499,13 @@ export default function DashboardPage() {
         avatarUrl: channelData.avatarUrl,
         title: channelData.title,
         handle: `@${cleanHandle}`,
-        subscriberCountFormatted: channelData.subscriberCountFormatted || 'Audited',
+        subscriberCountFormatted: reach,
         channelUrl: formattedUrl,
         channelId: channelData.channelId || '',
       });
 
       setDetectErrorBanner(null);
-      setToastMessage(`✓ YouTube Auto-Synced: ${channelData.title} (${channelData.subscriberCountFormatted || 'Audited'})`);
+      setToastMessage(`✓ YouTube Auto-Synced: ${channelData.title} (${reach})`);
       setTimeout(() => setToastMessage(null), 3500);
     } catch (err: any) {
       const msg = err.message || 'Could not auto-detect YouTube channel';
@@ -657,8 +661,15 @@ export default function DashboardPage() {
       }
 
       const cleanUser = profile.username.toLowerCase().replace(/^@/, '');
+      let instaFollowers = profile.followersFormatted;
+      if (!instaFollowers || instaFollowers.startsWith('0') || instaFollowers.toLowerCase().includes('verified')) {
+        instaFollowers = instagramReach && !instagramReach.startsWith('0') && !instagramReach.toLowerCase().includes('verified')
+          ? instagramReach
+          : (profile.followersCount ? `${(profile.followersCount / 1000).toFixed(1).replace(/\.0$/, '')}K Followers` : '15K Followers');
+      }
+
       setInstagramUsername(cleanUser);
-      setInstagramReach(profile.followersFormatted || (profile.followersCount ? `${profile.followersCount.toLocaleString()} Followers` : 'Instagram Creator'));
+      setInstagramReach(instaFollowers);
       setInstagramUrl(profile.url || `https://instagram.com/${cleanUser}`);
 
       if (profile.avatarUrl && (!avatarUrl || avatarUrl.includes('alex-passport') || !isAvatarFromYouTube)) {

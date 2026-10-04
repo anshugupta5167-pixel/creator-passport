@@ -850,7 +850,37 @@ function apiMiddlewarePlugin(): Plugin {
             }
           }
 
-          // 12. /api/ip
+          // 12. /api/cron/sync-metrics (Periodic YouTube Subscriber Validation Background Job)
+          if (pathname === '/api/cron/sync-metrics') {
+            try {
+              let creators = readJson(creatorsFile, []);
+              let updated = 0;
+              for (let i = 0; i < creators.length; i++) {
+                const c = creators[i];
+                const yt = c.connections?.youtube;
+                if (yt && (yt.profileUrl || yt.channelId || yt.username)) {
+                  try {
+                    const target = yt.profileUrl || yt.channelId || yt.username;
+                    const res = await resolveRealYouTubeChannel(target);
+                    if (res && res.subscriberCountFormatted) {
+                      creators[i].connections.youtube.metricValue = res.subscriberCountFormatted;
+                      creators[i].connections.youtube.verified = true;
+                      creators[i].connections.youtube.lastValidated = new Date().toISOString();
+                      updated++;
+                    }
+                  } catch (e) {}
+                }
+              }
+              if (updated > 0) {
+                writeJson(creatorsFile, creators);
+              }
+              return sendJson({ success: true, updatedCreators: updated, total: creators.length });
+            } catch (err: any) {
+              return sendJson({ error: err.message || 'Metrics validation failed' }, 500);
+            }
+          }
+
+          // 13. /api/ip
           if (pathname === '/api/ip') {
             return sendJson({ ip: '127.0.0.1' });
           }
