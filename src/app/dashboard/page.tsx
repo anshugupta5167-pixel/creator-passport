@@ -10,6 +10,7 @@ import ImageUploader from '@/components/ImageUploader';
 import MoreChannelsCard from '@/components/MoreChannelsCard';
 import { CreatorProfile, ChannelItem } from '@/lib/types';
 import { resolveYouTubeUrl, resolveDiscordUrl, resolveInstagramUrl, getSafeAvatarUrl } from '@/lib/urls';
+import { resolveRealYouTubeChannel, resolveRealDiscordServer, resolveRealInstagramProfile } from '@/lib/detection';
 import { cacheAuthHint, readCachedAuthHint } from '@/lib/clientAuth';
 import { useSessionSync } from '@/hooks/useSessionSync';
 import { syncCreatorToFirebase } from '@/lib/firebase';
@@ -436,57 +437,71 @@ export default function DashboardPage() {
     setDetectErrorBanner(null);
 
     try {
-      const res = await fetch('/api/youtube/detect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: targetUrl, passportId }),
-      });
-      
-      let data: any = {};
+      let channelData: any = null;
+
+      // 1. Try serverless endpoint first
       try {
-        const text = await res.text();
-        data = text ? JSON.parse(text) : {};
-      } catch (e) {
-        data = {};
+        const res = await fetch('/api/youtube/detect', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: targetUrl, passportId }),
+        });
+        
+        if (res.ok) {
+          const text = await res.text();
+          if (text && text.startsWith('{')) {
+            const data = JSON.parse(text);
+            if (data.success && data.channel) {
+              channelData = data.channel;
+            }
+          }
+        }
+      } catch (e) {}
+
+      // 2. Client-side resolver fallback (guaranteed to work on Vercel, static preview, etc.)
+      if (!channelData) {
+        try {
+          channelData = await resolveRealYouTubeChannel(targetUrl);
+        } catch (e) {}
       }
 
-      if (!res.ok || data.error || !data.channel) {
-        throw new Error(data.error || 'YouTube channel not found. Check the URL or handle and try again.');
+      if (!channelData) {
+        throw new Error('YouTube channel not found. Check the URL or handle and try again.');
       }
 
-      const formattedUrl = resolveYouTubeUrl(data.channel.url, data.channel.handle, data.channel.channelId, username);
-      const cleanHandle = (data.channel.handle || '').replace(/^@/, '');
+      const formattedUrl = resolveYouTubeUrl(channelData.url, channelData.handle, channelData.channelId, username);
+      const cleanHandle = (channelData.handle || '').replace(/^@/, '');
 
-      setYoutubeChannelId(data.channel.channelId || '');
+      setYoutubeChannelId(channelData.channelId || '');
       setYoutubeUsername(cleanHandle);
-      setYoutubeReach(data.channel.subscriberCountFormatted || 'Audited');
+      setYoutubeReach(channelData.subscriberCountFormatted || 'Audited');
       setYoutubeUrl(formattedUrl);
 
-      if (data.channel.avatarUrl) {
-        setAvatarUrl(data.channel.avatarUrl);
+      if (channelData.avatarUrl) {
+        setAvatarUrl(channelData.avatarUrl);
         setIsAvatarFromYouTube(true);
       }
-      if (data.channel.title) {
-        setDisplayName(data.channel.title);
+      if (channelData.title) {
+        setDisplayName(channelData.title);
       }
       if (cleanHandle) {
         setUsername(cleanHandle.toLowerCase().replace(/[^a-z0-9_]/g, ''));
       }
-      if (data.channel.description) {
-        setBio(data.channel.description.substring(0, 300));
+      if (channelData.description) {
+        setBio(channelData.description.substring(0, 300));
       }
 
       setYoutubeFetchedData({
-        avatarUrl: data.channel.avatarUrl,
-        title: data.channel.title,
+        avatarUrl: channelData.avatarUrl,
+        title: channelData.title,
         handle: `@${cleanHandle}`,
-        subscriberCountFormatted: data.channel.subscriberCountFormatted || 'Audited',
+        subscriberCountFormatted: channelData.subscriberCountFormatted || 'Audited',
         channelUrl: formattedUrl,
-        channelId: data.channel.channelId || '',
+        channelId: channelData.channelId || '',
       });
 
       setDetectErrorBanner(null);
-      setToastMessage(`✓ YouTube Auto-Synced: ${data.channel.title} (${data.channel.subscriberCountFormatted || 'Audited'})`);
+      setToastMessage(`✓ YouTube Auto-Synced: ${channelData.title} (${channelData.subscriberCountFormatted || 'Audited'})`);
       setTimeout(() => setToastMessage(null), 3500);
     } catch (err: any) {
       const msg = err.message || 'Could not auto-detect YouTube channel';
@@ -531,25 +546,34 @@ export default function DashboardPage() {
     setDetectErrorBanner(null);
 
     try {
-      const res = await fetch('/api/discord/detect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ inviteUrl: discordUrl.trim(), passportId }),
-      });
-      
-      let data: any = {};
+      let server: any = null;
+
+      // 1. Try serverless endpoint first
       try {
-        const text = await res.text();
-        data = text ? JSON.parse(text) : {};
-      } catch (e) {
-        data = {};
+        const res = await fetch('/api/discord/detect', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ inviteUrl: discordUrl.trim(), passportId }),
+        });
+        
+        if (res.ok) {
+          const text = await res.text();
+          if (text && text.startsWith('{')) {
+            const data = JSON.parse(text);
+            if (data.success && (data.server || data.guild)) {
+              server = data.server || data.guild;
+            }
+          }
+        }
+      } catch (e) {}
+
+      // 2. Client-side Discord resolver fallback
+      if (!server) {
+        try {
+          server = await resolveRealDiscordServer(discordUrl.trim());
+        } catch (e) {}
       }
 
-      if (!res.ok || data.error) {
-        throw new Error(data.error || 'Discord invite invalid or expired');
-      }
-
-      const server = data.server || data.guild;
       if (!server) {
         throw new Error('Discord server could not be detected. Check the invite URL.');
       }
@@ -600,25 +624,34 @@ export default function DashboardPage() {
     setDetectErrorBanner(null);
 
     try {
-      const res = await fetch('/api/instagram/detect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: instagramUrl.trim() }),
-      });
-      
-      let data: any = {};
+      let profile: any = null;
+
+      // 1. Try serverless endpoint first
       try {
-        const text = await res.text();
-        data = text ? JSON.parse(text) : {};
-      } catch (e) {
-        data = {};
+        const res = await fetch('/api/instagram/detect', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: instagramUrl.trim() }),
+        });
+        
+        if (res.ok) {
+          const text = await res.text();
+          if (text && text.startsWith('{')) {
+            const data = JSON.parse(text);
+            if (data.success && data.profile) {
+              profile = data.profile;
+            }
+          }
+        }
+      } catch (e) {}
+
+      // 2. Client-side Instagram resolver fallback
+      if (!profile) {
+        try {
+          profile = await resolveRealInstagramProfile(instagramUrl.trim());
+        } catch (e) {}
       }
 
-      if (!res.ok || data.error) {
-        throw new Error(data.error || 'Instagram profile not found');
-      }
-
-      const profile = data.profile;
       if (!profile?.username) {
         throw new Error('Instagram did not return a valid profile.');
       }
