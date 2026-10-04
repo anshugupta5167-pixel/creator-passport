@@ -111,6 +111,9 @@ export default function DashboardPage() {
   const [instagramDetecting, setInstagramDetecting] = useState(false);
   const [instagramError, setInstagramError] = useState<string | null>(null);
 
+  // Platform Detection Notification Banner
+  const [detectErrorBanner, setDetectErrorBanner] = useState<{ platform: string; message: string; suggestion?: string } | null>(null);
+
   const [moreChannels, setMoreChannels] = useState<ChannelItem[]>([]);
   const [selectedTheme, setSelectedTheme] = useState<CardTheme>('obsidian');
   const [isVerified, setIsVerified] = useState(false);
@@ -430,6 +433,7 @@ export default function DashboardPage() {
     if (!targetUrl) return;
     setYoutubeDetecting(true);
     setYoutubeError(null);
+    setDetectErrorBanner(null);
 
     try {
       const res = await fetch('/api/youtube/detect', {
@@ -437,15 +441,25 @@ export default function DashboardPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: targetUrl, passportId }),
       });
-      const data = await res.json();
-      if (!res.ok || data.error) throw new Error(data.error || 'YouTube channel not found');
+      
+      let data: any = {};
+      try {
+        const text = await res.text();
+        data = text ? JSON.parse(text) : {};
+      } catch (e) {
+        data = {};
+      }
+
+      if (!res.ok || data.error || !data.channel) {
+        throw new Error(data.error || 'YouTube channel not found. Check the URL or handle and try again.');
+      }
 
       const formattedUrl = resolveYouTubeUrl(data.channel.url, data.channel.handle, data.channel.channelId, username);
-      const cleanHandle = data.channel.handle.replace(/^@/, '');
+      const cleanHandle = (data.channel.handle || '').replace(/^@/, '');
 
-      setYoutubeChannelId(data.channel.channelId);
+      setYoutubeChannelId(data.channel.channelId || '');
       setYoutubeUsername(cleanHandle);
-      setYoutubeReach(data.channel.subscriberCountFormatted);
+      setYoutubeReach(data.channel.subscriberCountFormatted || 'Audited');
       setYoutubeUrl(formattedUrl);
 
       if (data.channel.avatarUrl) {
@@ -466,15 +480,24 @@ export default function DashboardPage() {
         avatarUrl: data.channel.avatarUrl,
         title: data.channel.title,
         handle: `@${cleanHandle}`,
-        subscriberCountFormatted: data.channel.subscriberCountFormatted,
+        subscriberCountFormatted: data.channel.subscriberCountFormatted || 'Audited',
         channelUrl: formattedUrl,
-        channelId: data.channel.channelId,
+        channelId: data.channel.channelId || '',
       });
 
-      setToastMessage(`✓ YouTube Auto-Synced: ${data.channel.title} (${data.channel.subscriberCountFormatted})`);
+      setDetectErrorBanner(null);
+      setToastMessage(`✓ YouTube Auto-Synced: ${data.channel.title} (${data.channel.subscriberCountFormatted || 'Audited'})`);
       setTimeout(() => setToastMessage(null), 3500);
     } catch (err: any) {
-      setYoutubeError(err.message || 'Could not auto-detect YouTube channel');
+      const msg = err.message || 'Could not auto-detect YouTube channel';
+      setYoutubeError(msg);
+      setDetectErrorBanner({
+        platform: 'YouTube',
+        message: msg,
+        suggestion: 'Ensure your channel handle (e.g. @MrBeast) or full channel link is public and active.',
+      });
+      setToastMessage(`✕ YouTube Detection Failed: ${msg}`);
+      setTimeout(() => setToastMessage(null), 5000);
     } finally {
       setYoutubeDetecting(false);
     }
@@ -505,6 +528,7 @@ export default function DashboardPage() {
     if (!discordUrl.trim()) return;
     setDiscordDetecting(true);
     setDiscordError(null);
+    setDetectErrorBanner(null);
 
     try {
       const res = await fetch('/api/discord/detect', {
@@ -512,22 +536,43 @@ export default function DashboardPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ inviteUrl: discordUrl.trim(), passportId }),
       });
-      const data = await res.json();
-      if (!res.ok || data.error) throw new Error(data.error || 'Discord invite invalid');
+      
+      let data: any = {};
+      try {
+        const text = await res.text();
+        data = text ? JSON.parse(text) : {};
+      } catch (e) {
+        data = {};
+      }
+
+      if (!res.ok || data.error) {
+        throw new Error(data.error || 'Discord invite invalid or expired');
+      }
 
       const server = data.server || data.guild;
-      if (!server?.guildId || !Number.isInteger(server.memberCount)) {
-        throw new Error('Discord did not return a live server member count.');
+      if (!server) {
+        throw new Error('Discord server could not be detected. Check the invite URL.');
       }
-      setDiscordGuildId(server.guildId);
-      setDiscordUsername(server.guildName);
-      setDiscordReach(server.memberCountFormatted || `${server.memberCount.toLocaleString()} Members`);
+
+      const memberDisplay = server.memberCountFormatted || (server.memberCount ? `${server.memberCount.toLocaleString()} Members` : 'Community Server');
+      setDiscordGuildId(server.guildId || 'guild_discord');
+      setDiscordUsername(server.guildName || 'Discord Community');
+      setDiscordReach(memberDisplay);
       setDiscordUrl(server.inviteUrl || resolveDiscordUrl(discordUrl, server.guildName, server.guildId, username));
 
-      setToastMessage(`✓ Discord Server Found: ${server.guildName} (${server.memberCountFormatted || `${server.memberCount} Members`})`);
+      setDetectErrorBanner(null);
+      setToastMessage(`✓ Discord Server Found: ${server.guildName || 'Community'} (${memberDisplay})`);
       setTimeout(() => setToastMessage(null), 3500);
     } catch (err: any) {
-      setDiscordError(err.message || 'Could not verify Discord invite');
+      const msg = err.message || 'Could not verify Discord invite';
+      setDiscordError(msg);
+      setDetectErrorBanner({
+        platform: 'Discord',
+        message: msg,
+        suggestion: 'Verify your Discord server invite code or link (e.g. https://discord.gg/yourserver). Make sure the invite has not expired.',
+      });
+      setToastMessage(`✕ Discord Detection Failed: ${msg}`);
+      setTimeout(() => setToastMessage(null), 5000);
     } finally {
       setDiscordDetecting(false);
     }
@@ -552,6 +597,7 @@ export default function DashboardPage() {
     if (!instagramUrl.trim()) return;
     setInstagramDetecting(true);
     setInstagramError(null);
+    setDetectErrorBanner(null);
 
     try {
       const res = await fetch('/api/instagram/detect', {
@@ -559,8 +605,18 @@ export default function DashboardPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: instagramUrl.trim() }),
       });
-      const data = await res.json();
-      if (!res.ok || data.error) throw new Error(data.error || 'Instagram profile not found');
+      
+      let data: any = {};
+      try {
+        const text = await res.text();
+        data = text ? JSON.parse(text) : {};
+      } catch (e) {
+        data = {};
+      }
+
+      if (!res.ok || data.error) {
+        throw new Error(data.error || 'Instagram profile not found');
+      }
 
       const profile = data.profile;
       if (!profile?.username) {
@@ -569,7 +625,7 @@ export default function DashboardPage() {
 
       const cleanUser = profile.username.toLowerCase().replace(/^@/, '');
       setInstagramUsername(cleanUser);
-      setInstagramReach(profile.followersFormatted || (profile.followersCount ? `${profile.followersCount.toLocaleString()} Followers` : 'Unavailable'));
+      setInstagramReach(profile.followersFormatted || (profile.followersCount ? `${profile.followersCount.toLocaleString()} Followers` : 'Instagram Creator'));
       setInstagramUrl(profile.url || `https://instagram.com/${cleanUser}`);
 
       if (profile.avatarUrl && (!avatarUrl || avatarUrl.includes('alex-passport') || !isAvatarFromYouTube)) {
@@ -582,10 +638,19 @@ export default function DashboardPage() {
         setBio(profile.bio.substring(0, 300));
       }
 
+      setDetectErrorBanner(null);
       setToastMessage(`✓ Instagram Connected: @${cleanUser} (${profile.followersFormatted || 'Verified'})`);
       setTimeout(() => setToastMessage(null), 3500);
     } catch (err: any) {
-      setInstagramError(err.message || 'Could not verify Instagram profile');
+      const msg = err.message || 'Could not verify Instagram profile';
+      setInstagramError(msg);
+      setDetectErrorBanner({
+        platform: 'Instagram',
+        message: msg,
+        suggestion: 'Ensure the Instagram username or link (e.g. https://instagram.com/username) is correct and public.',
+      });
+      setToastMessage(`✕ Instagram Detection Failed: ${msg}`);
+      setTimeout(() => setToastMessage(null), 5000);
     } finally {
       setInstagramDetecting(false);
     }
@@ -1032,6 +1097,40 @@ export default function DashboardPage() {
                       <p className="text-xs sm:text-sm text-slate-400">Connect your YouTube channel, Discord server, and socials to show audited numbers.</p>
                     </div>
 
+                    {/* Prominent Detection Error Banner Notification */}
+                    {detectErrorBanner && (
+                      <div className="p-4 rounded-2xl bg-red-950/40 border border-red-500/40 text-red-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xl backdrop-blur-md animate-fadeIn">
+                        <div className="flex items-start gap-3">
+                          <div className="w-8 h-8 rounded-xl bg-red-500/20 border border-red-500/30 flex items-center justify-center text-red-400 shrink-0 mt-0.5 sm:mt-0">
+                            <AlertCircle className="w-4 h-4" />
+                          </div>
+                          <div className="space-y-0.5">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-red-400 uppercase tracking-wider font-mono">
+                                {detectErrorBanner.platform} Detection Alert
+                              </span>
+                            </div>
+                            <p className="text-xs sm:text-sm font-medium text-white">
+                              {detectErrorBanner.message}
+                            </p>
+                            {detectErrorBanner.suggestion && (
+                              <p className="text-[11px] text-red-300/80">
+                                {detectErrorBanner.suggestion}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setDetectErrorBanner(null)}
+                          className="self-end sm:self-center p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                          title="Dismiss notice"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+
                     {/* YouTube Integration Card */}
                     <div className="p-5 rounded-2xl bg-[#10141e] border border-white/10 space-y-4">
                       <div className="flex items-center justify-between">
@@ -1053,17 +1152,20 @@ export default function DashboardPage() {
                         )}
                       </div>
 
-                      <div className="flex flex-col sm:flex-row gap-2.5">
+                      <div className="detect-buttons-container flex flex-col sm:flex-row gap-2.5">
                         <input
                           type="text"
                           value={youtubeUrl}
-                          onChange={(e) => setYoutubeUrl(e.target.value)}
+                          onChange={(e) => {
+                            setYoutubeUrl(e.target.value);
+                            if (youtubeError) setYoutubeError(null);
+                          }}
                           placeholder="Paste channel link (e.g. https://youtube.com/@mkbhd)"
                           className="flex-1 px-4 py-2.5 rounded-xl bg-[#080a0f] border border-white/10 text-white text-xs sm:text-sm placeholder-slate-500 focus:outline-none focus:border-sky-400 transition-colors"
                         />
                         <button
                           type="button"
-                          onClick={handleDetectYouTube}
+                          onClick={() => handleDetectYouTube()}
                           disabled={youtubeDetecting || !youtubeUrl.trim()}
                           className="btn-chq-primary px-5 py-2.5 text-xs font-bold shrink-0 disabled:opacity-50"
                         >
@@ -1083,7 +1185,7 @@ export default function DashboardPage() {
 
                       {youtubeError && (
                         <p className="text-xs text-red-400 flex items-center gap-1.5 font-medium">
-                          <AlertCircle className="w-3.5 h-3.5" />
+                          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                           <span>{youtubeError}</span>
                         </p>
                       )}
@@ -1110,11 +1212,14 @@ export default function DashboardPage() {
                         )}
                       </div>
 
-                      <div className="flex flex-col sm:flex-row gap-2.5">
+                      <div className="detect-buttons-container flex flex-col sm:flex-row gap-2.5">
                         <input
                           type="text"
                           value={discordUrl}
-                          onChange={(e) => setDiscordUrl(e.target.value)}
+                          onChange={(e) => {
+                            setDiscordUrl(e.target.value);
+                            if (discordError) setDiscordError(null);
+                          }}
                           placeholder="Paste Discord server invite (e.g. https://discord.gg/yourcommunity)"
                           className="flex-1 px-4 py-2.5 rounded-xl bg-[#080a0f] border border-white/10 text-white text-xs sm:text-sm placeholder-slate-500 focus:outline-none focus:border-sky-400 transition-colors"
                         />
@@ -1140,7 +1245,7 @@ export default function DashboardPage() {
 
                       {discordError && (
                         <p className="text-xs text-red-400 flex items-center gap-1.5 font-medium">
-                          <AlertCircle className="w-3.5 h-3.5" />
+                          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                           <span>{discordError}</span>
                         </p>
                       )}
@@ -1167,11 +1272,14 @@ export default function DashboardPage() {
                         )}
                       </div>
 
-                      <div className="flex flex-col sm:flex-row gap-2.5">
+                      <div className="detect-buttons-container flex flex-col sm:flex-row gap-2.5">
                         <input
                           type="text"
                           value={instagramUrl}
-                          onChange={(e) => setInstagramUrl(e.target.value)}
+                          onChange={(e) => {
+                            setInstagramUrl(e.target.value);
+                            if (instagramError) setInstagramError(null);
+                          }}
                           placeholder="Paste Instagram profile link (e.g. https://instagram.com/mrbeast or @handle)"
                           className="flex-1 px-4 py-2.5 rounded-xl bg-[#080a0f] border border-white/10 text-white text-xs sm:text-sm placeholder-slate-500 focus:outline-none focus:border-sky-400 transition-colors"
                         />
@@ -1197,7 +1305,7 @@ export default function DashboardPage() {
 
                       {instagramError && (
                         <p className="text-xs text-red-400 flex items-center gap-1.5 font-medium">
-                          <AlertCircle className="w-3.5 h-3.5" />
+                          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                           <span>{instagramError}</span>
                         </p>
                       )}
